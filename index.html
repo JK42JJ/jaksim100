@@ -7,7 +7,6 @@
 <meta name="theme-color" content="#0f1117" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="作心百日">
-<meta name="description" content="作心百日 — 목표 5개로 100일 습관 만들기">
 <title>作心百日</title>
 <style>
   :root{
@@ -359,11 +358,11 @@
   function renderWizard(){
     var fb=document.getElementById('fab'); if(fb) fb.hidden=true; closeSheet();
     if(W.step===1){
-      app.innerHTML='<div class="hero-wiz"><span class="eyebrow">100일 습관 만들기 · 작심백일</span><h1><span class="k">作心百日</span></h1><p>목표 5개만 넣으면 100일 프로그램이 자동으로 짜집니다.</p></div>'+
+      app.innerHTML='<div class="hero-wiz"><span class="eyebrow">100일 습관 만들기 · 작심백일</span><h1><span class="k">作心百日</span></h1><p>목표를 입력하면 자동으로 플랜이 수립됩니다.</p></div>'+
         '<div style="padding:8px 0 0">'+steps(1)+
         '<p class="kicker">STEP 1 · 누구의 100일</p><p class="q">누가 시작하나요?</p><div class="picks">'+
         '<button class="pick '+(W.persona==='me'?'sel':'')+'" data-p="me"><span class="pemo">'+ic('personMe')+'</span><span><span class="pk-t">나</span><span class="pk-s">수능·자기계발 트랙</span></span></button>'+
-        '<button class="pick '+(W.persona==='child'?'sel':'')+'" data-p="child"><span class="pemo">'+ic('family')+'</span><span><span class="pk-t">자녀 방학 플랜</span><span class="pk-s">아이 습관 5개 · 부모가 리워드 관리</span></span></button>'+
+        '<button class="pick '+(W.persona==='child'?'sel':'')+'" data-p="child"><span class="pemo">'+ic('family')+'</span><span><span class="pk-t">자녀 플랜</span><span class="pk-s">아이 습관 5개 · 부모가 리워드 관리</span></span></button>'+
         '</div>'+wnav()+'</div>';
     } else {
       app.innerHTML='<div style="padding:34px 0 0">'+steps(W.step)+wbody()+wnav()+'</div>';
