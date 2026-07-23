@@ -388,7 +388,7 @@
     app.querySelector('#psName').oninput=function(e){ PS.name=e.target.value; };
     app.querySelector('#psItem').oninput=function(e){ PS.item=e.target.value; };
     app.querySelector('#psBonus').oninput=function(e){ PS.bonus=e.target.value; };
-    app.querySelector('#psBack').onclick=renderLanding;
+    app.querySelector('#psBack').onclick=function(){ location.href='./'; };
     app.querySelector('#psCreate').onclick=function(){
       var btn=this; btn.disabled=true; btn.textContent='만드는 중…';
       var room={ v:2, createdAt:today(), days:PS.days, parentDev:dev,
@@ -534,6 +534,7 @@
     }
   })();
   window.addEventListener('hashchange', boot);
+  window.addEventListener('pageshow', function(e){ if(e.persisted) location.reload(); });  // bfcache 되살림 방지(뒤로 시 과거 화면)
   boot();
 })();
 </script>
