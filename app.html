@@ -479,7 +479,7 @@
   function weekBlockChild(){
     var mon=mondayOf(today()), td=today(), hits=weekHits(), lbl=['월','화','수','목','금','토','일'];
     var cells=''; for(var i=0;i<7;i++){ var dd=addDays(mon,i); cells+='<span class="tap '+(dayDone(dd)?'on':'')+(dd===td?' today':'')+'" data-wd="'+dd+'">'+(dayDone(dd)?'✓':lbl[i])+'</span>'; }
-    var claimed=C().rewards.some(function(r){return r.week===mon;}); var item=R.reward.item, bonus=R.reward.bonus||'';
+    var claimed=C().rewards.some(function(r){return r.week===mon;}); var item=C().reward.item, bonus=C().reward.bonus||'';
     var btn = claimed? '<button class="claim go" disabled>'+ic('check')+'이번 주 리워드 획득 완료</button>'
       : hits>=5? '<button class="claim go" data-claim="1">'+ic('gift')+'이번 주 리워드 받기</button>'
       : '<button class="claim" disabled>'+ic('lock')+(5-hits)+'일 더 채우면 리워드</button>';
@@ -497,7 +497,7 @@
   function bindChild(){
     app.querySelectorAll('.rcheck[data-t], .rmain[data-t]').forEach(function(el){ el.onclick=function(){ var i=+el.dataset.t, d=today(); if(!C().log[d]) C().log[d]=[]; while(C().log[d].length<C().goals.length) C().log[d].push(false); C().log[d][i]=!C().log[d][i]; saveRoom(); renderChild(); }; });
     app.querySelectorAll('[data-wd]').forEach(function(el){ el.onclick=function(){ var d=el.dataset.wd; if(d>today()){ toast('아직 오지 않은 날'); return; } if(!C().log[d]) C().log[d]=[]; while(C().log[d].length<C().goals.length) C().log[d].push(false); var any=C().log[d].some(function(x){return x;}); for(var k=0;k<C().goals.length;k++) C().log[d][k]=!any; saveRoom(); renderChild(); }; });
-    var cl=app.querySelector('[data-claim]'); if(cl) cl.onclick=function(){ C().rewards.push({week:mondayOf(today()),item:R.reward.item,bonus:R.reward.bonus||''}); saveRoom(); toast(R.reward.item+' 획득!'+(R.reward.bonus?' + '+R.reward.bonus:'')); ctab='badge'; renderChild(); };
+    var cl=app.querySelector('[data-claim]'); if(cl) cl.onclick=function(){ C().rewards.push({week:mondayOf(today()),item:C().reward.item,bonus:C().reward.bonus||''}); saveRoom(); toast(C().reward.item+' 획득!'+(C().reward.bonus?' + '+C().reward.bonus:'')); ctab='badge'; renderChild(); };
   }
 
   // ── 코치 시트 (아이용) ──
