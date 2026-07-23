@@ -208,8 +208,9 @@
 (function(){
   var app=document.getElementById('app');
   var KV='https://jsonblob.com/api/jsonBlob';
-  // 실제 코치 백엔드(Claude Code · Sonnet). 설정되면 실제 응답, 비어있으면 임시 응답.
-  var COACH_API='';
+  // 실제 코치 백엔드(Claude Code · Sonnet). coach.json에서 URL 로드 — 터널 URL 바뀌면 그 파일만 갱신.
+  var COACH_API='', COACH_SECRET='';
+  try{ fetch('coach.json',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).then(function(c){ if(c&&c.api){ COACH_API=c.api; COACH_SECRET=c.secret||''; } }).catch(function(){}); }catch(e){}
 
   var IC={
     parent:'<circle cx="12" cy="7.5" r="3.4"/><path d="M5.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/>',
@@ -247,7 +248,8 @@
   var EX_GOALS=[{t:'책 읽기',min:'하루 10p',ic:'book'},{t:'수학 문제집',min:'하루 2p',ic:'math'},{t:'영어 문장',min:'하루 3문장',ic:'globe'},{t:'줄넘기',min:'하루 100개',ic:'stopwatch'},{t:'감사일기',min:'하루 5분',ic:'journal'}];
 
   // ── 상태 ──
-  var R=null, roomId=null, role=null, polling=null;
+  var R=null, roomId=null, role=null, polling=null, dev='';
+  function deviceId(){ var d=localStorage.getItem('jdev'); if(!d){ d='d'+Math.random().toString(36).slice(2,10)+Date.now().toString(36); try{localStorage.setItem('jdev',d);}catch(e){} } return d; }
 
   function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]; }); }
   function toast(m){ var t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(function(){t.classList.remove('show');},1800); }
@@ -255,7 +257,7 @@
   function today(){ return iso(new Date()); }
   function addDays(s,n){ var d=new Date(s+'T00:00:00'); d.setDate(d.getDate()+n); return iso(d); }
   function mondayOf(s){ var d=new Date(s+'T00:00:00'), w=(d.getDay()+6)%7; d.setDate(d.getDate()-w); return iso(d); }
-  var kid=0, MAXKIDS=4;
+  var kid=0, MAXKIDS=2;
   function C(){ return R.children[kid] || R.children[0]; }
   function dayNum(c){ c=c||C(); var s=c.start||R.createdAt||today(); return Math.floor((new Date(today()+'T00:00:00')-new Date(s+'T00:00:00'))/86400000)+1; }
   function dayDone(d,c){ c=c||C(); var l=c.log[d]; return !!l && l.some(function(x){return x;}); }
@@ -279,6 +281,7 @@
 
   // ══════════ 진입 라우팅 ══════════
   function boot(){
+    dev=deviceId();
     var p=parseHash();
     if(!p.room){ role=null; roomId=null; renderLanding(); return; }
     roomId=p.room; role=p.role|| (localStorage.getItem('jr_'+roomId)) || 'child';
@@ -295,10 +298,17 @@
 
   function route(){
     var fb=document.getElementById('fab');
-    if(role==='parent'){ if(fb) fb.hidden=true; renderParent(); }
-    else { if(C().goals.length===0){ if(fb) fb.hidden=true; renderChildWizard(); } else { if(fb) fb.hidden=false; renderChild(); } }
+    if(role==='parent'){ if(fb) fb.hidden=true; if(R.parentDev && R.parentDev!==dev){ blockScreen('parent'); return; } renderParent(); }
+    else { var c=C(); if(c.goals.length===0){ if(fb) fb.hidden=true; renderChildWizard(); } else if(c.dev && c.dev!==dev){ if(fb) fb.hidden=true; blockScreen('child'); } else { if(fb) fb.hidden=false; renderChild(); } }
   }
-  function startPoll(){ clearInterval(polling); polling=setInterval(function(){ if(!roomId) return; apiGet(roomId).then(function(data){ var fresh=JSON.stringify(migrate(data)); if(fresh!==JSON.stringify(R)){ R=JSON.parse(fresh); if(role==='parent') renderParent(); else if(C().goals.length) renderChild(); } }).catch(function(){}); }, 12000); }
+  function blockScreen(kind){
+    var msg = kind==='child' ? '이 방은 이미 다른 기기에서 시작했어요. 처음 시작한 기기에서 이어가 주세요.' : '이 방은 다른 기기에서 관리 중이에요.';
+    var h='<div class="hero" style="padding-top:64px"><span style="display:grid;place-items:center;width:54px;height:54px;border-radius:15px;background:var(--surface2);box-shadow:inset 0 0 0 1px var(--line);color:var(--ink3);margin:0 auto 16px">'+ic('lock')+'</span><h1 style="font-size:22px;color:var(--ink)">다른 기기에서 사용 중</h1><p>'+msg+'</p></div>';
+    if(kind==='parent') h+='<div class="nav" style="margin-top:22px"><button class="btn btn-primary" id="rebind">이 기기에서 이어받기</button></div>';
+    app.innerHTML=h; document.getElementById('fab').hidden=true;
+    var rb=document.getElementById('rebind'); if(rb) rb.onclick=function(){ R.parentDev=dev; saveRoom(); renderParent(); };
+  }
+  function startPoll(){ clearInterval(polling); polling=setInterval(function(){ if(!roomId) return; apiGet(roomId).then(function(data){ var fresh=JSON.stringify(migrate(data)); if(fresh!==JSON.stringify(R)){ R=JSON.parse(fresh); route(); } }).catch(function(){}); }, 12000); }
 
   // ══════════ 랜딩 (부모 시작 / 아이는 링크로) ══════════
   function renderLanding(){
@@ -330,7 +340,7 @@
     app.querySelector('#psBack').onclick=renderLanding;
     app.querySelector('#psCreate').onclick=function(){
       var btn=this; btn.disabled=true; btn.textContent='만드는 중…';
-      var room={ v:2, createdAt:today(), days:PS.days,
+      var room={ v:2, createdAt:today(), days:PS.days, parentDev:dev,
         children:[ { name:(PS.name||'').trim(), reward:{item:(PS.item||'게임 30분').trim(),bonus:(PS.bonus||'').trim()}, goals:[], log:{}, rewards:[], seenBadges:[], chat:[], start:'' } ] };
       apiCreate(room).then(function(id){ if(!id) throw new Error(); roomId=id; R=migrate(room); role='parent'; kid=0; localStorage.setItem('jr_'+id,'parent'); history.replaceState(null,'','#room='+id+'&role=parent'); renderParent(); startPoll(); toast('링크가 만들어졌어요'); })
         .catch(function(){ btn.disabled=false; btn.innerHTML=ic('link')+'링크 만들기'; toast('네트워크 오류 — 다시 시도'); });
@@ -386,7 +396,7 @@
       app.querySelectorAll('[data-gi]').forEach(function(inp){ inp.oninput=function(){ CW.goalText[+inp.dataset.gi]=inp.value; }; });
       app.querySelector('#cwDone').onclick=function(){
         C().goals=EX_GOALS.map(function(g,i){ return {t:(CW.goalText[i]||'').trim()||g.t, min:g.min, ic:g.ic}; });
-        C().start=today(); saveRoom(); toast('시작됐어요!'); route();
+        C().start=today(); C().dev=dev; saveRoom(); toast('시작됐어요!'); route();
       };
     }
   }
@@ -447,7 +457,7 @@
     return '기록했어요. 이번 주 '+hits+'/5일 — 오늘도 한 칸 쌓아요.';
   }
   function coachRespond(msg){
-    if(COACH_API){ return fetch(COACH_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,name:C().name||'아이',week:weekHits(),total:totalDone(),day:dayNum(),goals:(C().goals||[]).map(function(g){return g.t;}),history:(C().chat||[]).slice(-8)})}).then(function(r){return r.json();}).then(function(d){ return (d&&(d.reply||d.text))||coachReply(msg); }).catch(function(){ return coachReply(msg); }); }
+    if(COACH_API){ return fetch(COACH_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,secret:COACH_SECRET,name:C().name||'아이',week:weekHits(),total:totalDone(),day:dayNum(),goals:(C().goals||[]).map(function(g){return g.t;}),history:(C().chat||[]).slice(-8)})}).then(function(r){return r.json();}).then(function(d){ return (d&&(d.reply||d.text))||coachReply(msg); }).catch(function(){ return coachReply(msg); }); }
     return Promise.resolve(coachReply(msg));
   }
   function chatSheetBody(){
