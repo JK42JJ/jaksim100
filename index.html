@@ -253,12 +253,13 @@
   function today(){ return iso(new Date()); }
   function addDays(s,n){ var d=new Date(s+'T00:00:00'); d.setDate(d.getDate()+n); return iso(d); }
   function mondayOf(s){ var d=new Date(s+'T00:00:00'), w=(d.getDay()+6)%7; d.setDate(d.getDate()-w); return iso(d); }
-  function C(){ return R.child; }
-  function dayNum(){ var s=C().start||R.createdAt||today(); return Math.floor((new Date(today()+'T00:00:00')-new Date(s+'T00:00:00'))/86400000)+1; }
-  function dayDone(d){ var l=C().log[d]; return !!l && l.some(function(x){return x;}); }
-  function totalDone(){ var n=0,l=C().log; for(var k in l){ if(l[k]&&l[k].some(function(x){return x;})) n++; } return n; }
-  function weekHits(){ var mon=mondayOf(today()),n=0; for(var i=0;i<7;i++){ if(dayDone(addDays(mon,i))) n++; } return n; }
-  function badgeCount(){ var td=totalDone(); return BADGES.filter(function(b){return td>=b.n;}).length; }
+  var kid=0, MAXKIDS=4;
+  function C(){ return R.children[kid] || R.children[0]; }
+  function dayNum(c){ c=c||C(); var s=c.start||R.createdAt||today(); return Math.floor((new Date(today()+'T00:00:00')-new Date(s+'T00:00:00'))/86400000)+1; }
+  function dayDone(d,c){ c=c||C(); var l=c.log[d]; return !!l && l.some(function(x){return x;}); }
+  function totalDone(c){ c=c||C(); var n=0,l=c.log; for(var k in l){ if(l[k]&&l[k].some(function(x){return x;})) n++; } return n; }
+  function weekHits(c){ c=c||C(); var mon=mondayOf(today()),n=0; for(var i=0;i<7;i++){ if(dayDone(addDays(mon,i),c)) n++; } return n; }
+  function badgeCount(c){ c=c||C(); var td=totalDone(c); return BADGES.filter(function(b){return td>=b.n;}).length; }
 
   // ── API (jsonblob 공유 방) ──
   function apiCreate(obj){ return fetch(KV,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(obj)}).then(function(res){ var loc=res.headers.get('Location'); return loc?loc.split('/').pop():null; }); }
@@ -268,19 +269,23 @@
   function saveRoom(){ if(!roomId||!R) return; clearTimeout(putT); putT=setTimeout(function(){ apiPut(roomId,R).catch(function(){}); },250); }
 
   function parseHash(){ var h=location.hash.replace(/^#/,''), p={}; h.split('&').forEach(function(kv){ var a=kv.split('='); if(a[0]) p[a[0]]=decodeURIComponent(a[1]||''); }); return p; }
-  function childLink(){ return location.origin+location.pathname+'#room='+roomId+'&role=child'; }
+  function childLink(i){ return location.origin+location.pathname+'#room='+roomId+'&role=child&kid='+(i||0); }
 
   // ══════════ 진입 라우팅 ══════════
   function boot(){
     var p=parseHash();
     if(!p.room){ role=null; roomId=null; renderLanding(); return; }
     roomId=p.room; role=p.role|| (localStorage.getItem('jr_'+roomId)) || 'child';
+    kid=Math.max(0, parseInt(p.kid,10)||0);
     localStorage.setItem('jr_'+roomId, role);
     app.innerHTML='<div class="loading"><div class="spin"></div>방을 불러오는 중…</div>';
-    apiGet(roomId).then(function(data){ R=migrate(data); route(); startPoll(); })
+    apiGet(roomId).then(function(data){ R=migrate(data); if(kid>=R.children.length) kid=0; route(); startPoll(); })
       .catch(function(){ app.innerHTML='<div class="loading">방을 찾을 수 없어요. 링크가 만료됐을 수 있어요.<br><br><button class="btn btn-primary" onclick="location.hash=\'\';location.reload()" style="max-width:220px;margin:0 auto">처음으로</button></div>'; });
   }
-  function migrate(d){ d=d||{}; d.child=d.child||{}; var c=d.child; c.goals=c.goals||[]; c.log=c.log||{}; c.rewards=c.rewards||[]; c.seenBadges=c.seenBadges||[]; c.chat=c.chat||[]; d.reward=d.reward||{item:'게임 30분',bonus:''}; d.days=d.days||100; return d; }
+  function migrate(d){ d=d||{}; if(!d.children){ d.children = d.child? [d.child] : [{}]; } delete d.child;
+    if(!d.children.length) d.children=[{}];
+    d.children.forEach(function(c){ c.goals=c.goals||[]; c.log=c.log||{}; c.rewards=c.rewards||[]; c.seenBadges=c.seenBadges||[]; c.chat=c.chat||[]; c.reward=c.reward||(d.reward||{item:'게임 30분',bonus:''}); c.name=c.name||''; c.start=c.start||''; });
+    d.days=d.days||100; return d; }
 
   function route(){
     var fb=document.getElementById('fab');
@@ -315,45 +320,43 @@
     app.querySelector('#psBack').onclick=renderLanding;
     app.querySelector('#psCreate').onclick=function(){
       var btn=this; btn.disabled=true; btn.textContent='만드는 중…';
-      var room={ v:1, createdAt:today(), days:PS.days, reward:{item:(PS.item||'게임 30분').trim(),bonus:(PS.bonus||'').trim()},
-        child:{ name:(PS.name||'').trim(), goals:[], log:{}, rewards:[], seenBadges:[], chat:[], start:'' } };
-      apiCreate(room).then(function(id){ if(!id) throw new Error(); roomId=id; R=room; role='parent'; localStorage.setItem('jr_'+id,'parent'); history.replaceState(null,'','#room='+id+'&role=parent'); renderParent(); startPoll(); toast('링크가 만들어졌어요'); })
+      var room={ v:2, createdAt:today(), days:PS.days,
+        children:[ { name:(PS.name||'').trim(), reward:{item:(PS.item||'게임 30분').trim(),bonus:(PS.bonus||'').trim()}, goals:[], log:{}, rewards:[], seenBadges:[], chat:[], start:'' } ] };
+      apiCreate(room).then(function(id){ if(!id) throw new Error(); roomId=id; R=migrate(room); role='parent'; kid=0; localStorage.setItem('jr_'+id,'parent'); history.replaceState(null,'','#room='+id+'&role=parent'); renderParent(); startPoll(); toast('링크가 만들어졌어요'); })
         .catch(function(){ btn.disabled=false; btn.innerHTML=ic('link')+'링크 만들기'; toast('네트워크 오류 — 다시 시도'); });
     };
   }
 
   // ══════════ 부모 화면: 모니터 + 보상 + 링크 ══════════
   function renderParent(){
-    var c=C(), setup=c.goals.length>0, dn=dayNum(), td=totalDone();
-    var pct=Math.max(0,Math.min(100,Math.round((dn-1)/R.days*100)));
-    var h='<div class="top"><div class="top-row"><h1>作心百日</h1><span class="role-tag parent">부모</span><span class="gen">'+(setup?'DAY '+dn+' / '+R.days:'대기 중')+'</span></div>';
-    if(setup) h+='<div class="progress"><i style="width:'+pct+'%"></i></div>';
-    h+='<div class="cov">'+(c.name?esc(c.name)+' · ':'')+(setup?'이번 주 '+weekHits()+'/5일 달성':'아이가 링크로 들어오면 시작돼요')+'</div></div>';
-
-    // 아이용 링크
-    h+='<h2>아이에게 보낼 링크</h2><div class="card linkbox"><div class="grow-s" style="font-size:12.5px;color:var(--ink2);margin:0 0 2px">이 링크를 카톡으로 아이에게 보내세요. 아이가 열면 자기 목표를 정하고 시작해요.</div>'+
-      '<div class="linkurl"><input id="clink" readonly value="'+esc(childLink())+'"><button id="ccopy">'+ic('copy')+' 복사</button></div></div>';
-
-    // 아이 진행
-    h+='<h2>아이 진행</h2>';
-    if(!setup){ h+='<div class="card mon-child"><span class="mon-av">'+ic('child')+'</span><div><div class="mon-n">'+(c.name||'아이')+'</div><div class="mon-s">아직 시작 전 — 링크를 열면 목표를 정해요.</div></div></div>'; }
-    else {
-      var log=c.log[today()]||[]; var doneToday=log.filter(Boolean).length;
-      h+='<div class="card mon-child"><span class="mon-av">'+ic('child')+'</span><div><div class="mon-n">'+(c.name||'아이')+' · 배지 '+badgeCount()+'개</div><div class="mon-s">오늘 '+doneToday+'/'+c.goals.length+'액션 · 누적 '+td+'일</div></div></div>';
-      var mon=mondayOf(today()); var cells=''; var lbl=['월','화','수','목','금','일'.length?'토':'','일'];lbl=['월','화','수','목','금','토','일'];
-      for(var i=0;i<7;i++){ var dd=addDays(mon,i); cells+='<span class="'+(dayDone(dd)?'on':'')+(dd===today()?' today':'')+'">'+(dayDone(dd)?'✓':lbl[i])+'</span>'; }
-      h+='<div class="card weekcard" style="margin-top:10px"><div class="wk-head">'+ic('gift')+'이번 주 달성</div><div class="week" style="margin-top:8px">'+cells+'</div><div class="wk-goal">주 5일 달성 시 아이가 스스로 리워드를 받아요 · <b>'+weekHits()+'</b>/5일</div></div>';
-      h+='<div class="grid" style="margin-top:10px"><div class="card stat"><h3>배지</h3><div class="big">'+badgeCount()+'<small>/ '+BADGES.length+'</small></div><div class="sub">누적 발급</div></div><div class="card stat"><h3>총 달성</h3><div class="big">'+td+'<small>일</small></div><div class="sub">DAY '+dn+'</div></div></div>';
-    }
-
-    // 보상 설정
-    h+='<h2>보상 설정</h2><div class="card" style="padding:16px"><label class="setlbl" style="margin-top:0">주간 리워드 (주 5일 달성 시)</label><input class="field" id="rwItem" value="'+esc(R.reward.item)+'" placeholder="예) 게임 30분">'+
-      '<label class="setlbl">보너스 (선택)</label><input class="field" id="rwBonus" value="'+esc(R.reward.bonus||'')+'" placeholder="예) 주말 놀이공원"><button class="claim go" id="rwSave" style="margin-top:14px">'+ic('check')+'저장</button></div>';
-    h+='<div class="footer"><button class="reset" id="preset">새 방 만들기</button> · 진행은 부모·아이가 실시간 공유돼요.</div>';
+    var kids=R.children;
+    var h='<div class="top"><div class="top-row"><h1>作心百日</h1><span class="role-tag parent">부모</span><span class="gen">아이 '+kids.length+'명</span></div>'+
+      '<div class="cov">아이별 링크를 카톡으로 보내면, 각자 목표를 정해 시작해요. 진행은 실시간 공유.</div></div>';
+    kids.forEach(function(c,i){ h+=childBlock(c,i); });
+    if(kids.length<MAXKIDS) h+='<button class="rolecard" id="addKid" style="margin-top:16px;justify-content:center"><span class="ri">'+ic('child')+'</span><span class="rt" style="font-size:14.5px">아이 추가하기</span></button>';
+    h+='<div class="footer"><button class="reset" id="preset">새 방 만들기</button></div>';
     app.innerHTML=h;
-    var cp=app.querySelector('#ccopy'); if(cp) cp.onclick=function(){ var i=app.querySelector('#clink'); i.select(); try{ navigator.clipboard.writeText(i.value); }catch(e){} try{ document.execCommand('copy'); }catch(e){} toast('링크 복사됨 — 카톡에 붙여넣기'); };
-    var rb=app.querySelector('#rwSave'); if(rb) rb.onclick=function(){ R.reward.item=(app.querySelector('#rwItem').value.trim()||'게임 30분'); R.reward.bonus=app.querySelector('#rwBonus').value.trim(); saveRoom(); toast('보상을 저장했어요'); };
+    kids.forEach(function(c,i){ bindChildBlock(i); });
+    var ak=app.querySelector('#addKid'); if(ak) ak.onclick=function(){ if(R.children.length>=MAXKIDS) return; R.children.push({name:'',reward:{item:'게임 30분',bonus:''},goals:[],log:{},rewards:[],seenBadges:[],chat:[],start:''}); saveRoom(); renderParent(); toast('아이를 추가했어요'); };
     var pr=app.querySelector('#preset'); if(pr) pr.onclick=function(){ if(confirm('새 방을 만들면 지금 방과 분리됩니다. 계속?')){ localStorage.removeItem('jr_'+roomId); location.hash=''; location.reload(); } };
+  }
+  function childBlock(c,i){
+    var setup=c.goals.length>0, dn=dayNum(c), td=totalDone(c), nm=c.name||('아이 '+(i+1));
+    var h='<h2>'+esc(nm)+' <span class="cnt">'+(setup?'DAY '+dn:'대기')+'</span></h2><div class="card" style="padding:14px 15px">';
+    h+='<label class="setlbl" style="margin-top:0">이름</label><input class="field cname" data-i="'+i+'" value="'+esc(c.name)+'" placeholder="아이 '+(i+1)+'">';
+    h+='<label class="setlbl">아이용 링크 (카톡 전송)</label><div class="linkurl"><input class="clink" data-i="'+i+'" readonly value="'+esc(childLink(i))+'"><button class="ccopy" data-i="'+i+'">'+ic('copy')+' 복사</button></div>';
+    if(setup){ var log=c.log[today()]||[]; var mon=mondayOf(today()),cells='',lbl=['월','화','수','목','금','토','일'];
+      for(var k=0;k<7;k++){ var dd=addDays(mon,k); cells+='<span class="'+(dayDone(dd,c)?'on':'')+(dd===today()?' today':'')+'">'+(dayDone(dd,c)?'✓':lbl[k])+'</span>'; }
+      h+='<div style="margin-top:13px;font-size:12.5px;color:var(--ink2)">오늘 <b style="color:var(--ink)">'+log.filter(Boolean).length+'/'+c.goals.length+'</b> 액션 · 누적 '+td+'일 · 배지 '+badgeCount(c)+'개</div><div class="week" style="margin-top:8px">'+cells+'</div><div class="wk-goal" style="margin-top:8px">이번 주 <b>'+weekHits(c)+'</b>/5일 달성</div>';
+    } else { h+='<div style="margin-top:13px;font-size:12.5px;color:var(--ink3)">아직 시작 전 — 링크를 열면 목표를 정해요.</div>'; }
+    h+='<label class="setlbl">주간 리워드</label><input class="field rwi" data-i="'+i+'" value="'+esc(c.reward.item)+'" placeholder="예) 게임 30분"><label class="setlbl">보너스 (선택)</label><input class="field rwb" data-i="'+i+'" value="'+esc(c.reward.bonus||'')+'" placeholder="예) 주말 놀이공원"><button class="claim go rwsave" data-i="'+i+'" style="margin-top:12px">'+ic('check')+'이 아이 저장</button>';
+    if(R.children.length>1) h+='<button class="reset delkid" data-i="'+i+'" style="margin-top:12px;display:block">이 아이 삭제</button>';
+    return h+'</div>';
+  }
+  function bindChildBlock(i){
+    var cp=app.querySelector('.ccopy[data-i="'+i+'"]'); if(cp) cp.onclick=function(){ var inp=app.querySelector('.clink[data-i="'+i+'"]'); inp.select(); try{navigator.clipboard.writeText(inp.value);}catch(e){} try{document.execCommand('copy');}catch(e){} toast('링크 복사됨 — 카톡에 붙여넣기'); };
+    var rs=app.querySelector('.rwsave[data-i="'+i+'"]'); if(rs) rs.onclick=function(){ var ch=R.children[i]; var nm=app.querySelector('.cname[data-i="'+i+'"]'); if(nm) ch.name=nm.value.trim(); ch.reward.item=(app.querySelector('.rwi[data-i="'+i+'"]').value.trim()||'게임 30분'); ch.reward.bonus=app.querySelector('.rwb[data-i="'+i+'"]').value.trim(); saveRoom(); toast('저장했어요'); renderParent(); };
+    var dk=app.querySelector('.delkid[data-i="'+i+'"]'); if(dk) dk.onclick=function(){ if(confirm('이 아이를 삭제할까요? 되돌릴 수 없어요.')){ R.children.splice(i,1); saveRoom(); renderParent(); } };
   }
 
   // ══════════ 아이: 목표 5개 신규 설정 (위저드) ══════════
@@ -361,7 +364,7 @@
   function renderChildWizard(){
     document.getElementById('fab').hidden=true;
     if(CW.step===1){
-      app.innerHTML='<div class="hero" style="padding-top:40px"><span class="eyebrow">'+esc(R.child.name||'')+(R.child.name?' · ':'')+'나의 100일</span><h1>作心百日</h1><p>부모님이 만든 방에 들어왔어요. 이제 <b>내가 매일 할 5가지</b>를 정해볼까요?</p></div>'+
+      app.innerHTML='<div class="hero" style="padding-top:40px"><span class="eyebrow">'+esc(C().name||'')+(C().name?' · ':'')+'나의 100일</span><h1>作心百日</h1><p>부모님이 만든 방에 들어왔어요. 이제 <b>내가 매일 할 5가지</b>를 정해볼까요?</p></div>'+
         '<div class="nav" style="margin-top:26px"><button class="btn btn-primary" id="cwGo">시작하기</button></div>';
       app.querySelector('#cwGo').onclick=function(){ CW.step=2; renderChildWizard(); };
       return;
@@ -372,8 +375,8 @@
         '<div class="nav"><button class="btn btn-primary" id="cwDone">'+ic('flame')+'100일 시작하기</button></div></div>';
       app.querySelectorAll('[data-gi]').forEach(function(inp){ inp.oninput=function(){ CW.goalText[+inp.dataset.gi]=inp.value; }; });
       app.querySelector('#cwDone').onclick=function(){
-        R.child.goals=EX_GOALS.map(function(g,i){ return {t:(CW.goalText[i]||'').trim()||g.t, min:g.min, ic:g.ic}; });
-        R.child.start=today(); saveRoom(); toast('시작됐어요!'); route();
+        C().goals=EX_GOALS.map(function(g,i){ return {t:(CW.goalText[i]||'').trim()||g.t, min:g.min, ic:g.ic}; });
+        C().start=today(); saveRoom(); toast('시작됐어요!'); route();
       };
     }
   }
