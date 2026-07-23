@@ -208,6 +208,8 @@
 (function(){
   var app=document.getElementById('app');
   var KV='https://jsonblob.com/api/jsonBlob';
+  // 실제 코치 백엔드(Claude Code · Sonnet). 설정되면 실제 응답, 비어있으면 임시 응답.
+  var COACH_API='';
 
   var IC={
     parent:'<circle cx="12" cy="7.5" r="3.4"/><path d="M5.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/>',
@@ -265,8 +267,12 @@
   function apiCreate(obj){ return fetch(KV,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(obj)}).then(function(res){ var loc=res.headers.get('Location'); return loc?loc.split('/').pop():null; }); }
   function apiGet(id){ return fetch(KV+'/'+id,{headers:{'Accept':'application/json'}}).then(function(res){ if(!res.ok) throw new Error('load'); return res.json(); }); }
   function apiPut(id,obj){ return fetch(KV+'/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(obj)}); }
+  function apiDelete(id){ return fetch(KV+'/'+id,{method:'DELETE'}); }
   var putT=null;
   function saveRoom(){ if(!roomId||!R) return; clearTimeout(putT); putT=setTimeout(function(){ apiPut(roomId,R).catch(function(){}); },250); }
+  function pruneBackups(){ try{ var now=Date.now(), wk=6048e5; for(var i=localStorage.length-1;i>=0;i--){ var k=localStorage.key(i); if(k&&k.indexOf('jbak_')===0){ var b; try{ b=JSON.parse(localStorage.getItem(k)); }catch(e){ b=null; } if(!b||!b.at||now-b.at>wk) localStorage.removeItem(k); } } }catch(e){} }
+  function backupRoom(){ try{ localStorage.setItem('jbak_'+roomId, JSON.stringify({data:R, at:Date.now(), name:(R.children&&R.children[0]&&R.children[0].name)||''})); }catch(e){} pruneBackups(); }
+  function recentBackups(){ pruneBackups(); var out=[]; try{ for(var i=0;i<localStorage.length;i++){ var k=localStorage.key(i); if(k&&k.indexOf('jbak_')===0){ var b; try{ b=JSON.parse(localStorage.getItem(k)); }catch(e){ b=null; } if(b&&b.data) out.push({key:k,at:b.at,data:b.data,name:b.name}); } } }catch(e){} out.sort(function(a,b){return b.at-a.at;}); return out; }
 
   function parseHash(){ var h=location.hash.replace(/^#/,''), p={}; h.split('&').forEach(function(kv){ var a=kv.split('='); if(a[0]) p[a[0]]=decodeURIComponent(a[1]||''); }); return p; }
   function childLink(i){ return location.origin+location.pathname+'#room='+roomId+'&role=child&kid='+(i||0); }
@@ -297,11 +303,15 @@
   // ══════════ 랜딩 (부모 시작 / 아이는 링크로) ══════════
   function renderLanding(){
     document.getElementById('fab').hidden=true;
-    app.innerHTML='<div class="hero"><span class="eyebrow">100일 습관 · 부모와 아이 함께</span><h1>作心百日</h1>'+
+    var baks=recentBackups();
+    var h='<div class="hero"><span class="eyebrow">100일 습관 · 부모와 아이 함께</span><h1>作心百日</h1>'+
       '<p>부모가 플랜과 보상을 만들고, 아이에게 링크를 보내면 아이가 자기 목표를 정해 매일 실천해요. 진행은 둘이 공유됩니다.</p></div>'+
       '<div class="roles"><button class="rolecard pri" id="startParent"><span class="ri">'+ic('parent')+'</span><span><span class="rt">부모로 시작하기</span><span class="rs">플랜·보상 만들고 아이에게 링크 전달</span></span></button>'+
       '<div class="rolecard" style="cursor:default"><span class="ri">'+ic('child')+'</span><span><span class="rt">아이는 링크로 들어와요</span><span class="rs">부모가 보낸 카톡 링크를 열면 시작</span></span></div></div>';
+    if(baks.length){ var b=baks[0]; h+='<div class="card" style="margin-top:16px;padding:14px 15px"><div style="font-size:12.5px;color:var(--ink2)">최근 초기화한 방이 있어요 · 7일 내 복구 가능</div><button class="claim go" id="restoreBtn" style="margin-top:10px">'+ic('refresh')+(b.name?esc(b.name)+' ':'')+'방 복구하기</button></div>'; }
+    app.innerHTML=h;
     document.getElementById('startParent').onclick=renderParentSetup;
+    var rb=document.getElementById('restoreBtn'); if(rb) rb.onclick=function(){ var bk=recentBackups()[0]; if(!bk) return; rb.disabled=true; rb.textContent='복구 중…'; apiCreate(bk.data).then(function(id){ if(!id) throw new Error(); localStorage.removeItem(bk.key); localStorage.setItem('jr_'+id,'parent'); location.hash='room='+id+'&role=parent'; }).catch(function(){ rb.disabled=false; rb.innerHTML=ic('refresh')+'복구 실패 — 다시'; }); };
   }
 
   // ══════════ 부모: 플랜/보상 설정 → 방 생성 ══════════
@@ -334,11 +344,11 @@
       '<div class="cov">아이별 링크를 카톡으로 보내면, 각자 목표를 정해 시작해요. 진행은 실시간 공유.</div></div>';
     kids.forEach(function(c,i){ h+=childBlock(c,i); });
     if(kids.length<MAXKIDS) h+='<button class="rolecard" id="addKid" style="margin-top:16px;justify-content:center"><span class="ri">'+ic('child')+'</span><span class="rt" style="font-size:14.5px">아이 추가하기</span></button>';
-    h+='<div class="footer"><button class="reset" id="preset">새 방 만들기</button></div>';
+    h+='<div class="footer"><button class="reset" id="preset">전체 초기화 (방·아이 모두 삭제)</button></div>';
     app.innerHTML=h;
     kids.forEach(function(c,i){ bindChildBlock(i); });
     var ak=app.querySelector('#addKid'); if(ak) ak.onclick=function(){ if(R.children.length>=MAXKIDS) return; R.children.push({name:'',reward:{item:'게임 30분',bonus:''},goals:[],log:{},rewards:[],seenBadges:[],chat:[],start:''}); saveRoom(); renderParent(); toast('아이를 추가했어요'); };
-    var pr=app.querySelector('#preset'); if(pr) pr.onclick=function(){ if(confirm('새 방을 만들면 지금 방과 분리됩니다. 계속?')){ localStorage.removeItem('jr_'+roomId); location.hash=''; location.reload(); } };
+    var pr=app.querySelector('#preset'); if(pr) pr.onclick=function(){ if(confirm('정말 초기화할까요?\n\n아이 데이터를 포함해 이 방이 모두 삭제됩니다. 아이 링크도 더는 열리지 않아요.\n(만약을 위해 7일간 백업해 둡니다.)')){ backupRoom(); apiDelete(roomId).catch(function(){}); localStorage.removeItem('jr_'+roomId); clearInterval(polling); toast('초기화됨 · 7일간 백업 보관'); setTimeout(function(){ location.hash=''; location.reload(); },500); } };
   }
   function childBlock(c,i){
     var setup=c.goals.length>0, dn=dayNum(c), td=totalDone(c), nm=c.name||('아이 '+(i+1));
@@ -436,16 +446,32 @@
     if(/\?|어떻게|뭐|추천|도와/.test(msg)) return '작게 시작해요. 제일 쉬운 1개부터 지금 3분만 해볼까요?';
     return '기록했어요. 이번 주 '+hits+'/5일 — 오늘도 한 칸 쌓아요.';
   }
+  function coachRespond(msg){
+    if(COACH_API){ return fetch(COACH_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,name:C().name||'아이',week:weekHits(),total:totalDone(),day:dayNum(),goals:(C().goals||[]).map(function(g){return g.t;}),history:(C().chat||[]).slice(-8)})}).then(function(r){return r.json();}).then(function(d){ return (d&&(d.reply||d.text))||coachReply(msg); }).catch(function(){ return coachReply(msg); }); }
+    return Promise.resolve(coachReply(msg));
+  }
   function chatSheetBody(){
     var msgs=(C().chat||[]).slice(-30);
     var body=msgs.length? msgs.map(function(m){ return '<div class="cmsg '+(m.from==='me'?'me':'coach')+'">'+esc(m.text)+'</div>'; }).join('') : '<div class="cmsg coach">필요한 건 언제든 여기 적어요. 오늘 어땠어요?</div>';
     return '<div class="sheet-head"><span class="chat-av">'+ic('flame')+'</span><div><div class="chat-nm">100일 코치</div><div class="chat-st">코멘트를 남기면 코치가 답해요</div></div><button class="sheet-x" id="sheetx">✕</button></div><div class="chat-log" id="chatlog">'+body+'</div><div class="chat-in"><input id="chatinput" placeholder="오늘 코멘트·질문을 입력…" maxlength="200"><button id="chatsend">'+ic('send')+'</button></div>';
   }
-  function renderSheetBody(){ var sb=document.querySelector('#sheet .sheet-body'); if(!sb) return; sb.innerHTML=chatSheetBody(); var x=document.getElementById('sheetx'); if(x) x.onclick=closeSheet; var inp=document.getElementById('chatinput'), snd=document.getElementById('chatsend'); if(inp&&snd){ var send=function(){ var v=inp.value.trim(); if(!v) return; if(!C().chat) C().chat=[]; C().chat.push({from:'me',text:v,d:today()}); C().chat.push({from:'coach',text:coachReply(v),d:today()}); if(C().chat.length>60) C().chat=C().chat.slice(-60); saveRoom(); renderSheetBody(); setTimeout(function(){ var i2=document.getElementById('chatinput'); if(i2) i2.focus(); },20); }; snd.onclick=send; inp.onkeydown=function(e){ if(e.key==='Enter'){ e.preventDefault(); send(); } }; } var l=sb.querySelector('#chatlog'); if(l) l.scrollTop=l.scrollHeight; }
+  function renderSheetBody(){ var sb=document.querySelector('#sheet .sheet-body'); if(!sb) return; sb.innerHTML=chatSheetBody(); var x=document.getElementById('sheetx'); if(x) x.onclick=closeSheet; var inp=document.getElementById('chatinput'), snd=document.getElementById('chatsend'); if(inp&&snd){ var send=function(){ var v=inp.value.trim(); if(!v) return; inp.value=''; if(!C().chat) C().chat=[]; C().chat.push({from:'me',text:v,d:today()}); C().chat.push({from:'coach',text:'…',pending:true,d:today()}); renderSheetBody(); coachRespond(v).then(function(reply){ var ch=C().chat; for(var j=ch.length-1;j>=0;j--){ if(ch[j].pending){ ch[j]={from:'coach',text:reply,d:today()}; break; } } if(ch.length>60) C().chat=ch.slice(-60); saveRoom(); renderSheetBody(); }); }; snd.onclick=send; inp.onkeydown=function(e){ if(e.key==='Enter'){ e.preventDefault(); send(); } }; } var l=sb.querySelector('#chatlog'); if(l) l.scrollTop=l.scrollHeight; }
   function openSheet(){ var s=document.getElementById('sheet'); renderSheetBody(); s.classList.add('open'); s.setAttribute('aria-hidden','false'); }
   function closeSheet(){ var s=document.getElementById('sheet'); if(s){ s.classList.remove('open'); s.setAttribute('aria-hidden','true'); } }
 
-  (function initSheet(){ var fab=document.getElementById('fab'); if(fab){ fab.innerHTML=ic('flame'); fab.onclick=openSheet; } var bg=document.querySelector('#sheet .sheet-bg'); if(bg) bg.onclick=closeSheet; var g=document.querySelector('#sheet .sheet-grip'); if(g) g.onclick=closeSheet; })();
+  (function initSheet(){
+    var fab=document.getElementById('fab'); if(fab){ fab.innerHTML=ic('flame'); fab.onclick=openSheet; }
+    var bg=document.querySelector('#sheet .sheet-bg'); if(bg) bg.onclick=closeSheet;
+    var g=document.querySelector('#sheet .sheet-grip'); if(g) g.onclick=closeSheet;
+    var card=document.querySelector('#sheet .sheet-card');
+    if(card){ var sy=0, dy=0, on=false;
+      function inHandle(t){ return !!(t.closest('.sheet-grip') || (t.closest('.sheet-head') && !t.closest('button'))); }
+      card.addEventListener('touchstart', function(e){ if(!inHandle(e.target)){ on=false; return; } on=true; sy=e.touches[0].clientY; dy=0; card.style.transition='none'; }, {passive:true});
+      card.addEventListener('touchmove', function(e){ if(!on) return; dy=Math.max(0, e.touches[0].clientY-sy); card.style.transform='translateY('+dy+'px)'; if(dy>2 && e.cancelable) e.preventDefault(); }, {passive:false});
+      function endDrag(){ if(!on) return; on=false; card.style.transition=''; card.style.transform=''; if(dy>90) closeSheet(); }
+      card.addEventListener('touchend', endDrag); card.addEventListener('touchcancel', endDrag);
+    }
+  })();
   window.addEventListener('hashchange', boot);
   boot();
 })();
