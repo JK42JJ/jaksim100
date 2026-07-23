@@ -9,6 +9,8 @@
 <meta name="apple-mobile-web-app-title" content="作心百日">
 <title>作心百日</title>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Noto+Serif+KR:wght@800;900&display=swap');
+  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.min.css');
   :root{
     --bg:#f3f1ec; --surface:#ffffff; --surface2:#f8f7f3;
     --ink:#22262f; --ink2:#6a7080; --ink3:#9ba1ac; --line:#e7e4dc; --line2:#f0eee7;
@@ -157,6 +159,39 @@
   .rolecard .ri{ width:46px; height:46px; border-radius:13px; display:grid; place-items:center; background:var(--surface); box-shadow:inset 0 0 0 1px var(--line); color:var(--accent); flex:none; }
   .rolecard .ri .ico{ width:24px; height:24px; }
   .rt{ display:block; font-weight:800; font-size:15.5px; } .rs{ display:block; font-size:12.5px; color:var(--ink2); margin-top:2px; }
+  /* ── 랜딩 페이지 (作心三日 → 作心百日) ── */
+  .lp{ animation:fade .5s ease both; }
+  .lp-hero{ text-align:center; padding:40px 4px 8px; }
+  .wordmark{ font-family:'Noto Serif KR',serif; font-weight:900; font-size:clamp(30px,9vw,44px); line-height:1.15; display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; }
+  .wordmark .w3{ color:#c0392b; text-decoration:line-through; text-decoration-thickness:3px; opacity:.82; }
+  .wordmark .warr{ color:var(--ink3); font-family:'IBM Plex Mono',monospace; font-weight:500; font-size:.62em; }
+  .wordmark .w100{ color:var(--ink); } .wordmark .w100 b{ color:#2B4FD6; }
+  @media (prefers-color-scheme:dark){ .wordmark .w100 b{ color:#8ba3f2; } .wordmark .w3{ color:#e06459; } }
+  .lp-sub{ color:var(--ink2); font-size:15px; line-height:1.6; margin:16px auto 0; max-width:330px; }
+  .lp-sub b{ color:var(--ink); font-weight:700; }
+  .grid100{ display:grid; grid-template-columns:repeat(10,1fr); gap:3px; max-width:282px; margin:26px auto 0; }
+  .grid100 i{ aspect-ratio:1; border-radius:2.5px; background:var(--line); }
+  .grid100 i.stop{ background:repeating-linear-gradient(45deg,#c0392b,#c0392b 1.5px,transparent 1.5px,transparent 4px); box-shadow:inset 0 0 0 1px color-mix(in srgb,#c0392b 40%,transparent); }
+  .grid100 i.fill{ background:#2B4FD6; opacity:0; transform:scale(.4); animation:cellin .35s cubic-bezier(.2,.8,.3,1.2) forwards; }
+  @media (prefers-color-scheme:dark){ .grid100 i.fill{ background:#6d86e8; } }
+  @keyframes cellin{ to{ opacity:1; transform:scale(1); } }
+  .grid-cap{ text-align:center; font-size:13px; color:var(--ink2); margin:16px auto 0; }
+  .grid-cap b{ font-family:'IBM Plex Mono',monospace; font-weight:600; }
+  .grid-cap .r{ color:#c0392b; font-weight:700; } .grid-cap .b{ color:#2B4FD6; }
+  @media (prefers-color-scheme:dark){ .grid-cap .b{ color:#8ba3f2; } .grid-cap .r{ color:#e06459; } }
+  .lp-sec{ margin-top:30px; }
+  .lp-h2{ font-size:12px; font-weight:800; letter-spacing:.14em; color:var(--ink2); text-transform:uppercase; margin:0 2px 12px; }
+  .rewards-row{ display:flex; gap:8px; flex-wrap:wrap; }
+  .rew-chip{ font-size:12.5px; font-weight:600; color:var(--ink); background:var(--surface); border:1px solid var(--line); border-radius:99px; padding:8px 13px; }
+  .rew-chip b{ font-family:'IBM Plex Mono',monospace; color:#2B4FD6; font-weight:600; }
+  @media (prefers-color-scheme:dark){ .rew-chip b{ color:#8ba3f2; } }
+  .faq-item{ border-top:1px solid var(--line2); padding:14px 2px; }
+  .faq-item:first-child{ border-top:none; }
+  .faq-q{ font-size:14.5px; font-weight:700; }
+  .faq-a{ font-size:13px; color:var(--ink2); margin-top:5px; line-height:1.55; }
+  .faq-a b{ color:var(--ink); }
+  .lp-foot{ margin-top:32px; text-align:center; font-size:11px; color:var(--ink3); line-height:1.7; }
+  @media (prefers-reduced-motion:reduce){ .grid100 i.fill{ opacity:1; transform:none; animation:none; } }
   .linkbox{ padding:16px; }
   .linkurl{ display:flex; gap:8px; margin-top:10px; }
   .linkurl input{ flex:1; min-width:0; padding:12px 13px; border:1.5px solid var(--line); border-radius:11px; background:var(--surface2); color:var(--ink2); font:inherit; font-size:12.5px; }
@@ -311,14 +346,26 @@
   function startPoll(){ clearInterval(polling); polling=setInterval(function(){ if(!roomId) return; apiGet(roomId).then(function(data){ var fresh=JSON.stringify(migrate(data)); if(fresh!==JSON.stringify(R)){ R=JSON.parse(fresh); route(); } }).catch(function(){}); }, 12000); }
 
   // ══════════ 랜딩 (부모 시작 / 아이는 링크로) ══════════
+  function faq(q,a){ return '<div class="faq-item"><div class="faq-q">'+q+'</div><div class="faq-a">'+a+'</div></div>'; }
   function renderLanding(){
     document.getElementById('fab').hidden=true;
     var baks=recentBackups();
-    var h='<div class="hero"><span class="eyebrow">100일 습관 · 부모와 아이 함께</span><h1>作心百日</h1>'+
-      '<p>부모가 플랜과 보상을 만들고, 아이에게 링크를 보내면 아이가 자기 목표를 정해 매일 실천해요. 진행은 둘이 공유됩니다.</p></div>'+
-      '<div class="roles"><button class="rolecard pri" id="startParent"><span class="ri">'+ic('parent')+'</span><span><span class="rt">부모로 시작하기</span><span class="rs">플랜·보상 만들고 아이에게 링크 전달</span></span></button>'+
+    var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var cells=''; for(var i=0;i<100;i++){ if(i<3){ cells+='<i class="stop"></i>'; } else { cells+='<i class="fill" style="animation-delay:'+(reduce?0:(30+(i-3)*16))+'ms"></i>'; } }
+    var h='<div class="lp"><div class="lp-hero"><div class="wordmark"><span class="w3">作心三日</span><span class="warr">→</span><span class="w100">作心<b>百</b>日</span></div>'+
+      '<p class="lp-sub">작심삼일로 끝나던 결심을, <b>100일</b>로. 부모가 만들고 아이가 매일 채우는 습관 트래커.</p></div>'+
+      '<div class="grid100">'+cells+'</div>'+
+      '<div class="grid-cap"><span class="r">3일</span>에서 멈추던 걸 — <b class="b">97칸</b> 더 채워요.</div>'+
+      '<div class="roles" style="margin-top:30px"><button class="rolecard pri" id="startParent"><span class="ri">'+ic('parent')+'</span><span><span class="rt">부모로 시작하기</span><span class="rs">플랜·보상 만들고 아이에게 링크 전달</span></span></button>'+
       '<div class="rolecard" style="cursor:default"><span class="ri">'+ic('child')+'</span><span><span class="rt">아이는 링크로 들어와요</span><span class="rs">부모가 보낸 카톡 링크를 열면 시작</span></span></div></div>';
-    if(baks.length){ var b=baks[0]; h+='<div class="card" style="margin-top:16px;padding:14px 15px"><div style="font-size:12.5px;color:var(--ink2)">최근 초기화한 방이 있어요 · 7일 내 복구 가능</div><button class="claim go" id="restoreBtn" style="margin-top:10px">'+ic('refresh')+(b.name?esc(b.name)+' ':'')+'방 복구하기</button></div>'; }
+    if(baks.length){ var b=baks[0]; h+='<div class="card" style="margin-top:14px;padding:14px 15px"><div style="font-size:12.5px;color:var(--ink2)">최근 초기화한 방 · 7일 내 복구 가능</div><button class="claim go" id="restoreBtn" style="margin-top:10px">'+ic('refresh')+(b.name?esc(b.name)+' ':'')+'방 복구하기</button></div>'; }
+    h+='<div class="lp-sec"><div class="lp-h2">보상 예시 · 부모가 정해요</div><div class="rewards-row"><span class="rew-chip">게임 <b>30분</b></span><span class="rew-chip">주말 나들이</span><span class="rew-chip">치킨 파티</span><span class="rew-chip">용돈 <b>+α</b></span></div></div>';
+    h+='<div class="lp-sec"><div class="lp-h2">자주 묻는 질문</div>'+
+      faq('하루라도 빠지면 실패인가요?','아니요. 하루 5가지 중 <b>1개만 해도 그날은 달성</b>이에요. 완벽이 아니라 "안 하는 날 없애기"가 목표예요.')+
+      faq('아이가 여러 명이면?','부모 한 계정에서 <b>최대 2명</b>까지, 아이마다 별도 링크·목표·보상으로 관리해요.')+
+      faq('데이터는 안전한가요?','부모·아이가 <b>같은 방을 공유</b>하고 기기에 저장돼요. 부모가 초기화하면 모두 삭제되고 <b>7일간 백업</b>됩니다.')+
+      faq('돈이 드나요?','<b>무료</b>예요. 설치 없이 링크만 있으면 바로 시작해요.')+
+      '</div><div class="lp-foot">作心百日 · 3일이 아니라 100일. 끝엔 습관이 남아요.</div></div>';
     app.innerHTML=h;
     document.getElementById('startParent').onclick=renderParentSetup;
     var rb=document.getElementById('restoreBtn'); if(rb) rb.onclick=function(){ var bk=recentBackups()[0]; if(!bk) return; rb.disabled=true; rb.textContent='복구 중…'; apiCreate(bk.data).then(function(id){ if(!id) throw new Error(); localStorage.removeItem(bk.key); localStorage.setItem('jr_'+id,'parent'); location.hash='room='+id+'&role=parent'; }).catch(function(){ rb.disabled=false; rb.innerHTML=ic('refresh')+'복구 실패 — 다시'; }); };
