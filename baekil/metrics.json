@@ -213,16 +213,16 @@
  ],
  "weather": {
   "ok": true,
-  "cur": 28.4,
-  "feel": 34.4,
-  "now_desc": "대체로 맑음",
+  "cur": 29.7,
+  "feel": 35.3,
+  "now_desc": "구름 조금",
   "t_label": "내일",
-  "t_max": 30.1,
+  "t_max": 30.3,
   "t_desc": "약한 이슬비",
-  "t_prob": 77,
+  "t_prob": 63,
   "verdict": "실내 대체",
   "color": "behind"
  },
  "warfront": null,
- "generated_at": "2026-07-27T10:38:50"
+ "generated_at": "2026-07-27T05:30:55"
 }
