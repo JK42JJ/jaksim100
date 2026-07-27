@@ -90,9 +90,9 @@
   .rcheck.on::after { content:"✓"; color:#fff; font-size:13px; font-weight:800; }
   .rmain { flex:1; min-width:0; cursor:pointer; user-select:none; overflow:hidden; }
   .rlabel { font-size:14.5px; font-weight:600; display:flex; align-items:center; gap:7px; }
-  .rmini { flex:none; border:none; background:var(--accent-soft); color:var(--accent); width:24px; height:24px;
-    border-radius:8px; display:inline-flex; align-items:center; justify-content:center; font-size:12.5px;
-    cursor:pointer; text-decoration:none; line-height:1; }
+  .rmini { flex:none; border:none; background:var(--accent-soft); color:var(--accent); height:22px; padding:0 9px;
+    border-radius:8px; display:inline-flex; align-items:center; justify-content:center; font-size:11.5px; font-weight:700;
+    cursor:pointer; text-decoration:none; line-height:1; white-space:nowrap; }
   .rhint { font-size:11px; color:var(--ink3); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .rstrip { display:flex; gap:2.5px; flex:none; }
   .rstrip i { width:6px; height:14px; border-radius:3px; background:var(--line); }
@@ -197,7 +197,7 @@
   #gate input{width:230px;max-width:80vw;text-align:center;letter-spacing:5px;font-size:19px;font-weight:700;padding:13px;border:1.5px solid #d9d5cc;border-radius:12px;background:#fff;color:#1a1d24;outline:none;box-sizing:border-box}
   #gate button{margin-top:14px;padding:12px 30px;border:none;border-radius:12px;background:var(--accent,#2b4fd6);color:#fff;font-size:15px;font-weight:800;cursor:pointer}
   #gate .err{color:#c0392b;font-size:12.5px;min-height:16px;margin-top:8px}
-  .rmini,.rplayer{display:none!important}   /* 이모지 링크·오디오 플레이어만 숨김(라이브 편집은 허용) */
+  /* 리소스(명상 재생·운동 가이드)·오디오 플레이어 노출 — 이모지는 소스에서 텍스트/SVG로 교체 완료 */
 </style>
 </head>
 <body>
@@ -302,10 +302,10 @@ function renderRoutine(r) {
         onclick="routineCheck('${k}', ${!done})"
         onkeydown="if(event.key===' '||event.key==='Enter'){event.preventDefault();routineCheck('${k}', ${!done});}"></div>
       <div class="rmain" onclick="toggleMemo('${k}')">
-        <div class="rlabel">${esc(label)}${ROUTINE_LINK?.[k] ? `<a class="rmini" href="${ROUTINE_LINK[k]}" title="실내 데쓰런 가이드" onclick="event.stopPropagation()">🏋️</a>` : ""}${ROUTINE_MEDIA[k] ? `<button class="rmini" title="재생" onclick="event.stopPropagation();togglePlayer('${k}')">▶</button>` : ""}</div><div class="rhint">${esc(hint)}</div>
+        <div class="rlabel">${esc(label)}${ROUTINE_LINK?.[k] ? `<a class="rmini" href="${ROUTINE_LINK[k]}" title="실내 데쓰런 가이드" onclick="event.stopPropagation()">가이드</a>` : ""}${ROUTINE_MEDIA[k] ? `<button class="rmini" title="가이드 명상 재생" onclick="event.stopPropagation();togglePlayer('${k}')">재생</button>` : ""}</div><div class="rhint">${esc(hint)}</div>
       </div>
       ${stripHtml(k)}
-      <button class="rmemo-btn" onclick="toggleMemo('${k}')" aria-label="${esc(label)} 코멘트">✎</button>
+      <button class="rmemo-btn" onclick="toggleMemo('${k}')" aria-label="${esc(label)} 코멘트"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
     </div>
     ${ROUTINE_MEDIA[k] ? `<div class="rplayer" id="rp-${k}"><div class="frame" id="rpf-${k}"></div>
       <div class="hint">화면을 꺼도 이어서 재생됩니다 · 끝나면 자동 기록</div></div>` : ""}
@@ -333,7 +333,7 @@ function togglePlayer(k) {
   _audioEl.setAttribute("playsinline", ""); _audioEl.style.width = "100%";
   _audioEl.onended = () => {
     _mediaActive = null;
-    routinePost(k, true, ROUTINE_MEDIA[k].note, "명상 완료 — 자동 기록 ✓");
+    routinePost(k, true, ROUTINE_MEDIA[k].note, "명상 완료 — 자동 기록");
     closePlayer(k);
   };
   holder.appendChild(_audioEl);
@@ -353,10 +353,10 @@ async function routinePost(key, done, note, msg) {
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({ key, done, note }) });
     if (!r.ok) throw new Error();
-    toast(msg || "기록됨 ✓"); await loadMetrics(); loadRoutine();
+    toast(msg || "기록됨"); await loadMetrics(); loadRoutine();
   } catch (e) { toast("저장 실패 — 서버 연결을 확인하세요"); }
 }
-function routineCheck(key, checked) { routinePost(key, checked, "", checked ? "기록됨 ✓" : "기록 철회됨"); }
+function routineCheck(key, checked) { routinePost(key, checked, "", checked ? "기록됨" : "기록 철회됨"); }
 function routineSave(key) {
   const el = document.getElementById("rn-" + key);
   routinePost(key, true, el.value.trim()); el.value = "";
@@ -388,7 +388,7 @@ function renderQueue(q) {
         <button class="b-ok" onclick="decide(this,'${esc(i.id)}','approve')">승인 · 실행</button>
         <button class="b-hold" onclick="decide(this,'${esc(i.id)}','hold')">보류</button>
         <button class="b-skip" onclick="decide(this,'${esc(i.id)}','skip')">스킵</button>
-      </div>` : `<div class="qdone">✓ 지시됨 — 에이전트가 수행 후 결과를 남깁니다</div>`;
+      </div>` : `<div class="qdone">지시됨 — 에이전트가 수행 후 결과를 남깁니다</div>`;
     return `<div class="card qitem ${warn}">
       <div class="qhead"><span class="chip">${esc(i.track)}</span><span class="chip act">${esc(i.action)}</span>${dueHtml}</div>
       <div class="qtitle">${esc(i.title)}</div>
@@ -441,7 +441,7 @@ function renderMetrics(m) {
     out.push(card("지원 파이프", `<div class="big">${esc(a.now)}<small>/ ${esc(a.total)}건</small></div>
       <div class="sub">페이스 ${esc(a.pace)}/일 · 필요 ${esc(a.plan)}/일</div>
       <div class="bar"><i style="width:${pct}%"></i></div>${recent}
-      <a href="applications.html" style="display:inline-block;margin-top:8px;color:var(--accent);text-decoration:none;font-size:12.5px;font-weight:700">📊 지원 분석 히트맵 →</a>`, true));
+      <a href="applications.html" style="display:inline-block;margin-top:8px;color:var(--accent);text-decoration:none;font-size:12.5px;font-weight:700">지원 분석 히트맵 →</a>`, true));
   }
   if (m.warfront) {
     const w = m.warfront;
@@ -503,7 +503,7 @@ async function refreshAll() {
   } catch (e) { /* 정적 모드 — 서버 갱신 불가 */ }
   try {
     await loadMetrics(); await Promise.all([loadRoutine(), loadQueue(), loadNotices()]);
-    toast(server ? "서버 동기화 + 갱신됨 ✓" : "화면만 갱신 — 서버 동기화 실패");
+    toast(server ? "서버 동기화 + 갱신됨" : "화면만 갱신 — 서버 동기화 실패");
   } finally { b.classList.remove("busy"); }
 }
 (async () => { await loadMetrics(); loadRoutine(); loadQueue(); loadNotices(); })();
