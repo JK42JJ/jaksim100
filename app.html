@@ -33,8 +33,10 @@
   .mood{ display:flex; align-items:center; gap:6px; margin-bottom:14px; padding:11px 12px 12px; background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow); }
   .mood .mq{ font-size:12.5px; font-weight:800; color:var(--ink2); flex:none; margin-right:2px; }
   .mood .faces{ display:flex; gap:2px; flex:1; justify-content:space-between; }
-  .mood .face{ width:50px; height:54px; display:grid; place-items:center; border-radius:14px; cursor:pointer; transition:transform .2s cubic-bezier(.2,1.4,.4,1), background .2s; -webkit-tap-highlight-color:transparent; }
-  .mface{ width:44px; height:44px; display:block; overflow:visible; }
+  .mood .face{ display:flex; flex-direction:column; align-items:center; gap:1px; padding:5px 2px 3px; border-radius:13px; cursor:pointer; transition:transform .2s cubic-bezier(.2,1.4,.4,1), background .2s; -webkit-tap-highlight-color:transparent; }
+  .mface{ width:40px; height:40px; display:block; overflow:visible; }
+  .mlabel{ font-size:9.5px; font-weight:700; color:var(--ink3); letter-spacing:-.02em; margin-top:1px; }
+  .mood .face.sel .mlabel{ color:var(--accent); }
   .mood .face:not(.sel) .mface{ filter:saturate(.82) opacity(.72); transform:scale(.82); transition:.2s; }
   .mood .face:not(.sel):hover .mface{ filter:none; opacity:.92; transform:scale(.9); }
   .mood .face.sel{ background:var(--accent-soft); }
@@ -343,24 +345,28 @@
   };
   function ic(k){ return '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">'+(IC[k]||'')+'</svg>'; }
 
-  // 감정 5단계 — 귀여운 캐릭터(흰자+눈동자+하이라이트·볼터치·둥근몸). 이모지·아이콘 아님
+  // 감정 5단계 — 귀여운 캐릭터. 눈썹·입·색으로 5단계 명확 구분(0 최악 … 4 최고)
+  var MOODLBL=['최악','별로','보통','좋음','최고'];
   function moodFace(i){
-    var COL=['#93a7e0','#aeb9cb','#f6cf6b','#77cf9c','#ff9bad'], col=COL[i];
-    function dot(cx){ return '<circle cx="'+cx+'" cy="18.6" r="2.8" fill="#fff"/><circle cx="'+cx+'" cy="19" r="1.55" fill="#3a4152"/><circle cx="'+(cx+0.95)+'" cy="18" r="0.72" fill="#fff"/>'; }
+    var COL=['#6d8ad9','#a99fc4','#f4cb5f','#74cf98','#ff96a9'], col=COL[i];
+    function dot(cx){ return '<circle cx="'+cx+'" cy="18.8" r="2.8" fill="#fff"/><circle cx="'+cx+'" cy="19.2" r="1.55" fill="#3a4152"/><circle cx="'+(cx+0.95)+'" cy="18.2" r="0.72" fill="#fff"/>'; }
     function arc(cx){ return '<path d="M'+(cx-2.6)+' 19.6q2.6-3 5.2 0" fill="none" stroke="#3a4152" stroke-width="2" stroke-linecap="round"/>'; }
-    var eyes = i>=3 ? arc(15.2)+arc(24.8) : dot(15.2)+dot(24.8);
+    var BR='fill="none" stroke="#3a4152" stroke-width="1.8" stroke-linecap="round"';
     var STK='fill="none" stroke="#3a4152" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"';
-    var mouth, extra='';
-    if(i===0){ mouth='<path d="M16.2 26.4q3.8-2.4 7.6 0" '+STK+'/>'; extra='<path class="tear" d="M12.4 20.8c0 1.9 1.7 1.9 1.7 0 0-1-.85-2-.85-2s-.85 1-.85 2z" fill="#7cc6ff"/>'; }
-    else if(i===1){ mouth='<path d="M16.6 25.4q3.4-1.3 6.8 0" '+STK+'/>'; }
-    else if(i===2){ mouth='<path d="M16.8 25.2h6.4" '+STK+'/>'; }
-    else if(i===3){ mouth='<path d="M16.2 24.6q3.8 3 7.6 0" '+STK+'/>'; }
-    else { mouth='<path d="M15.4 24.2q4.6 4.2 9.2 0" '+STK.replace('2.1','2.6')+'/>'; extra='<path class="spk" d="M31.4 8l.75 2.1 2.1.75-2.1.75-.75 2.1-.75-2.1-2.1-.75 2.1-.75z" fill="#ffd54a"/>'; }
-    var blush='<ellipse class="bl" cx="11.6" cy="23.6" rx="2.5" ry="1.7" fill="#ff8aa0" opacity=".5"/><ellipse class="bl" cx="28.4" cy="23.6" rx="2.5" ry="1.7" fill="#ff8aa0" opacity=".5"/>';
+    var eyes = i>=3 ? arc(15.2)+arc(24.8) : dot(15.2)+dot(24.8), brows='', mouth, extra='';
+    if(i===0){ brows='<path d="M11.8 15.7 L15.6 13.9" '+BR+'/><path d="M28.2 15.7 L24.4 13.9" '+BR+'/>';
+      mouth='<path d="M15.4 27q4.6-3.8 9.2 0" '+STK+'/>';
+      extra='<path class="tear" d="M12.3 21.6c0 1.9 1.7 1.9 1.7 0 0-1-.85-2-.85-2s-.85 1-.85 2z" fill="#7cc6ff"/><path class="tear" d="M27.7 21.6c0 1.9 1.7 1.9 1.7 0 0-1-.85-2-.85-2s-.85 1-.85 2z" fill="#7cc6ff" style="animation-delay:.7s"/>'; }
+    else if(i===1){ brows='<path d="M12.5 15.1 L15.4 14.2" '+BR+'/><path d="M27.5 15.1 L24.6 14.2" '+BR+'/>';
+      mouth='<path d="M16.4 26q3.6-2.2 7.2 0" '+STK+'/>'; }
+    else if(i===2){ mouth='<path d="M16.8 25.4h6.4" '+STK+'/>'; }
+    else if(i===3){ mouth='<path d="M16.2 24.4q3.8 3.2 7.6 0" '+STK+'/>'; }
+    else { mouth='<path d="M15.2 24q4.8 4.4 9.6 0" '+STK.replace('2.1','2.6')+'/>'; extra='<path class="spk" d="M31.4 8l.75 2.1 2.1.75-2.1.75-.75 2.1-.75-2.1-2.1-.75 2.1-.75z" fill="#ffd54a"/>'; }
+    var blush='<ellipse class="bl" cx="11.6" cy="23.9" rx="2.5" ry="1.7" fill="#ff8aa0" opacity=".5"/><ellipse class="bl" cx="28.4" cy="23.9" rx="2.5" ry="1.7" fill="#ff8aa0" opacity=".5"/>';
     return '<svg viewBox="0 0 40 40" class="mface" aria-hidden="true">'+
       '<circle class="bd" cx="20" cy="21" r="14.5" fill="'+col+'"/>'+
       '<ellipse cx="20" cy="14.8" rx="8.5" ry="4.6" fill="#ffffff" opacity=".16"/>'+
-      blush+eyes+mouth+extra+'</svg>';
+      blush+brows+eyes+mouth+extra+'</svg>';
   }
   // 루틴별 14일 히스토리 막대 + 누적 카운트
   function routineHist(c,i){ var d=today(), cnt=0; for(var k in (c.log||{})){ if((c.log[k]||[])[i]) cnt++; } var bars=[], m14=addDays(d,-13); for(var j=0;j<14;j++){ var dd=addDays(m14,j); bars.push({on:!!(c.log[dd]||[])[i], tdy:dd===d}); } return {bars:bars,cnt:cnt}; }
@@ -693,7 +699,7 @@
     var sum=c.goals.map(function(g,i){ return memo[i]?('<b>'+esc(g.t)+'</b> '+esc(memo[i])):''; }).filter(Boolean).join('&nbsp;&nbsp;·&nbsp;&nbsp;');
     var sumBox = sum? '<div class="todaylog"><span class="tl-h">오늘 기록</span>'+sum+'</div>':'';
     var mv=(c.mood&&c.mood[d]); mv=(mv===0||mv)?mv:-1;
-    var moodRow='<div class="mood"><span class="mq">오늘 기분</span><div class="faces">'+[0,1,2,3,4].map(function(i){ return '<span class="face'+(mv===i?' sel':'')+'" data-mood="'+i+'">'+moodFace(i)+'</span>'; }).join('')+'</div></div>';
+    var moodRow='<div class="mood"><span class="mq">오늘 기분</span><div class="faces">'+[0,1,2,3,4].map(function(i){ return '<span class="face'+(mv===i?' sel':'')+'" data-mood="'+i+'">'+moodFace(i)+'<span class="mlabel">'+MOODLBL[i]+'</span></span>'; }).join('')+'</div></div>';
     var propBanner = c.proposal? '<div class="card" style="padding:13px 15px;margin-bottom:12px;background:linear-gradient(135deg,var(--accent-soft),var(--surface));border:1px solid var(--accent);display:flex;gap:10px;align-items:center"><span style="display:grid;place-items:center;width:34px;height:34px;flex:none;color:var(--accent)">'+ic('gift')+'</span><div><div style="font-size:11px;font-weight:800;color:var(--accent);letter-spacing:.04em">부모님의 제안</div><div style="font-size:13.5px;color:var(--ink);margin-top:2px;line-height:1.4">'+esc(c.proposal)+'</div></div></div>':'';
     return moodRow+propBanner+'<h2>오늘 할 일 <span class="cnt">'+log.filter(Boolean).length+'/'+c.goals.length+'</span></h2><div class="rcard">'+rows+'</div>'+sumBox+weekBlockChild();
   }
