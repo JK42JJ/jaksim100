@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#f3f1ec" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f1117" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>百日作戰</title>
+<title>百日作戰</title><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0">
 <style>
   :root {
     --bg:#f3f1ec; --surface:#ffffff; --surface2:#f8f7f3;
@@ -298,7 +298,7 @@ function renderRoutine(r) {
   const rows = ROUTINE_DEF.map(([k, label, hint]) => {
     const done = r.items?.[k] === true;
     return `<div class="rrow">
-      <div class="rcheck ${done ? "on" : ""}" role="checkbox" aria-checked="${done}" tabindex="0"
+      <div class="rcheck ${done ? "on" : ""}" id="rc-${k}" role="checkbox" aria-checked="${done}" tabindex="0"
         onclick="routineCheck('${k}', ${!done})"
         onkeydown="if(event.key===' '||event.key==='Enter'){event.preventDefault();routineCheck('${k}', ${!done});}"></div>
       <div class="rmain" onclick="toggleMemo('${k}')">
@@ -562,5 +562,15 @@ setInterval(async () => { await loadMetrics(); loadRoutine(); loadQueue(); loadN
   $("ci-send").onclick=ask; inp.addEventListener("keydown",function(e){ if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();ask();} });
 })();
 </script>
-</body>
+<script>
+(function(){
+  window.routineCheck=function(key,checked){
+    var el=document.getElementById("rc-"+key);
+    if(el){el.classList.toggle("on",checked);el.setAttribute("aria-checked",checked);el.setAttribute("onclick","routineCheck('"+key+"',"+(!checked)+")");}
+    fetch("/api/routine",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({key:key,done:checked,note:""})})
+      .then(function(r){if(!r.ok)throw 0;if(window.toast)toast(checked?"기록됨":"기록 철회됨");})
+      .catch(function(){if(el){el.classList.toggle("on",!checked);el.setAttribute("aria-checked",!checked);el.setAttribute("onclick","routineCheck('"+key+"',"+checked+")");}if(window.toast)toast("저장 실패 — 되돌림");});
+  };
+})();
+</script></body>
 </html>
