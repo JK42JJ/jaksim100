@@ -292,8 +292,14 @@
   function today(){ return iso(new Date()); }
   function addDays(s,n){ var d=new Date(s+'T00:00:00'); d.setDate(d.getDate()+n); return iso(d); }
   function mondayOf(s){ var d=new Date(s+'T00:00:00'), w=(d.getDay()+6)%7; d.setDate(d.getDate()-w); return iso(d); }
-  var kid=0, MAXKIDS=2;
-  function C(){ return R.children[kid] || R.children[0]; }
+  var kid=0, MAXKIDS=2, curKidId=null;
+  // 아이는 배열 위치가 아니라 안정 id로 식별한다(2026-07-27 격리결함 수정).
+  function kidIndexById(id){ if(!R||!R.children) return -1; for(var i=0;i<R.children.length;i++){ if(R.children[i].id===id) return i; } return -1; }
+  function resolveKid(param){ // 링크의 kid 파라미터(id 문자열 또는 레거시 숫자위치) → 인덱스
+    if(param!=null){ var byId=kidIndexById(String(param)); if(byId>=0) return byId; var n=parseInt(param,10); if(!isNaN(n)&&n>=0&&n<R.children.length) return n; }
+    return -1; // 못 풀면 -1 — 절대 다른 아이(children[0])로 조용히 폴백하지 않음
+  }
+  function C(){ return R.children[kid]; } // kid는 항상 resolve된 유효 인덱스. 아니면 route가 에러화면.
   function dayNum(c){ c=c||C(); var s=c.start||R.createdAt||today(); return Math.floor((new Date(today()+'T00:00:00')-new Date(s+'T00:00:00'))/86400000)+1; }
   function dayDone(d,c){ c=c||C(); var l=c.log[d]; return !!l && l.some(function(x){return x;}); }
   function totalDone(c){ c=c||C(); var n=0,l=c.log; for(var k in l){ if(l[k]&&l[k].some(function(x){return x;})) n++; } return n; }
@@ -312,7 +318,7 @@
   function recentBackups(){ pruneBackups(); var out=[]; try{ for(var i=0;i<localStorage.length;i++){ var k=localStorage.key(i); if(k&&k.indexOf('jbak_')===0){ var b; try{ b=JSON.parse(localStorage.getItem(k)); }catch(e){ b=null; } if(b&&b.data) out.push({key:k,at:b.at,data:b.data,name:b.name}); } } }catch(e){} out.sort(function(a,b){return b.at-a.at;}); return out; }
 
   function parseHash(){ var h=location.hash.replace(/^#/,''), p={}; h.split('&').forEach(function(kv){ var a=kv.split('='); if(a[0]) p[a[0]]=decodeURIComponent(a[1]||''); }); return p; }
-  function childLink(i){ return location.origin+location.pathname+'#room='+roomId+'&role=child&kid='+(i||0); }
+  function childLink(i){ var c=R.children[i]; var key=(c&&c.id)?c.id:(i||0); return location.origin+location.pathname+'#room='+roomId+'&role=child&kid='+key; }
 
   // ══════════ 진입 라우팅 ══════════
   function boot(){
@@ -324,15 +330,21 @@
       location.replace('./'); return;   // 룸/스타트 없으면 랜딩(index.html)으로
     }
     roomId=p.room; role=p.role|| (localStorage.getItem('jr_'+roomId)) || 'child';
-    kid=Math.max(0, parseInt(p.kid,10)||0);
+    var kidParam=(p.kid!=null? String(p.kid): '0');
     localStorage.setItem('jr_'+roomId, role);
     app.innerHTML='<div class="loading"><div class="spin"></div>방을 불러오는 중…</div>';
-    apiGet(roomId).then(function(data){ R=migrate(data); if(kid>=R.children.length) kid=0; route(); startPoll(); })
+    apiGet(roomId).then(function(data){ R=migrate(data);
+        if(role==='parent'){ kid=0; }
+        else { kid=resolveKid(kidParam); if(kid<0){ app.innerHTML='<div class="loading">이 아이 링크를 찾을 수 없어요. 부모님 화면에서 링크를 다시 받아주세요.<br><br><button class="btn btn-primary" onclick="location.hash=\'\';location.reload()" style="max-width:220px;margin:0 auto">처음으로</button></div>'; return; } }
+        curKidId=R.children[kid]?R.children[kid].id:null;
+        // migrate가 id를 새로 부여했으면 저장(부모/아이 첫 로드 시 1회)해 링크 안정화
+        if(R.children.some(function(c){return c.id;}) && role==='parent') saveRoom();
+        route(); startPoll(); })
       .catch(function(){ app.innerHTML='<div class="loading">방을 찾을 수 없어요. 링크가 만료됐을 수 있어요.<br><br><button class="btn btn-primary" onclick="location.hash=\'\';location.reload()" style="max-width:220px;margin:0 auto">처음으로</button></div>'; });
   }
   function migrate(d){ d=d||{}; if(!d.children){ d.children = d.child? [d.child] : [{}]; } delete d.child;
     if(!d.children.length) d.children=[{}];
-    d.children.forEach(function(c){ c.goals=c.goals||[]; c.log=c.log||{}; c.rewards=c.rewards||[]; c.seenBadges=c.seenBadges||[]; c.chat=c.chat||[]; c.reward=c.reward||(d.reward||{item:'게임 30분',bonus:''}); c.name=c.name||''; c.start=c.start||''; });
+    d.children.forEach(function(c,i){ c.goals=c.goals||[]; c.log=c.log||{}; c.rewards=c.rewards||[]; c.seenBadges=c.seenBadges||[]; c.chat=c.chat||[]; c.reward=c.reward||(d.reward||{item:'게임 30분',bonus:''}); c.name=c.name||''; c.start=c.start||''; if(!c.id){ c.id='k'+i+Math.random().toString(36).slice(2,8); } });
     d.days=d.days||100; return d; }
 
   function route(){
@@ -347,7 +359,9 @@
     app.innerHTML=h; document.getElementById('fab').hidden=true;
     var rb=document.getElementById('rebind'); if(rb) rb.onclick=function(){ R.parentDev=dev; saveRoom(); renderParent(); };
   }
-  function startPoll(){ clearInterval(polling); polling=setInterval(function(){ if(!roomId) return; apiGet(roomId).then(function(data){ var fresh=JSON.stringify(migrate(data)); if(fresh!==JSON.stringify(R)){ R=JSON.parse(fresh); route(); } }).catch(function(){}); }, 12000); }
+  function startPoll(){ clearInterval(polling); polling=setInterval(function(){ if(!roomId) return; apiGet(roomId).then(function(data){ var fresh=JSON.stringify(migrate(data)); if(fresh!==JSON.stringify(R)){ R=JSON.parse(fresh);
+        if(role!=='parent' && curKidId){ var ni=kidIndexById(curKidId); if(ni<0){ clearInterval(polling); app.innerHTML='<div class="loading">이 아이가 방에서 삭제되었어요.</div>'; return; } kid=ni; } // 위치 변동에도 같은 아이 유지
+        route(); } }).catch(function(){}); }, 12000); }
 
   // ══════════ 랜딩 (부모 시작 / 아이는 링크로) ══════════
   function faq(q,a){ return '<div class="faq-item"><div class="faq-q">'+q+'</div><div class="faq-a">'+a+'</div></div>'; }
@@ -392,7 +406,7 @@
     app.querySelector('#psCreate').onclick=function(){
       var btn=this; btn.disabled=true; btn.textContent='만드는 중…';
       var room={ v:2, createdAt:today(), days:PS.days, parentDev:dev,
-        children:[ { name:(PS.name||'').trim(), reward:{item:(PS.item||'게임 30분').trim(),bonus:(PS.bonus||'').trim()}, goals:[], log:{}, rewards:[], seenBadges:[], chat:[], start:'' } ] };
+        children:[ { id:'k0'+Math.random().toString(36).slice(2,8), name:(PS.name||'').trim(), reward:{item:(PS.item||'게임 30분').trim(),bonus:(PS.bonus||'').trim()}, goals:[], log:{}, rewards:[], seenBadges:[], chat:[], start:'' } ] };
       apiCreate(room).then(function(id){ if(!id) throw new Error(); roomId=id; R=migrate(room); role='parent'; kid=0; localStorage.setItem('jr_'+id,'parent'); history.replaceState(null,'','#room='+id+'&role=parent'); renderParent(); startPoll(); toast('링크가 만들어졌어요'); })
         .catch(function(){ btn.disabled=false; btn.innerHTML=ic('link')+'링크 만들기'; toast('네트워크 오류 — 다시 시도'); });
     };
@@ -408,7 +422,7 @@
     h+='<div class="footer"><button class="reset" id="preset">전체 초기화 (방·아이 모두 삭제)</button></div>';
     app.innerHTML=h;
     kids.forEach(function(c,i){ bindChildBlock(i); });
-    var ak=app.querySelector('#addKid'); if(ak) ak.onclick=function(){ if(R.children.length>=MAXKIDS) return; R.children.push({name:'',reward:{item:'게임 30분',bonus:''},goals:[],log:{},rewards:[],seenBadges:[],chat:[],start:''}); saveRoom(); renderParent(); toast('아이를 추가했어요'); };
+    var ak=app.querySelector('#addKid'); if(ak) ak.onclick=function(){ if(R.children.length>=MAXKIDS) return; R.children.push({id:'k'+R.children.length+Math.random().toString(36).slice(2,8),name:'',reward:{item:'게임 30분',bonus:''},goals:[],log:{},rewards:[],seenBadges:[],chat:[],start:''}); saveRoom(); renderParent(); toast('아이를 추가했어요'); };
     var pr=app.querySelector('#preset'); if(pr) pr.onclick=function(){ if(confirm('정말 초기화할까요?\n\n아이 데이터를 포함해 이 방이 모두 삭제됩니다. 아이 링크도 더는 열리지 않아요.\n(만약을 위해 7일간 백업해 둡니다.)')){ backupRoom(); apiDelete(roomId).catch(function(){}); localStorage.removeItem('jr_'+roomId); clearInterval(polling); toast('초기화됨 · 7일간 백업 보관'); setTimeout(function(){ location.hash=''; location.reload(); },500); } };
   }
   function childBlock(c,i){
