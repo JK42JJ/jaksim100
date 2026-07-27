@@ -397,7 +397,7 @@
 
   // ── API (jsonblob 공유 방) ──
   function apiCreate(obj){ return fetch(KV,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(obj)}).then(function(res){ var loc=res.headers.get('Location'); return loc?loc.split('/').pop():null; }); }
-  function apiGet(id){ return fetch(KV+'/'+id,{headers:{'Accept':'application/json'}}).then(function(res){ if(!res.ok) throw new Error('load'); return res.json(); }); }
+  function apiGet(id,tries){ tries=tries||0; return fetch(KV+'/'+id,{headers:{'Accept':'application/json'},cache:'no-store'}).then(function(res){ if(!res.ok) throw new Error('http '+res.status); return res.json(); }).catch(function(e){ if(tries<5){ return new Promise(function(r){ setTimeout(r,400*Math.pow(2,tries)); }).then(function(){ return apiGet(id,tries+1); }); } throw e; }); }
   function apiPut(id,obj){ return fetch(KV+'/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(obj)}); }
   function apiDelete(id){ return fetch(KV+'/'+id,{method:'DELETE'}); }
   var putT=null, saveDirty=false, lastSave=0;
@@ -426,8 +426,8 @@
         if(role==='parent'){ kid=0; }
         else { kid=resolveKid(kidParam); if(kid<0){ app.innerHTML='<div class="loading">이 아이 링크를 찾을 수 없어요. 부모님 화면에서 링크를 다시 받아주세요.<br><br><button class="btn btn-primary" onclick="location.hash=\'\';location.reload()" style="max-width:220px;margin:0 auto">처음으로</button></div>'; return; } }
         curKidId=R.children[kid]?R.children[kid].id:null;
-        // migrate가 id를 새로 부여했으면 저장(부모/아이 첫 로드 시 1회)해 링크 안정화
-        if(R.children.some(function(c){return c.id;}) && role==='parent') saveRoom();
+        // keep-alive: 열 때마다 재-PUT 해 블롭이 유휴로 사라지지 않게 + migrate/id 지속화
+        saveRoom();
         route(); startPoll(); })
       .catch(function(){ app.innerHTML='<div class="loading">방을 찾을 수 없어요. 링크가 만료됐을 수 있어요.<br><br><button class="btn btn-primary" onclick="location.hash=\'\';location.reload()" style="max-width:220px;margin:0 auto">처음으로</button></div>'; });
   }
