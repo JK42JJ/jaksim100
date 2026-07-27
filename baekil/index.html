@@ -356,7 +356,7 @@ function routineSave(key) {
 }
 async function loadRoutine() {
   if (_mediaActive) return; // 재생 중 재렌더로 플레이어가 죽지 않게 보호
-  try { renderRoutine(await (await fetch("https://raw.githubusercontent.com/JK42JJ/jaksim100/main/baekil/routine.json?t=" + Date.now(), {cache:"no-store"})).json()); }
+  try { renderRoutine(await (await fetch("routine.json?t=" + Date.now(), {cache:"no-store"})).json()); }
   catch (e) { $("routine").innerHTML = `<div class="empty">루틴 API 없음 — 정적 모드</div>`; }
 }
 
@@ -482,7 +482,7 @@ async function clearNotice(id) {
   } catch (e) { toast("처리 실패 — 서버 확인"); }
 }
 async function loadMetrics() {
-  try { renderMetrics(await (await fetch("https://raw.githubusercontent.com/JK42JJ/jaksim100/main/baekil/metrics.json?t=" + Date.now(), {cache:"no-store"})).json()); }
+  try { renderMetrics(await (await fetch("metrics.json?t=" + Date.now(), {cache:"no-store"})).json()); }
   catch (e) { $("cards").innerHTML = `<div class="card empty">metrics 로드 실패</div>`; }
 }
 
