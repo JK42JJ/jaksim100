@@ -37,6 +37,8 @@
   .mood .face svg{ width:26px; height:26px; }
   .mood .face:hover{ color:var(--ink2); }
   .mood .face.sel{ color:var(--accent); transform:scale(1.22); background:var(--accent-soft); animation:moodPop .4s cubic-bezier(.2,1.5,.4,1); }
+  .mood .face.sel svg{ animation:moodBob 1.7s ease-in-out .4s infinite; transform-origin:center 70%; }
+  @keyframes moodBob{ 0%,100%{ transform:translateY(0) rotate(-5deg) } 50%{ transform:translateY(-2.5px) rotate(5deg) } }
   @keyframes moodPop{ 0%{transform:scale(.8)}55%{transform:scale(1.45)}100%{transform:scale(1.28)} }
   @keyframes moodWiggle{ 0%,100%{transform:scale(1.28) rotate(-7deg)}50%{transform:scale(1.28) rotate(7deg)} }
   .ico{ display:block; width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
@@ -398,7 +400,7 @@
   }
   function migrate(d){ d=d||{}; if(!d.children){ d.children = d.child? [d.child] : [{}]; } delete d.child;
     if(!d.children.length) d.children=[{}];
-    d.children.forEach(function(c,i){ c.goals=c.goals||[]; c.log=c.log||{}; c.memo=c.memo||{}; c.mood=c.mood||{}; c.rewards=c.rewards||[]; c.seenBadges=c.seenBadges||[]; c.chat=c.chat||[]; c.reward=c.reward||(d.reward||{item:'게임 30분',bonus:''}); c.proposal=c.proposal||''; c.name=c.name||''; c.start=c.start||''; if(!c.id){ c.id='k'+i; } });  /* 결정론적 — 폴링마다 재생성 금지(레거시 방 축출버그 방지) */
+    d.children.forEach(function(c,i){ c.goals=c.goals||[]; c.log=c.log||{}; c.memo=c.memo||{}; c.mood=c.mood||{}; c.badgeGifts=c.badgeGifts||{}; c.rewards=c.rewards||[]; c.seenBadges=c.seenBadges||[]; c.chat=c.chat||[]; c.reward=c.reward||(d.reward||{item:'게임 30분',bonus:''}); c.proposal=c.proposal||''; c.name=c.name||''; c.start=c.start||''; if(!c.id){ c.id='k'+i; } });  /* 결정론적 — 폴링마다 재생성 금지(레거시 방 축출버그 방지) */
     d.days=d.days||100; if(d.parentPw===undefined) d.parentPw=''; return d; }
 
   function route(){
@@ -564,6 +566,8 @@
     h+='<label class="setlbl">아이용 링크 (카톡 전송)</label><div class="linkurl"><input class="clink" data-i="'+i+'" readonly value="'+esc(childLink(i))+'"><button class="ccopy" data-i="'+i+'">'+ic('copy')+' 복사</button></div>';
     h+='<label class="setlbl">주간 리워드 (5일 달성 시)</label><input class="field rwi" data-i="'+i+'" value="'+esc(c.reward.item)+'" placeholder="예) 게임 30분"><label class="setlbl">보너스 (선택)</label><input class="field rwb" data-i="'+i+'" value="'+esc(c.reward.bonus||'')+'" placeholder="예) 주말 놀이공원">';
     h+='<label class="setlbl">'+ic('gift')+' 이번 주 제안 (아이 화면에 먼저 띄우기)</label><input class="field rwp" data-i="'+i+'" value="'+esc(c.proposal||'')+'" placeholder="예) 이번 주 다 채우면 영화 보러 가자!"><div style="font-size:11px;color:var(--ink3);margin-top:4px">부모가 먼저 제안해 동기를 주세요 — 아이 «오늘» 화면 상단에 떠요.</div>';
+    h+='<label class="setlbl">배지 선물 (배지 획득 시 부모가 주는 선물)</label><div style="font-size:11px;color:var(--ink3);margin:0 0 6px">비워두면 선물 없이 배지만 받아요.</div>';
+    h+=BADGES.map(function(b){ return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:11.5px;color:var(--ink2);width:96px;flex:none">'+esc(b.name)+' <span style="color:var(--ink3)">'+b.n+'일</span></span><input class="field bgift" data-i="'+i+'" data-n="'+b.n+'" value="'+esc((c.badgeGifts&&c.badgeGifts[b.n])||'')+'" placeholder="예) 치킨" style="margin-top:0"></div>'; }).join('');
     h+='<button class="claim go rwsave" data-i="'+i+'" style="margin-top:12px">'+ic('check')+'이 아이 저장</button>';
     if(R.children.length>1) h+='<button class="reset delkid" data-i="'+i+'" style="margin-top:12px;display:block">이 아이 삭제</button>';
     h+='</div>';
@@ -573,7 +577,7 @@
     var db=app.querySelector('.detailbtn[data-i="'+i+'"]'); if(db) db.onclick=function(){ var p=app.querySelector('.detailpanel[data-i="'+i+'"]'); if(p){ p.hidden=!p.hidden; db.textContent=p.hidden?'자세히 보기 (루틴별·코멘트)':'▲ 접기'; } };
     var sb=app.querySelector('.setbtn[data-i="'+i+'"]'); if(sb) sb.onclick=function(){ var p=app.querySelector('.setpanel[data-i="'+i+'"]'); if(p) p.hidden=!p.hidden; };
     var cp=app.querySelector('.ccopy[data-i="'+i+'"]'); if(cp) cp.onclick=function(){ var inp=app.querySelector('.clink[data-i="'+i+'"]'); inp.select(); try{navigator.clipboard.writeText(inp.value);}catch(e){} try{document.execCommand('copy');}catch(e){} toast('링크 복사됨 — 카톡에 붙여넣기'); };
-    var rs=app.querySelector('.rwsave[data-i="'+i+'"]'); if(rs) rs.onclick=function(){ var ch=R.children[i]; var nm=app.querySelector('.cname[data-i="'+i+'"]'); if(nm) ch.name=nm.value.trim(); ch.reward.item=(app.querySelector('.rwi[data-i="'+i+'"]').value.trim()||'게임 30분'); ch.reward.bonus=app.querySelector('.rwb[data-i="'+i+'"]').value.trim(); var rp=app.querySelector('.rwp[data-i="'+i+'"]'); if(rp) ch.proposal=rp.value.trim(); saveRoom(); toast('저장했어요'); renderParent(); };
+    var rs=app.querySelector('.rwsave[data-i="'+i+'"]'); if(rs) rs.onclick=function(){ var ch=R.children[i]; var nm=app.querySelector('.cname[data-i="'+i+'"]'); if(nm) ch.name=nm.value.trim(); ch.reward.item=(app.querySelector('.rwi[data-i="'+i+'"]').value.trim()||'게임 30분'); ch.reward.bonus=app.querySelector('.rwb[data-i="'+i+'"]').value.trim(); var rp=app.querySelector('.rwp[data-i="'+i+'"]'); if(rp) ch.proposal=rp.value.trim(); ch.badgeGifts=ch.badgeGifts||{}; app.querySelectorAll('.bgift[data-i="'+i+'"]').forEach(function(g){ var v=g.value.trim(); if(v) ch.badgeGifts[+g.dataset.n]=v; else delete ch.badgeGifts[+g.dataset.n]; }); saveRoom(); toast('저장했어요'); renderParent(); };
     var dk=app.querySelector('.delkid[data-i="'+i+'"]'); if(dk) dk.onclick=function(){ if(confirm('이 아이를 삭제할까요? 되돌릴 수 없어요.')){ R.children.splice(i,1); saveRoom(); renderParent(); } };
   }
 
@@ -659,10 +663,11 @@
   function childBadges(){
     var td=totalDone(), earned=BADGES.filter(function(b){return td>=b.n;}), seen=C().seenBadges||[];
     var news=earned.filter(function(b){return seen.indexOf(b.n)<0;}), hero='';
-    if(news.length){ var nb=news[news.length-1]; hero='<div class="card issue"><div class="badge '+nb.tier+' earned badge-issue"><div class="bmedal">'+badgeSVG(nb.icon)+'</div></div><div><div class="issue-t">새 배지 획득</div><div class="issue-n">'+esc(nb.name)+'</div><div class="issue-d">'+esc(nb.desc)+'</div></div></div>'; C().seenBadges=seen.concat(news.map(function(b){return b.n;})); saveRoom(); }
+    var gifts=C().badgeGifts||{};
+    if(news.length){ var nb=news[news.length-1]; var ng=gifts[nb.n]; hero='<div class="card issue"><div class="badge '+nb.tier+' earned badge-issue"><div class="bmedal">'+badgeSVG(nb.icon)+'</div></div><div><div class="issue-t">새 배지 획득</div><div class="issue-n">'+esc(nb.name)+'</div><div class="issue-d">'+esc(nb.desc)+(ng?' · 선물: '+esc(ng):'')+'</div></div></div>'; C().seenBadges=seen.concat(news.map(function(b){return b.n;})); saveRoom(); }
     var next=null; for(var k=0;k<BADGES.length;k++){ if(td<BADGES[k].n){ next=BADGES[k]; break; } }
     var prog=next?'<div class="card" style="padding:14px"><div style="font-size:12px;color:var(--ink2);margin:0 0 9px"><b>누적 '+td+'일</b> · 다음 배지 «'+esc(next.name)+'»까지 '+(next.n-td)+'일</div><div style="height:6px;background:var(--surface2);border-radius:99px;overflow:hidden;box-shadow:inset 0 0 0 1px var(--line)"><i style="display:block;height:100%;background:var(--accent);width:'+Math.min(100,Math.round(td/next.n*100))+'%"></i></div></div>':'<div class="card" style="padding:14px;font-size:13px"><b>모든 배지 획득!</b> 누적 '+td+'일 완주.</div>';
-    var grid='<div class="badges">'+BADGES.map(function(b){ var e=td>=b.n; return '<div class="badge '+b.tier+' '+(e?'earned':'locked')+'"><div class="bmedal">'+badgeSVG(b.icon)+(e?'':'<span class="blk">'+ic('lock')+'</span>')+'</div><div class="bname">'+esc(b.name)+'</div><div class="bdesc">'+(e?esc(b.desc):b.n+'일')+'</div></div>'; }).join('')+'</div>';
+    var grid='<div class="badges">'+BADGES.map(function(b){ var e=td>=b.n, gf=gifts[b.n]; return '<div class="badge '+b.tier+' '+(e?'earned':'locked')+'"><div class="bmedal">'+badgeSVG(b.icon)+(e?'':'<span class="blk">'+ic('lock')+'</span>')+'</div><div class="bname">'+esc(b.name)+'</div><div class="bdesc">'+(e?esc(b.desc):b.n+'일')+'</div>'+(gf?'<div style="font-size:10px;color:var(--accent);margin-top:3px;font-weight:700">'+ic('gift')+' '+esc(gf)+'</div>':'')+'</div>'; }).join('')+'</div>';
     return hero+'<h2>배지 <span class="cnt">'+earned.length+'/'+BADGES.length+'</span></h2>'+prog+'<h2>배지 도감</h2>'+grid;
   }
   function bindChild(){
