@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>영어 자기소개 · 음성 연습</title>
+<style>
+  :root{
+    --paper:#f4f1e8; --card:#fffdf8; --ink:#1b1e26; --ink2:#565b68; --ink3:#8a8f9c;
+    --line:#e4e0d5; --accent:#2b4fd6; --accent-soft:#e7ebfb; --hi:#fff2c4; --hi-ink:#5a4a10; --radius:14px;
+    --sans:"Apple SD Gothic Neo","Pretendard","Noto Sans KR",system-ui,-apple-system,sans-serif;
+    --serif:"Nanum Myeongjo","Noto Serif KR",Georgia,serif;
+  }
+  @media(prefers-color-scheme:dark){:root{--paper:#111319;--card:#181b22;--ink:#e9eaef;--ink2:#a2a8b6;--ink3:#6d7382;--line:#272b35;--accent:#8ea6ff;--accent-soft:#20263c;--hi:#3a3413;--hi-ink:#f2e6a8;}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:680px;margin:0 auto;padding:34px 18px 90px}
+  .eyebrow{font-size:11px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:var(--accent)}
+  h1{font-family:var(--serif);font-weight:900;font-size:clamp(24px,6vw,34px);margin:8px 0 4px;letter-spacing:-.01em}
+  .sub{font-size:13px;color:var(--ink3);margin-bottom:18px;line-height:1.55}
+  .bar{position:sticky;top:0;z-index:5;background:var(--paper);padding:11px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--line);margin-bottom:18px}
+  button{font:inherit;font-weight:700;border:none;border-radius:11px;cursor:pointer;padding:10px 18px;font-size:14px}
+  .play{background:var(--accent);color:#fff}
+  .ghost{background:var(--card);color:var(--ink);border:1.5px solid var(--line)}
+  .ghost.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+  .stop{background:var(--card);color:var(--ink2);border:1.5px solid var(--line)}
+  button:active{transform:scale(.97)}
+  .script{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;box-shadow:0 1px 2px rgba(20,22,30,.04),0 8px 24px rgba(20,22,30,.03);font-size:17.5px;line-height:1.85}
+  .s{display:inline;transition:background .2s;padding:1px 2px;border-radius:4px;cursor:pointer}
+  .s.on{background:var(--hi);color:var(--hi-ink);box-shadow:0 0 0 2px var(--hi)}
+  .para{margin:0 0 15px}
+  .para:last-child{margin-bottom:0}
+  .note{font-size:12.5px;color:var(--ink3);margin-top:16px;line-height:1.7}
+  .voicepick{font:inherit;font-size:12.5px;padding:6px 8px;border-radius:9px;border:1px solid var(--line);background:var(--card);color:var(--ink);max-width:170px}
+  .warn{font-size:12.5px;color:var(--accent);background:var(--accent-soft);border-radius:10px;padding:10px 13px;margin-top:14px;display:none}
+  .facts{margin-top:16px;font-size:12px;color:var(--ink3);border-top:1px solid var(--line);padding-top:12px}
+  .facts b{color:var(--ink2)}
+  .back{display:inline-block;margin-bottom:6px;font-size:12.5px;color:var(--accent);text-decoration:none;font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./">← 콘솔로</a>
+  <div class="eyebrow">English · Self-Introduction</div>
+  <h1>Voice Practice</h1>
+  <div class="sub">재생하면 en-US 음성으로 읽어줍니다. 문장을 누르면 그 문장만 재생 — 섀도잉(따라 말하기) 연습용. 인터뷰용 ~45초.</div>
+
+  <div class="bar">
+    <button class="play" id="play">Play</button>
+    <button class="ghost" id="slow">Slow</button>
+    <button class="stop" id="stop">Stop</button>
+    <select class="voicepick" id="voice" title="음성 선택"></select>
+  </div>
+
+  <div class="script" id="script"></div>
+  <div class="warn" id="warn">이 브라우저에 영어 음성이 없어 기본 음성으로 재생됩니다. 음성 목록에서 English 항목을 골라보세요.</div>
+
+  <div class="facts">
+    수치는 프로필 근거만: 60+ engineers · 24/7 · five regions · 500+ tickets/month · AIOps 응답 −40% · inter-zone 비용 −40%.
+  </div>
+</div>
+
+<script>
+  var SENT = [
+    "Hi, I'm James Kim.",
+    "I've spent over 20 years building and operating cloud infrastructure for large-scale services.",
+    "I started as a developer at TmaxSoft,",
+    "then spent about a decade at Samsung Electronics leading cloud operations —",
+    "running a team of 60-plus engineers, keeping services reliable 24/7 across five regions, and handling 500-plus operational tickets a month.",
+    "What I do best is making systems reliable through automation.",
+    "Two concrete examples: I built AIOps self-healing that cut off-hours emergency response by 40 percent,",
+    "and I re-architected our inter-zone networking to cut those costs by 40 percent.",
+    "Most recently, at Megazone Cloud, I built an AI-powered internal platform for cross-team collaboration.",
+    "I'm now looking for a hands-on role where I can keep building reliable, automated infrastructure at scale.",
+    "If that's what you need, I'd be glad to talk."
+  ];
+  var PARA = [[0,1],[2,3,4],[5,6,7,8],[9,10]];
+  var script = document.getElementById("script");
+  PARA.forEach(function(group){
+    var p = document.createElement("div"); p.className="para";
+    group.forEach(function(i){
+      var span=document.createElement("span"); span.className="s"; span.id="s"+i; span.textContent=SENT[i]+" ";
+      span.onclick=function(){ stopAll(); speakOne(i); };
+      p.appendChild(span);
+    });
+    script.appendChild(p);
+  });
+
+  var synth = window.speechSynthesis, voices=[], chosen=null, rate=1, playing=false;
+  var sel=document.getElementById("voice");
+  function loadVoices(){
+    if(!synth){ document.getElementById("warn").textContent="이 브라우저는 음성 재생을 지원하지 않습니다."; document.getElementById("warn").style.display="block"; return; }
+    voices = synth.getVoices().filter(function(v){return /^en(-|_|$)/i.test(v.lang);});
+    if(!voices.length) voices = synth.getVoices();
+    sel.innerHTML="";
+    voices.forEach(function(v,i){ var o=document.createElement("option"); o.value=i; o.textContent=v.name+" ("+v.lang+")"; sel.appendChild(o); });
+    var pref = voices.findIndex(function(v){return /en-US/i.test(v.lang)&&/(google|natural|samantha|aria|jenny)/i.test(v.name);});
+    if(pref<0) pref = voices.findIndex(function(v){return /en-US/i.test(v.lang);});
+    if(pref<0) pref=0;
+    if(voices.length){ sel.value=pref; chosen=voices[pref]; }
+    document.getElementById("warn").style.display = /^en/i.test((chosen&&chosen.lang)||"")?"none":"block";
+  }
+  loadVoices();
+  if(synth) synth.onvoiceschanged = loadVoices;
+  sel.onchange=function(){ chosen=voices[+sel.value]; };
+
+  function hi(i){ document.querySelectorAll(".s.on").forEach(function(e){e.classList.remove("on");}); var e=document.getElementById("s"+i); if(e){e.classList.add("on"); e.scrollIntoView({block:"center",behavior:"smooth"});} }
+  function mkUtter(i){ var u=new SpeechSynthesisUtterance(SENT[i]); if(chosen)u.voice=chosen; u.lang=(chosen&&chosen.lang)||"en-US"; u.rate=rate; return u; }
+  function speakOne(i){ if(!synth)return; hi(i); var u=mkUtter(i); u.onend=function(){ document.querySelectorAll(".s.on").forEach(function(e){e.classList.remove("on");}); }; synth.speak(u); }
+  function playFrom(i){ if(i>=SENT.length){ playing=false; document.querySelectorAll(".s.on").forEach(function(e){e.classList.remove("on");}); document.getElementById("play").textContent="Play"; return; } hi(i); var u=mkUtter(i); u.onend=function(){ if(playing) playFrom(i+1); }; synth.speak(u); }
+  function stopAll(){ playing=false; if(synth)synth.cancel(); document.querySelectorAll(".s.on").forEach(function(e){e.classList.remove("on");}); document.getElementById("play").textContent="Play"; }
+
+  document.getElementById("play").onclick=function(){ if(!synth)return; if(playing){ stopAll(); return; } synth.cancel(); playing=true; this.textContent="Pause"; playFrom(0); };
+  document.getElementById("slow").onclick=function(){ var on=this.classList.toggle("on"); rate=on?0.8:1; this.textContent=on?"Slow · on":"Slow"; };
+  document.getElementById("stop").onclick=stopAll;
+</script>
+</body>
+</html>

@@ -282,8 +282,11 @@ const ROUTINE_DEF = [
 ];
 // 루틴 미디어: ▶ 재생 → 종료 시 자동 완료 기록. 자체 제작 오디오(오리지널 대본+TTS) — 백그라운드 재생 가능 (2026-07-22)
 const ROUTINE_MEDIA = { meditation: { audio: "meditation.mp3", note: "가이드 명상 10분34초(대시보드 오디오, 자동기록)" } };
-// 루틴 가이드 링크: 달리기 → 실내 데쓰런 애니메이션 가이드 (2026-07-22)
-const ROUTINE_LINK = { run: "workout.html" };
+// 루틴 리소스 링크: 달리기 → 실내 데쓰런 가이드, 영어 → 자기소개 음성연습(2026-07-27)
+const ROUTINE_LINK = {
+  run: { href: "workout.html", label: "가이드", title: "실내 데쓰런 가이드" },
+  english: { href: "self-intro.html", label: "자기소개", title: "영어 자기소개 · 음성 연습" }
+};
 function stripHtml(key) {
   const it = (METRICS?.items || []).find(x => x.key === key);
   if (!it || !Array.isArray(it.strip)) return "";
@@ -302,7 +305,7 @@ function renderRoutine(r) {
         onclick="routineCheck('${k}', ${!done})"
         onkeydown="if(event.key===' '||event.key==='Enter'){event.preventDefault();routineCheck('${k}', ${!done});}"></div>
       <div class="rmain" onclick="toggleMemo('${k}')">
-        <div class="rlabel">${esc(label)}${ROUTINE_LINK?.[k] ? `<a class="rmini" href="${ROUTINE_LINK[k]}" title="실내 데쓰런 가이드" onclick="event.stopPropagation()">가이드</a>` : ""}${ROUTINE_MEDIA[k] ? `<button class="rmini" title="가이드 명상 재생" onclick="event.stopPropagation();togglePlayer('${k}')">재생</button>` : ""}</div><div class="rhint">${esc(hint)}</div>
+        <div class="rlabel">${esc(label)}${ROUTINE_LINK?.[k] ? `<a class="rmini" href="${ROUTINE_LINK[k].href}" title="${esc(ROUTINE_LINK[k].title)}" onclick="event.stopPropagation()">${esc(ROUTINE_LINK[k].label)}</a>` : ""}${ROUTINE_MEDIA[k] ? `<button class="rmini" title="가이드 명상 재생" onclick="event.stopPropagation();togglePlayer('${k}')">재생</button>` : ""}</div><div class="rhint">${esc(hint)}</div>
       </div>
       ${stripHtml(k)}
       <button class="rmemo-btn" onclick="toggleMemo('${k}')" aria-label="${esc(label)} 코멘트"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
