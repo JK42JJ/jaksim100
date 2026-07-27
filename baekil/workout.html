@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>데쓰런 서킷 — 실내 운동 가이드</title>
+<style>
+  :root {
+    --bg:#f3f1ec; --surface:#ffffff; --surface2:#f8f7f3;
+    --ink:#22262f; --ink2:#6a7080; --ink3:#9ba1ac; --line:#e7e4dc;
+    --accent:#32519e; --accent-soft:#eaeef8; --ok:#1b7a4e; --ok-soft:#e4f2ea;
+    --warn:#96690a; --band:#c9862c;
+    --shadow:0 1px 2px rgba(30,34,46,.05), 0 6px 18px rgba(30,34,46,.04);
+    --r:16px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0f1117; --surface:#181b23; --surface2:#1e222d;
+      --ink:#e8e9ee; --ink2:#9aa1b3; --ink3:#666d7e; --line:#272b36;
+      --accent:#8ba3f2; --accent-soft:#242b45; --ok:#4cc487; --ok-soft:#1a2d24;
+      --warn:#d9a23a; --band:#d9a23a; --shadow:none; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); line-height:1.55;
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard",sans-serif;
+    padding:20px 14px 60px; }
+  .wrap { max-width:760px; margin:0 auto; }
+  h1 { font-size:22px; margin:4px 0 2px; }
+  .sub { color:var(--ink2); font-size:13.5px; margin-bottom:16px; }
+  .sub b { color:var(--ok); }
+  .back { display:inline-block; margin-bottom:10px; color:var(--accent); text-decoration:none; font-size:13.5px; }
+  .today { background:var(--accent-soft); border:1px solid var(--line); border-radius:var(--r);
+    padding:12px 16px; margin-bottom:18px; font-size:14.5px; box-shadow:var(--shadow); }
+  .today b { color:var(--accent); }
+  h2 { font-size:15px; color:var(--ink2); margin:22px 0 10px; letter-spacing:.02em; }
+  .sessions { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px; }
+  .sess { background:var(--surface); border:1px solid var(--line); border-radius:var(--r);
+    padding:12px 14px; font-size:13px; box-shadow:var(--shadow); }
+  .sess.hot { border-color:var(--accent); }
+  .sess .t { font-weight:700; font-size:14px; margin-bottom:4px; }
+  .sess .d { color:var(--ink2); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:var(--r);
+    padding:14px; box-shadow:var(--shadow); }
+  .card h3 { margin:0 0 2px; font-size:15px; }
+  .reps { color:var(--ok); font-size:12.5px; font-weight:700; margin-bottom:8px; }
+  .fig { background:var(--surface2); border-radius:12px; display:flex; justify-content:center; padding:6px 0; }
+  svg { width:150px; height:118px; }
+  .st { stroke:var(--ink); stroke-width:5; stroke-linecap:round; fill:none; }
+  .hd { fill:var(--ink); }
+  .bd { stroke:var(--band); stroke-width:3; stroke-dasharray:4 3; fill:none; }
+  .fl { stroke:var(--ink3); stroke-width:2; }
+  .tip { font-size:12px; color:var(--ink2); margin-top:8px; }
+  .tip b { color:var(--ink); font-weight:600; }
+  .pA { animation:swA 1.6s steps(1) infinite; }
+  .pB { animation:swB 1.6s steps(1) infinite; }
+  @keyframes swA { 0%,49.9% { opacity:1; } 50%,100% { opacity:0; } }
+  @keyframes swB { 0%,49.9% { opacity:0; } 50%,100% { opacity:1; } }
+  @media (prefers-reduced-motion: reduce) { .pA,.pB { animation:none; } .pB { opacity:.25; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">← 콘솔로</a>
+  <h1>🏋️ 데쓰런 서킷</h1>
+  <div class="sub">정식 <b>10회 × 4세트</b> · 세트 간 30~60초 — 단 <b>1세트만 해도 그날 수행 인정</b>. 시작 전 손목·무릎 1분, 끝나고 스트레칭 1분.</div>
+  <div class="today" id="today"></div>
+
+  <h2>세션 로테이션</h2>
+  <div class="sessions" id="sessions">
+    <div class="sess" data-s="A"><div class="t">A 푸시+하체 <span style="color:var(--ink3)">월·목</span></div><div class="d">푸쉬업 → 스쿼트 → 밴드 프론트 → 래터럴 → 오버헤드 · ~18분</div></div>
+    <div class="sess" data-s="B"><div class="t">B 코어+하체 <span style="color:var(--ink3)">화·금</span></div><div class="d">런지 → 윗몸 → 레그레이즈 → 마운틴 클라이머 · ~15분</div></div>
+    <div class="sess" data-s="C"><div class="t">C 풀서킷 <span style="color:var(--ink3)">수·일</span></div><div class="d">9종 × 10회 논스톱 1라운드 × 3~4 (라운드 간 90초) · ~25분</div></div>
+    <div class="sess" data-s="E"><div class="t">⚡ 비상 5분</div><div class="d">스쿼트10 → 푸쉬업10 → 마운틴 좌우10 × 2라운드 논스톱 — 이것만 해도 ✅</div></div>
+  </div>
+
+  <h2>운동 가이드 (각 10회)</h2>
+  <div class="grid">
+
+    <div class="card"><h3>① 푸쉬업</h3><div class="reps">10회 × 4세트</div>
+      <div class="fig"><svg viewBox="0 0 140 110">
+        <line class="fl" x1="8" y1="92" x2="132" y2="92"/>
+        <g class="pA"><circle class="hd" cx="112" cy="52" r="8"/><line class="st" x1="103" y1="57" x2="40" y2="68"/><line class="st" x1="100" y1="58" x2="100" y2="90"/><line class="st" x1="40" y1="68" x2="16" y2="88"/></g>
+        <g class="pB"><circle class="hd" cx="112" cy="72" r="8"/><line class="st" x1="103" y1="76" x2="40" y2="80"/><line class="st" x1="100" y1="76" x2="88" y2="90"/><line class="st" x1="40" y1="80" x2="16" y2="90"/></g>
+      </svg></div>
+      <div class="tip"><b>가슴이 바닥 5cm까지.</b> 쉬움: 무릎 대고 / 어려움: 발 올리고·3초 템포</div></div>
+
+    <div class="card"><h3>② 스쿼트</h3><div class="reps">10회 × 4세트</div>
+      <div class="fig"><svg viewBox="0 0 140 110">
+        <line class="fl" x1="8" y1="92" x2="132" y2="92"/>
+        <g class="pA"><circle class="hd" cx="66" cy="18" r="8"/><line class="st" x1="66" y1="26" x2="66" y2="60"/><line class="st" x1="66" y1="36" x2="88" y2="42"/><line class="st" x1="66" y1="60" x2="66" y2="90"/></g>
+        <g class="pB"><circle class="hd" cx="76" cy="38" r="8"/><line class="st" x1="74" y1="46" x2="60" y2="62"/><line class="st" x1="72" y1="48" x2="100" y2="46"/><line class="st" x1="60" y1="62" x2="84" y2="66"/><line class="st" x1="84" y1="66" x2="82" y2="90"/></g>
+      </svg></div>
+      <div class="tip"><b>엉덩이가 무릎 아래까지.</b> 쉬움: 의자 터치 / 어려움: 점프 스쿼트</div></div>
+
+    <div class="card"><h3>③ 런지</h3><div class="reps">좌우 10회 × 4세트</div>
+      <div class="fig"><svg viewBox="0 0 140 110">
+        <line class="fl" x1="8" y1="92" x2="132" y2="92"/>
+        <g class="pA"><circle class="hd" cx="66" cy="18" r="8"/><line class="st" x1="66" y1="26" x2="66" y2="60"/><line class="st" x1="66" y1="60" x2="66" y2="90"/></g>
+        <g class="pB"><circle class="hd" cx="70" cy="28" r="8"/><line class="st" x1="70" y1="36" x2="70" y2="58"/><line class="st" x1="70" y1="58" x2="94" y2="62"/><line class="st" x1="94" y1="62" x2="94" y2="90"/><line class="st" x1="70" y1="58" x2="44" y2="90"/></g>
+      </svg></div>
+      <div class="tip"><b>앞무릎 90°, 뒷무릎 바닥 직전.</b> 쉬움: 하프 / 어려움: 워킹·점프 런지</div></div>
+
+    <div class="card"><h3>④ 윗몸일으키기</h3><div class="reps">10회 × 4세트</div>
+      <div class="fig"><svg viewBox="0 0 140 110">
+        <line class="fl" x1="8" y1="92" x2="132" y2="92"/>
+        <g class="pA"><circle class="hd" cx="26" cy="84" r="8"/><line class="st" x1="34" y1="86" x2="72" y2="86"/><line class="st" x1="72" y1="86" x2="86" y2="64"/><line class="st" x1="86" y1="64" x2="98" y2="88"/></g>
+        <g class="pB"><circle class="hd" cx="56" cy="52" r="8"/><line class="st" x1="60" y1="59" x2="72" y2="86"/><line class="st" x1="72" y1="86" x2="86" y2="64"/><line class="st" x1="86" y1="64" x2="98" y2="88"/></g>
+      </svg></div>
+      <div class="tip"><b>반동 없이 복부 힘으로.</b> 쉬움: 크런치 / 어려움: 발 들고 V-업</div></div>
+
+    <div class="card"><h3>⑤ 레그레이즈</h3><div class="reps">10회 × 4세트</div>
+      <div class="fig"><svg viewBox="0 0 140 110">
+        <line class="fl" x1="8" y1="92" x2="132" y2="92"/>
+        <g class="pA"><circle class="hd" cx="26" cy="84" r="8"/><line class="st" x1="34" y1="86" x2="72" y2="86"/><line class="st" x1="72" y1="86" x2="112" y2="86"/></g>
+        <g class="pB"><circle class="hd" cx="26" cy="84" r="8"/><line class="st" x1="34" y1="86" x2="72" y2="86"/><line class="st" x1="72" y1="86" x2="74" y2="46"/></g>
+      </svg></div>
+      <div class="tip"><b>허리 바닥에 붙이고 다리 90°.</b> 쉬움: 무릎 굽혀 / 어려움: 3초 슬로우</div></div>
+
+    <div class="card"><h3>⑥ 마운틴 클라이머</h3><div class="reps">좌우 10회 × 4세트</div>
+      <div class="fig"><svg viewBox="0 0 140 110">
+        <line class="fl" x1="8" y1="92" x2="132" y2="92"/>
+        <g class="pA"><circle class="hd" cx="112" cy="48" r="8"/><line class="st" x1="103" y1="54" x2="44" y2="66"/><line class="st" x1="100" y1="55" x2="100" y2="90"/><line class="st" x1="44" y1="66" x2="16" y2="88"/><line class="st" x1="60" y1="63" x2="82" y2="74"/></g>
+        <g class="pB"><circle class="hd" cx="112" cy="48" r="8"/><line class="st" x1="103" y1="54" x2="44" y2="66"/><line class="st" x1="100" y1="55" x2="100" y2="90"/><line class="st" x1="60" y1="63" x2="30" y2="88"/><line class="st" x1="44" y1="66" x2="76" y2="78"/></g>
+      </svg></div>
+      <div class="tip"><b>플랭크 유지, 무릎을 가슴까지.</b> 쉬움: 슬로우 / 어려움: 20초 전력</div></div>
+
+    <div class="card"><h3>⑦ 밴드 프론트 레이즈</h3><div class="reps">10회 × 4세트</div>
+      <div class="fig"><svg viewBox="0 0 140 110">
+        <line class="fl" x1="8" y1="92" x2="132" y2="92"/>
+        <g class="pA"><circle class="hd" cx="66" cy="16" r="8"/><line class="st" x1="66" y1="24" x2="66" y2="58"/><line class="st" x1="66" y1="58" x2="60" y2="90"/><line class="st" x1="66" y1="58" x2="74" y2="90"/><line class="st" x1="66" y1="32" x2="70" y2="54"/><path class="bd" d="M67 90 Q70 72 70 54"/></g>
+        <g class="pB"><circle class="hd" cx="66" cy="16" r="8"/><line class="st" x1="66" y1="24" x2="66" y2="58"/><line class="st" x1="66" y1="58" x2="60" y2="90"/><line class="st" x1="66" y1="58" x2="74" y2="90"/><line class="st" x1="66" y1="32" x2="96" y2="30"/><path class="bd" d="M67 90 Q86 62 96 30"/></g>
+      </svg></div>
+      <div class="tip"><b>밴드 밟고 팔 어깨높이까지 앞으로.</b> 저항은 밴드 길이로 조절, 내릴 때 천천히</div></div>
+
+    <div class="card"><h3>⑧ 밴드 래터럴 레이즈</h3><div class="reps">10회 × 4세트</div>
+      <div class="fig"><svg viewBox="0 0 140 110">
+        <line class="fl" x1="8" y1="92" x2="132" y2="92"/>
+        <g class="pA"><circle class="hd" cx="70" cy="16" r="8"/><line class="st" x1="70" y1="24" x2="70" y2="58"/><line class="st" x1="70" y1="58" x2="58" y2="90"/><line class="st" x1="70" y1="58" x2="82" y2="90"/><line class="st" x1="70" y1="30" x2="56" y2="52"/><line class="st" x1="70" y1="30" x2="84" y2="52"/><path class="bd" d="M58 90 Q56 70 56 52"/><path class="bd" d="M82 90 Q84 70 84 52"/></g>
+        <g class="pB"><circle class="hd" cx="70" cy="16" r="8"/><line class="st" x1="70" y1="24" x2="70" y2="58"/><line class="st" x1="70" y1="58" x2="58" y2="90"/><line class="st" x1="70" y1="58" x2="82" y2="90"/><line class="st" x1="70" y1="30" x2="38" y2="28"/><line class="st" x1="70" y1="30" x2="102" y2="28"/><path class="bd" d="M58 90 Q42 60 38 28"/><path class="bd" d="M82 90 Q98 60 102 28"/></g>
+      </svg></div>
+      <div class="tip"><b>팔꿈치 살짝 굽혀 옆으로 어깨높이.</b> 어깨 으쓱하지 않기 (승모근 개입 방지)</div></div>
+
+    <div class="card"><h3>⑨ 밴드 오버헤드 프레스</h3><div class="reps">10회 × 4세트</div>
+      <div class="fig"><svg viewBox="0 0 140 110">
+        <line class="fl" x1="8" y1="92" x2="132" y2="92"/>
+        <g class="pA"><circle class="hd" cx="70" cy="18" r="8"/><line class="st" x1="70" y1="26" x2="70" y2="58"/><line class="st" x1="70" y1="58" x2="58" y2="90"/><line class="st" x1="70" y1="58" x2="82" y2="90"/><line class="st" x1="70" y1="32" x2="54" y2="40"/><line class="st" x1="54" y1="40" x2="52" y2="26"/><line class="st" x1="70" y1="32" x2="86" y2="40"/><line class="st" x1="86" y1="40" x2="88" y2="26"/><path class="bd" d="M58 90 Q50 58 52 26"/><path class="bd" d="M82 90 Q90 58 88 26"/></g>
+        <g class="pB"><circle class="hd" cx="70" cy="18" r="8"/><line class="st" x1="70" y1="26" x2="70" y2="58"/><line class="st" x1="70" y1="58" x2="58" y2="90"/><line class="st" x1="70" y1="58" x2="82" y2="90"/><line class="st" x1="70" y1="32" x2="58" y2="6"/><line class="st" x1="70" y1="32" x2="82" y2="6"/><path class="bd" d="M58 90 Q48 46 58 6"/><path class="bd" d="M82 90 Q92 46 82 6"/></g>
+      </svg></div>
+      <div class="tip"><b>밴드 밟고 만세하듯 머리 위로 완전히 뻗기.</b> 허리 젖히지 않기 (코어 조이고) · 쉬움: 한 팔씩 / 어려움: 저항↑·상단 2초 홀드</div></div>
+
+  </div>
+</div>
+<script>
+  const day = new Date().getDay(); // 0=일
+  const map = { 1:"A", 4:"A", 2:"B", 5:"B", 3:"C", 0:"C", 6:null };
+  const sess = map[day];
+  const names = { A:"A 푸시+하체", B:"B 코어+하체", C:"C 데쓰런 풀서킷" };
+  document.getElementById("today").innerHTML = sess
+    ? `오늘의 세션 → <b>${names[sess]}</b> · 4세트가 정식, <b>1세트만 해도 ✅</b> — 끝나면 콘솔에서 달리기 체크(메모: 실내 ${sess})`
+    : `오늘은 <b>토요일 산행</b>이 우선 — 실내는 보강으로만 (아무 세션 1세트)`;
+  if (sess) document.querySelectorAll(".sess").forEach(el => { if (el.dataset.s === sess) el.classList.add("hot"); });
+</script>
+</body>
+</html>
