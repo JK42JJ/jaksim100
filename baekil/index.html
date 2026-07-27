@@ -199,7 +199,6 @@
   #gate .err{color:#c0392b;font-size:12.5px;min-height:16px;margin-top:8px}
   .rcheck{pointer-events:none}
   .rmini,.rmemo-btn,.rmemo,.rplayer{display:none!important}
-  #tabbtn-act,#tab-act{display:none!important}
   .qbtns,.nclear{display:none!important}
 </style>
 </head>
@@ -257,7 +256,7 @@ function switchTab(name) {
   }
   try { localStorage.setItem("tab", name); } catch (e) {}
 }
-switchTab((() => { try { var t = localStorage.getItem("tab") || "routine"; return t === "act" ? "routine" : t; } catch (e) { return "routine"; } })());
+switchTab((() => { try { return localStorage.getItem("tab") || "routine"; } catch (e) { return "routine"; } })());
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 let toastT, METRICS = null;
 function toast(msg) {
@@ -411,7 +410,7 @@ async function decide(btn, id, decision) {
   }
 }
 async function loadQueue() {
-  try { renderQueue(await (await fetch("hitl-queue.json", {cache:"no-store"})).json()); }
+  try { renderQueue(await (await fetch("hitl-queue.json?t=" + Date.now(), {cache:"no-store"})).json()); }
   catch (e) { $("queue").innerHTML = `<div class="card empty">큐 로드 실패</div>`; }
 }
 
