@@ -197,9 +197,7 @@
   #gate input{width:230px;max-width:80vw;text-align:center;letter-spacing:5px;font-size:19px;font-weight:700;padding:13px;border:1.5px solid #d9d5cc;border-radius:12px;background:#fff;color:#1a1d24;outline:none;box-sizing:border-box}
   #gate button{margin-top:14px;padding:12px 30px;border:none;border-radius:12px;background:var(--accent,#2b4fd6);color:#fff;font-size:15px;font-weight:800;cursor:pointer}
   #gate .err{color:#c0392b;font-size:12.5px;min-height:16px;margin-top:8px}
-  .rcheck{pointer-events:none}
-  .rmini,.rmemo-btn,.rmemo,.rplayer{display:none!important}
-  .qbtns,.nclear{display:none!important}
+  .rmini,.rplayer{display:none!important}   /* 이모지 링크·오디오 플레이어만 숨김(라이브 편집은 허용) */
 </style>
 </head>
 <body>
@@ -243,6 +241,16 @@
 </div>
 <div id="toast" role="status"></div>
 <script>
+(function(){
+  /* 라이브 백엔드 프록시: /api/* 와 데이터 json 을 코치 터널 /dash 로(개인암호 X-Secret). 편집·새로고침 작동 */
+  var of=window.fetch.bind(window), DB=null;
+  var ready=of("/coach.json",{cache:"no-store"}).then(function(r){return r.ok?r.json():null;}).then(function(c){DB=(c&&c.api)?c.api.replace(/\/+$/,"")+"/dash":null;}).catch(function(){DB=null;});
+  function tgt(u){ if(typeof u!=="string")return null; if(u.indexOf("/api/")===0)return u.split("?")[0]; var q=u.replace(/^\.?\//,"").split("?")[0]; if(q==="metrics.json"||q==="hitl-queue.json"||q==="notices.json"||q==="routine.json")return "/"+q; return null; }
+  window.fetch=function(u,opt){ var t=tgt(u); if(t===null)return of(u,opt); opt=opt||{};
+    return ready.then(function(){ if(!DB)throw new Error("dash-unready"); var SEC=""; try{SEC=localStorage.getItem("bk_chat_sec")||"";}catch(e){}
+      var h=Object.assign({},opt.headers||{},{"X-Secret":SEC}); if((opt.method||"GET").toUpperCase()==="POST")h["Content-Type"]="application/json";
+      return of(DB+t,Object.assign({},opt,{headers:h})); }); };
+})();
 (function(){var PW="9873032277";function unlock(){document.body.classList.add("unlocked");}
 try{if(localStorage.getItem("baekilpw")===PW)unlock();}catch(e){}
 var i=document.getElementById("gpw"),b=document.getElementById("gbtn"),er=document.getElementById("gerr");
@@ -355,7 +363,7 @@ function routineSave(key) {
 }
 async function loadRoutine() {
   if (_mediaActive) return; // 재생 중 재렌더로 플레이어가 죽지 않게 보호
-  try { renderRoutine(await (await fetch("routine.json?t=" + Date.now(), {cache:"no-store"})).json()); }
+  try { renderRoutine(await (await fetch("/api/routine", {cache:"no-store"})).json()); }
   catch (e) { $("routine").innerHTML = `<div class="empty">루틴 API 없음 — 정적 모드</div>`; }
 }
 
@@ -410,7 +418,7 @@ async function decide(btn, id, decision) {
   }
 }
 async function loadQueue() {
-  try { renderQueue(await (await fetch("hitl-queue.json?t=" + Date.now(), {cache:"no-store"})).json()); }
+  try { renderQueue(await (await fetch("hitl-queue.json", {cache:"no-store"})).json()); }
   catch (e) { $("queue").innerHTML = `<div class="card empty">큐 로드 실패</div>`; }
 }
 
@@ -481,7 +489,7 @@ async function clearNotice(id) {
   } catch (e) { toast("처리 실패 — 서버 확인"); }
 }
 async function loadMetrics() {
-  try { renderMetrics(await (await fetch("metrics.json?t=" + Date.now(), {cache:"no-store"})).json()); }
+  try { renderMetrics(await (await fetch("metrics.json", {cache:"no-store"})).json()); }
   catch (e) { $("cards").innerHTML = `<div class="card empty">metrics 로드 실패</div>`; }
 }
 
