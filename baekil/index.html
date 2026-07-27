@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#f3f1ec" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1117" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>百日作戰</title>
+<style>
+  :root {
+    --bg:#f3f1ec; --surface:#ffffff; --surface2:#f8f7f3;
+    --ink:#22262f; --ink2:#6a7080; --ink3:#9ba1ac; --line:#e7e4dc; --line2:#f0eee7;
+    --accent:#32519e; --accent-ink:#ffffff; --accent-soft:#eaeef8;
+    --ok:#1b7a4e; --ok-soft:#e4f2ea; --warn:#96690a; --bad:#b23a2f; --bad-soft:#f9e9e7;
+    --shadow:0 1px 2px rgba(30,34,46,.05), 0 6px 18px rgba(30,34,46,.04);
+    --r:16px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0f1117; --surface:#181b23; --surface2:#1e222d;
+      --ink:#e8e9ee; --ink2:#9aa1b3; --ink3:#666d7e; --line:#272b36; --line2:#20242e;
+      --accent:#8ba3f2; --accent-ink:#0f1117; --accent-soft:#242b45;
+      --ok:#4cc487; --ok-soft:#1a2d24; --warn:#d9a23a; --bad:#e06459; --bad-soft:#342220;
+      --shadow:none; }
+  }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html { background:var(--bg); }
+  body { margin:0; background:var(--bg); color:var(--ink); line-height:1.55;
+    font-family:"Apple SD Gothic Neo","Pretendard","Noto Sans KR",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:880px; margin:0 auto; padding:0 16px 80px; }
+
+  /* ── 상단 (sticky) */
+  .top { position:sticky; top:0; z-index:5; background:var(--bg);
+    padding:calc(env(safe-area-inset-top,0px) + 14px) 0 11px;
+    border-bottom:1px solid var(--line2); margin-bottom:4px; }
+  .top-row { display:flex; align-items:baseline; gap:10px; }
+  .top h1 { font-size:16.5px; margin:0; font-weight:800; letter-spacing:.02em; }
+  .day { font-size:16.5px; font-weight:800; color:var(--accent); font-variant-numeric:tabular-nums; }
+  .gen { margin-left:auto; font-size:11px; color:var(--ink3); font-variant-numeric:tabular-nums; }
+  .refresh { flex:none; align-self:center; width:30px; height:30px; border-radius:9px;
+    border:1px solid var(--line); background:var(--surface); color:var(--ink2);
+    display:grid; place-items:center; cursor:pointer; padding:0; }
+  .refresh svg { width:15px; height:15px; }
+  .refresh.busy svg { animation:spin .8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .progress { height:4px; border-radius:99px; background:var(--line); margin-top:10px; overflow:hidden; }
+  .progress i { display:block; height:100%; border-radius:99px; background:var(--accent);
+    transition:width .4s; }
+  .cov { font-size:11px; color:var(--ink3); margin-top:7px; }
+  .tabbar { display:flex; gap:6px; margin-top:11px; }
+  .tabbar button { flex:1; font:inherit; font-size:13px; font-weight:700; padding:8px 4px;
+    border-radius:10px; border:1px solid var(--line); background:var(--surface);
+    color:var(--ink2); cursor:pointer; }
+  .tabbar button.on { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
+  .tabbar .tbn { font-weight:700; opacity:.75; margin-left:4px; font-size:11.5px;
+    font-variant-numeric:tabular-nums; }
+  .tab { display:none; }
+  .tab.on { display:block; }
+  .notices { display:flex; flex-direction:column; gap:8px; margin:14px 0 0; }
+  .notice { display:flex; align-items:flex-start; gap:10px; padding:11px 14px;
+    border-radius:12px; border:1px solid var(--line); background:var(--surface);
+    border-left:4px solid var(--warn); }
+  .notice.info { border-left-color:var(--accent); }
+  .notice .nbody { flex:1; min-width:0; }
+  .notice .ntitle { font-size:13px; font-weight:700; }
+  .notice .nnote { font-size:12px; color:var(--ink2); margin-top:2px; white-space:pre-line; }
+  .notice .nnote a { color:var(--accent); text-decoration:none; font-weight:600; }
+  .notice .nclear { flex:none; font:inherit; font-size:12px; font-weight:700; padding:6px 12px;
+    border-radius:9px; border:1px solid var(--line); background:var(--surface2);
+    color:var(--ink2); cursor:pointer; }
+
+  /* ── 섹션 헤더 */
+  h2 { display:flex; align-items:center; gap:8px; font-size:11.5px; letter-spacing:.16em;
+       color:var(--ink2); margin:28px 0 10px; font-weight:800; }
+  h2 .cnt { font-size:11px; font-weight:700; background:var(--accent-soft); color:var(--accent);
+            border-radius:99px; padding:1px 8px; letter-spacing:0; font-variant-numeric:tabular-nums; }
+
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:var(--r);
+          box-shadow:var(--shadow); }
+
+  /* ── 루틴 */
+  .rrow { display:flex; align-items:center; gap:11px; padding:12px 14px; }
+  .rrow + .rrow, .rrow + .rmemo + .rrow { border-top:1px solid var(--line2); }
+  .rcheck { width:23px; height:23px; flex:none; border-radius:8px; border:1.5px solid var(--ink3);
+    display:grid; place-items:center; cursor:pointer; background:transparent;
+    transition:background .15s, border-color .15s; }
+  .rcheck.on { background:var(--ok); border-color:var(--ok); }
+  .rcheck.on::after { content:"✓"; color:#fff; font-size:13px; font-weight:800; }
+  .rmain { flex:1; min-width:0; cursor:pointer; user-select:none; overflow:hidden; }
+  .rlabel { font-size:14.5px; font-weight:600; display:flex; align-items:center; gap:7px; }
+  .rmini { flex:none; border:none; background:var(--accent-soft); color:var(--accent); width:24px; height:24px;
+    border-radius:8px; display:inline-flex; align-items:center; justify-content:center; font-size:12.5px;
+    cursor:pointer; text-decoration:none; line-height:1; }
+  .rhint { font-size:11px; color:var(--ink3); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .rstrip { display:flex; gap:2.5px; flex:none; }
+  .rstrip i { width:6px; height:14px; border-radius:3px; background:var(--line); }
+  .rstrip i.on { background:var(--ok); }
+  .rstrip i.today { outline:1.5px solid var(--accent); outline-offset:1px; background:var(--surface); }
+  .rstrip i.today.on { background:var(--ok); }
+  .rmemo-btn { flex:none; border:none; background:none; color:var(--ink3); font-size:15px;
+    cursor:pointer; padding:6px 2px 6px 6px; }
+  .rmemo { display:none; padding:2px 15px 12px 50px; gap:8px; }
+  .rmemo.open { display:flex; }
+  .rmemo input { flex:1; font:inherit; font-size:13.5px; padding:9px 12px; border-radius:10px;
+    border:1px solid var(--line); background:var(--surface2); color:var(--ink); min-width:0; }
+  .rmemo input::placeholder { color:var(--ink3); }
+  .rmemo button { font:inherit; font-size:13px; font-weight:700; padding:9px 16px; border-radius:10px;
+    border:none; background:var(--accent); color:var(--accent-ink); cursor:pointer; flex:none; }
+  .rnote { padding:10px 15px; border-top:1px solid var(--line2); font-size:12px; color:var(--ink2);
+    background:var(--surface2); border-radius:0 0 var(--r) var(--r); }
+  .rplay-btn { flex:none; border:none; background:var(--accent-soft); color:var(--accent);
+    font-size:12px; font-weight:700; cursor:pointer; padding:6px 12px; border-radius:99px; }
+  .rplayer { display:none; padding:4px 15px 14px 50px; }
+  .rplayer.open { display:block; }
+  .rplayer .frame { width:100%; max-width:480px; }
+  .rplayer iframe { position:absolute; inset:0; width:100%; height:100%; border:0; }
+  .rplayer .hint { font-size:11.5px; color:var(--ink3); margin-top:6px; }
+
+  /* ── 결정 대기 */
+  .queue { display:flex; flex-direction:column; gap:12px; }
+  .qitem { padding:14px 16px 14px 19px; position:relative; overflow:hidden; }
+  .qitem::before { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--accent); }
+  .qitem.duewarn::before { background:var(--bad); }
+  .qhead { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:8px; }
+  .chip { font-size:11px; font-weight:700; padding:2.5px 9px; border-radius:99px;
+          background:var(--accent-soft); color:var(--accent); }
+  .chip.act { background:transparent; border:1px solid var(--line); color:var(--ink2); }
+  .due { font-size:11px; color:var(--bad); font-weight:700; margin-left:auto;
+         background:var(--bad-soft); padding:3px 9px; border-radius:99px;
+         font-variant-numeric:tabular-nums; }
+  .qtitle { font-size:14.5px; font-weight:650; line-height:1.45; }
+  .qnote { font-size:12.5px; color:var(--ink2); margin-top:3px; white-space:pre-line; }
+  .qlinks { margin-top:7px; }
+  .qlinks a { font-size:12.5px; color:var(--accent); text-decoration:none; margin-right:14px; font-weight:600; }
+  .qbtns { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+  .qbtns button { font:inherit; font-weight:700; border-radius:11px; cursor:pointer;
+    white-space:nowrap; transition:transform .06s, opacity .15s; }
+  .qbtns button:active { transform:scale(.97); }
+  .qbtns button:disabled { opacity:.5; }
+  .b-ok { flex:1 1 auto; min-width:0; font-size:13.5px; padding:11px 12px; border:none;
+          background:var(--accent); color:var(--accent-ink); }
+  .b-hold, .b-skip { flex:0 1 auto; font-size:13px; padding:11px 13px;
+    border:1px solid var(--line); background:var(--surface); }
+  .b-hold { color:var(--warn); }
+  .b-skip { color:var(--ink3); }
+  .qdone { font-size:12.5px; color:var(--ok); font-weight:600; margin-top:9px; }
+  .empty { color:var(--ink3); font-size:13.5px; padding:14px 16px; }
+
+  /* ── 지표 */
+  .grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+  @media (min-width:640px) { .grid { grid-template-columns:repeat(3,1fr); } }
+  .stat { padding:13px 15px 14px; }
+  .stat h3 { margin:0 0 7px; font-size:11px; color:var(--ink2); font-weight:800;
+             letter-spacing:.08em; }
+  .big { font-size:25px; font-weight:800; font-variant-numeric:tabular-nums;
+         letter-spacing:-.02em; line-height:1.15; }
+  .big small { font-size:12px; font-weight:600; color:var(--ink3); margin-left:2px; letter-spacing:0; }
+  .sub { font-size:12px; color:var(--ink2); margin-top:3px; line-height:1.5; }
+  .sub b { color:var(--ink); }
+  .bar { height:5px; border-radius:99px; background:var(--line); overflow:hidden; margin-top:10px; }
+  .bar i { display:block; height:100%; background:var(--accent); border-radius:99px; }
+  .wide { grid-column:1 / -1; }
+  .trow { padding:8px 0; }
+  .trow + .trow { border-top:1px solid var(--line2); }
+  .trow b { display:block; font-size:13px; }
+  .trow span { font-size:12.5px; color:var(--ink2); }
+  .flag { color:var(--bad); font-weight:700; }
+  .rec { display:flex; justify-content:space-between; gap:10px; font-size:12px;
+         color:var(--ink2); padding:2.5px 0; }
+  .rec i { font-style:normal; color:var(--ink3); flex:none; font-variant-numeric:tabular-nums; }
+
+
+  @media (max-width:560px) {
+    .rrow { gap:9px; padding:12px 12px; }
+    .rstrip { gap:2px; }
+    .rstrip i { width:4px; height:12px; }
+    .rplay-btn { padding:6px 10px; }
+    .rplayer { padding-left:12px; padding-right:12px; }
+    .rmemo { padding-left:12px; }
+  }
+  footer { margin-top:40px; font-size:11px; color:var(--ink3); line-height:1.7; }
+
+  #toast { position:fixed; bottom:calc(env(safe-area-inset-bottom,0px) + 18px); left:50%;
+    transform:translateX(-50%) translateY(16px); background:var(--ink); color:var(--bg);
+    padding:10px 20px; border-radius:12px; font-size:13px; font-weight:600; opacity:0;
+    transition:opacity .25s, transform .25s; pointer-events:none; z-index:9; white-space:nowrap; }
+  #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+  @media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
+
+  /* ── 공개 관측 콘솔: 비밀번호 게이트 + 읽기전용 ── */
+  #gate{position:fixed;inset:0;z-index:1000;background:var(--bg,#f2efe7);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center}
+  body.unlocked #gate{display:none}
+  #gate h2{font-size:20px;margin:0 0 6px;letter-spacing:0}
+  #gate p{font-size:13px;opacity:.65;margin:0 0 18px}
+  #gate input{width:230px;max-width:80vw;text-align:center;letter-spacing:5px;font-size:19px;font-weight:700;padding:13px;border:1.5px solid #d9d5cc;border-radius:12px;background:#fff;color:#1a1d24;outline:none;box-sizing:border-box}
+  #gate button{margin-top:14px;padding:12px 30px;border:none;border-radius:12px;background:var(--accent,#2b4fd6);color:#fff;font-size:15px;font-weight:800;cursor:pointer}
+  #gate .err{color:#c0392b;font-size:12.5px;min-height:16px;margin-top:8px}
+  .rcheck{pointer-events:none}
+  .rmini,.rmemo-btn,.rmemo,.rplayer{display:none!important}
+  #tabbtn-act,#tab-act{display:none!important}
+  .qbtns,.nclear{display:none!important}
+</style>
+</head>
+<body>
+<div id="gate"><h2>百日作戰 &middot; 관측 콘솔</h2><p>비밀번호를 입력하세요</p><input id="gpw" type="password" inputmode="numeric" autocomplete="off" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;"><div class="err" id="gerr"></div><button id="gbtn">열기</button></div>
+
+<div class="wrap">
+  <div class="top">
+    <div class="top-row"><h1>百日作戰</h1><span class="day" id="dayn">·</span><span class="gen" id="gen"></span>
+      <button class="refresh" id="refresh" aria-label="새로고침" onclick="refreshAll()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+          <path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v4h-4"/>
+        </svg>
+      </button></div>
+    <div class="progress"><i id="daybar" style="width:0%"></i></div>
+    <div class="cov" id="cov"></div>
+    <div class="tabbar">
+      <button id="tabbtn-routine" onclick="switchTab('routine')">루틴<span class="tbn" id="tb-r"></span></button>
+      <button id="tabbtn-act" onclick="switchTab('act')">결정<span class="tbn" id="tb-q"></span></button>
+      <button id="tabbtn-obs" onclick="switchTab('obs')">지표</button>
+    </div>
+  </div>
+
+  <div class="notices" id="notices"></div>
+
+  <section class="tab" id="tab-routine">
+    <h2>오늘의 루틴 <span class="cnt" id="rcnt">·</span></h2>
+    <div class="card" id="routine"><div class="empty">불러오는 중…</div></div>
+  </section>
+
+  <section class="tab" id="tab-act">
+    <h2>결정 대기 <span class="cnt" id="qcnt">·</span></h2>
+    <div class="queue" id="queue"><div class="empty">불러오는 중…</div></div>
+  </section>
+
+  <section class="tab" id="tab-obs">
+    <h2>지표</h2>
+    <div class="grid" id="cards"></div>
+    <footer>단일 소스: ops-log.json · hitl-queue.json · warfront-daily.json — 미확인은 공백(추정 없음).<br>
+    체크·결정은 즉시 repo에 커밋되고, 승인 항목은 에이전트가 수행 후 결과를 남깁니다.</footer>
+  </section>
+</div>
+<div id="toast" role="status"></div>
+<script>
+(function(){var PW="9873032277";function unlock(){document.body.classList.add("unlocked");}
+try{if(localStorage.getItem("baekilpw")===PW)unlock();}catch(e){}
+var i=document.getElementById("gpw"),b=document.getElementById("gbtn"),er=document.getElementById("gerr");
+if(b){function go(){if(i.value===PW){try{localStorage.setItem("baekilpw",PW);}catch(e){}unlock();}else{er.textContent="비밀번호가 맞지 않습니다.";i.value="";i.focus();}}b.onclick=go;i.addEventListener("keydown",function(ev){if(ev.key==="Enter")go();});setTimeout(function(){if(!document.body.classList.contains("unlocked"))i.focus();},60);}})();
+
+const $ = (id) => document.getElementById(id);
+function switchTab(name) {
+  for (const t of ["routine", "act", "obs"]) {
+    document.getElementById("tab-" + t).classList.toggle("on", t === name);
+    document.getElementById("tabbtn-" + t).classList.toggle("on", t === name);
+  }
+  try { localStorage.setItem("tab", name); } catch (e) {}
+}
+switchTab((() => { try { var t = localStorage.getItem("tab") || "routine"; return t === "act" ? "routine" : t; } catch (e) { return "routine"; } })());
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let toastT, METRICS = null;
+function toast(msg) {
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+/* ── 루틴 ── */
+const ROUTINE_DEF = [
+  ["run", "달리기", "5분+ · 우천 시 실내 대체"],
+  ["python", "Python", "30분 · warfront2 자동 연동"],
+  ["english", "영어", "15분 스피킹"],
+  ["reading", "독서", "5페이지+"],
+  ["meditation", "명상", "가이드 10분 · 화면 꺼도 재생 · 자동기록"]
+];
+// 루틴 미디어: ▶ 재생 → 종료 시 자동 완료 기록. 자체 제작 오디오(오리지널 대본+TTS) — 백그라운드 재생 가능 (2026-07-22)
+const ROUTINE_MEDIA = { meditation: { audio: "meditation.mp3", note: "가이드 명상 10분34초(대시보드 오디오, 자동기록)" } };
+// 루틴 가이드 링크: 달리기 → 실내 데쓰런 애니메이션 가이드 (2026-07-22)
+const ROUTINE_LINK = { run: "workout.html" };
+function stripHtml(key) {
+  const it = (METRICS?.items || []).find(x => x.key === key);
+  if (!it || !Array.isArray(it.strip)) return "";
+  const cells = it.strip.slice(-14);
+  return `<div class="rstrip" title="최근 14일">` + cells.map((v, i) =>
+    `<i class="${v === true ? "on" : ""}${i === cells.length - 1 ? " today" : ""}"></i>`).join("") + `</div>`;
+}
+function renderRoutine(r) {
+  const doneN = ROUTINE_DEF.filter(([k]) => r.items?.[k] === true).length;
+  $("rcnt").textContent = `${doneN}/${ROUTINE_DEF.length}`;
+  $("tb-r").textContent = `${doneN}/${ROUTINE_DEF.length}`;
+  const rows = ROUTINE_DEF.map(([k, label, hint]) => {
+    const done = r.items?.[k] === true;
+    return `<div class="rrow">
+      <div class="rcheck ${done ? "on" : ""}" role="checkbox" aria-checked="${done}" tabindex="0"
+        onclick="routineCheck('${k}', ${!done})"
+        onkeydown="if(event.key===' '||event.key==='Enter'){event.preventDefault();routineCheck('${k}', ${!done});}"></div>
+      <div class="rmain" onclick="toggleMemo('${k}')">
+        <div class="rlabel">${esc(label)}${ROUTINE_LINK?.[k] ? `<a class="rmini" href="${ROUTINE_LINK[k]}" title="실내 데쓰런 가이드" onclick="event.stopPropagation()">🏋️</a>` : ""}${ROUTINE_MEDIA[k] ? `<button class="rmini" title="재생" onclick="event.stopPropagation();togglePlayer('${k}')">▶</button>` : ""}</div><div class="rhint">${esc(hint)}</div>
+      </div>
+      ${stripHtml(k)}
+      <button class="rmemo-btn" onclick="toggleMemo('${k}')" aria-label="${esc(label)} 코멘트">✎</button>
+    </div>
+    ${ROUTINE_MEDIA[k] ? `<div class="rplayer" id="rp-${k}"><div class="frame" id="rpf-${k}"></div>
+      <div class="hint">화면을 꺼도 이어서 재생됩니다 · 끝나면 자동 기록</div></div>` : ""}
+    <div class="rmemo" id="rm-${k}">
+      <input type="text" id="rn-${k}" placeholder="코멘트 남기고 기록 (예: ~88p)"
+             onkeydown="if(event.key==='Enter')routineSave('${k}')">
+      <button onclick="routineSave('${k}')">기록</button>
+    </div>`;
+  }).join("");
+  const note = r.note ? `<div class="rnote">오늘 기록 — ${esc(r.note)}</div>` : "";
+  $("routine").innerHTML = rows + note;
+}
+function toggleMemo(k) { document.getElementById("rm-" + k).classList.toggle("open"); }
+
+/* 미디어 재생 → 종료 시 자동 완료 (자체 오디오 — 백그라운드 재생 가능) */
+let _mediaActive = null, _audioEl = null;
+function togglePlayer(k) {
+  const panel = document.getElementById("rp-" + k);
+  if (panel.classList.contains("open")) { closePlayer(k); return; }
+  panel.classList.add("open"); _mediaActive = k;
+  const holder = document.getElementById("rpf-" + k);
+  holder.innerHTML = "";
+  _audioEl = document.createElement("audio");
+  _audioEl.src = ROUTINE_MEDIA[k].audio; _audioEl.controls = true;
+  _audioEl.setAttribute("playsinline", ""); _audioEl.style.width = "100%";
+  _audioEl.onended = () => {
+    _mediaActive = null;
+    routinePost(k, true, ROUTINE_MEDIA[k].note, "명상 완료 — 자동 기록 ✓");
+    closePlayer(k);
+  };
+  holder.appendChild(_audioEl);
+  _audioEl.play().catch(() => {});
+}
+function closePlayer(k) {
+  const panel = document.getElementById("rp-" + k);
+  panel.classList.remove("open");
+  if (_audioEl) { try { _audioEl.pause(); } catch (e) {} _audioEl = null; }
+  const was = _mediaActive; _mediaActive = null;
+  if (was) loadRoutine();
+}
+
+async function routinePost(key, done, note, msg) {
+  try {
+    const r = await fetch("/api/routine", { method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ key, done, note }) });
+    if (!r.ok) throw new Error();
+    toast(msg || "기록됨 ✓"); await loadMetrics(); loadRoutine();
+  } catch (e) { toast("저장 실패 — 서버 연결을 확인하세요"); }
+}
+function routineCheck(key, checked) { routinePost(key, checked, "", checked ? "기록됨 ✓" : "기록 철회됨"); }
+function routineSave(key) {
+  const el = document.getElementById("rn-" + key);
+  routinePost(key, true, el.value.trim()); el.value = "";
+}
+async function loadRoutine() {
+  if (_mediaActive) return; // 재생 중 재렌더로 플레이어가 죽지 않게 보호
+  try { renderRoutine(await (await fetch("routine.json", {cache:"no-store"})).json()); }
+  catch (e) { $("routine").innerHTML = `<div class="empty">루틴 API 없음 — 정적 모드</div>`; }
+}
+
+/* ── 결정 대기 ── */
+function renderQueue(q) {
+  const items = q.items || [];
+  const pending = items.filter(i => i.state === "pending");
+  const approved = items.filter(i => i.state === "approved");
+  $("qcnt").textContent = String(pending.length) + (approved.length ? ` · 실행중 ${approved.length}` : "");
+  $("tb-q").textContent = pending.length || "";
+  const now = new Date();
+  function itemHtml(i, withButtons) {
+    let dueHtml = "", warn = "";
+    if (i.due?.date) {
+      const d = new Date(i.due.date);
+      dueHtml = `<span class="due">마감 ${esc(i.due.date.slice(5, 16).replace("T", " "))}</span>`;
+      if ((d - now) / 36e5 < 48) warn = "duewarn";
+    }
+    const links = (i.links || []).map((u, n) =>
+      `<a href="${esc(u)}" target="_blank" rel="noopener">링크${n + 1} ↗</a>`).join("");
+    const tail = withButtons ? `<div class="qbtns">
+        <button class="b-ok" onclick="decide(this,'${esc(i.id)}','approve')">승인 · 실행</button>
+        <button class="b-hold" onclick="decide(this,'${esc(i.id)}','hold')">보류</button>
+        <button class="b-skip" onclick="decide(this,'${esc(i.id)}','skip')">스킵</button>
+      </div>` : `<div class="qdone">✓ 지시됨 — 에이전트가 수행 후 결과를 남깁니다</div>`;
+    return `<div class="card qitem ${warn}">
+      <div class="qhead"><span class="chip">${esc(i.track)}</span><span class="chip act">${esc(i.action)}</span>${dueHtml}</div>
+      <div class="qtitle">${esc(i.title)}</div>
+      ${i.note ? `<div class="qnote">${esc(i.note)}</div>` : ""}
+      ${links ? `<div class="qlinks">${links}</div>` : ""}${tail}</div>`;
+  }
+  let html = "";
+  if (pending.length) {
+    pending.sort((a, b) => (a.due?.date || "9999") < (b.due?.date || "9999") ? -1 : 1);
+    html += pending.map(i => itemHtml(i, true)).join("");
+  } else html += `<div class="card empty">결정 대기 없음 — 모두 처리됐습니다</div>`;
+  html += approved.map(i => itemHtml(i, false)).join("");
+  $("queue").innerHTML = html;
+}
+async function decide(btn, id, decision) {
+  btn.parentElement.querySelectorAll("button").forEach(b => b.disabled = true);
+  try {
+    const r = await fetch("/api/decision", { method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ id, decision }) });
+    if (!r.ok) throw new Error();
+    toast(decision === "approve" ? "지시됨 — 에이전트가 수행합니다" : decision === "hold" ? "보류됨" : "스킵됨");
+    loadQueue();
+  } catch (e) {
+    toast("저장 실패 — 서버 연결을 확인하세요");
+    btn.parentElement.querySelectorAll("button").forEach(b => b.disabled = false);
+  }
+}
+async function loadQueue() {
+  try { renderQueue(await (await fetch("hitl-queue.json", {cache:"no-store"})).json()); }
+  catch (e) { $("queue").innerHTML = `<div class="card empty">큐 로드 실패</div>`; }
+}
+
+/* ── 지표 ── */
+function card(title, body, wide) {
+  return `<div class="card stat${wide ? " wide" : ""}"><h3>${esc(title)}</h3>${body}</div>`;
+}
+function renderMetrics(m) {
+  METRICS = m;
+  $("dayn").textContent = `Day ${m.day_n ?? "·"}/${m.total ?? 100}`;
+  $("daybar").style.width = `${m.elapsed_pct ?? 0}%`;
+  $("gen").textContent = m.generated_at ? m.generated_at.slice(5, 16).replace("T", " ") + " 갱신" : "";
+  if (m.coverage) $("cov").textContent =
+    `캡처 커버리지 ${m.coverage.pct}% (${m.coverage.confirmed}/${m.coverage.total}) · 미확인은 기록 공백이지 미수행이 아님`;
+  const out = [];
+  if (m.apply) {
+    const a = m.apply, pct = a.total ? Math.min(100, Math.round(100 * a.now / a.total)) : 0;
+    const recent = (a.recent || []).slice(0, 3).map(r =>
+      `<div class="rec"><span>${esc(r.company)} · ${esc(r.role)}</span><i>${esc((r.date || "").slice(5))}</i></div>`).join("");
+    out.push(card("지원 파이프", `<div class="big">${esc(a.now)}<small>/ ${esc(a.total)}건</small></div>
+      <div class="sub">페이스 ${esc(a.pace)}/일 · 필요 ${esc(a.plan)}/일</div>
+      <div class="bar"><i style="width:${pct}%"></i></div>${recent}
+      <a href="applications.html" style="display:inline-block;margin-top:8px;color:var(--accent);text-decoration:none;font-size:12.5px;font-weight:700">📊 지원 분석 히트맵 →</a>`, true));
+  }
+  if (m.warfront) {
+    const w = m.warfront;
+    out.push(card("코딩 훈련 · 오늘", `<div class="big">${esc(w.sessions)}<small>세션</small></div>
+      <div class="sub">${esc(w.total_minutes)}분 · 정확도 <b>${Math.round(w.best_accuracy || 0)}%</b></div>`));
+  }
+  if (m.weather && m.weather.ok) {
+    const w = m.weather;
+    out.push(card(`운동 판정 · ${esc(w.t_label || "오늘")}`, `<div class="big">${esc(w.t_max)}<small>°C</small></div>
+      <div class="sub">${esc(w.t_desc)} · 강수 ${esc(w.t_prob)}%<br>→ <b>${esc(w.verdict)}</b></div>`));
+  }
+  if (Array.isArray(m.tracks) && m.tracks.length) {
+    out.push(card("트랙 상태", m.tracks.map(t => {
+      const dd = (t.watch_dday !== null && t.watch_dday !== undefined) ?
+        ` <span class="flag">${esc(t.watch_label || "")} D-${esc(t.watch_dday)}</span>` : "";
+      const next = t.next ? `<span> · 다음: ${esc(t.next)}</span>` : "";
+      return `<div class="trow"><b>${esc(t.label)}</b><span>${esc(t.status)}</span>${next}${dd}</div>`;
+    }).join(""), true));
+  }
+  const known = new Set(["day_n","total","d_day","elapsed_pct","items","apply","tracks",
+    "warfront","weather","coverage","generated_at","today"]);
+  for (const k of Object.keys(m)) {
+    if (known.has(k)) continue;
+    out.push(card(k, `<div class="sub" style="white-space:pre-wrap">${esc(JSON.stringify(m[k], null, 1)).slice(0, 400)}</div>`));
+  }
+  $("cards").innerHTML = out.join("");
+}
+function renderNotices(data) {
+  const open = (data.items || []).filter(n => n.state === "open");
+  $("notices").innerHTML = open.map(n => `<div class="notice ${esc(n.level || "warn")}">
+    <div class="nbody"><div class="ntitle">${esc(n.title)}</div>
+    <div class="nnote">${esc(n.note || "")}${(n.links || []).map((u, i) => ` <a href="${esc(u)}" target="_blank" rel="noopener">링크${i + 1} ↗</a>`).join("")}</div></div>
+    <button class="nclear" onclick="clearNotice('${esc(n.id)}')">확인</button></div>`).join("");
+}
+async function loadNotices() {
+  try { renderNotices(await (await fetch("notices.json", {cache:"no-store"})).json()); }
+  catch (e) { /* 노티 없음 */ }
+}
+async function clearNotice(id) {
+  try {
+    const r = await fetch("/api/notice-clear", { method: "POST",
+      headers: {"Content-Type": "application/json"}, body: JSON.stringify({ id }) });
+    if (!r.ok) throw new Error();
+    toast("확인 처리됨"); loadNotices();
+  } catch (e) { toast("처리 실패 — 서버 확인"); }
+}
+async function loadMetrics() {
+  try { renderMetrics(await (await fetch("metrics.json", {cache:"no-store"})).json()); }
+  catch (e) { $("cards").innerHTML = `<div class="card empty">metrics 로드 실패</div>`; }
+}
+
+async function refreshAll() {
+  const b = $("refresh"); b.classList.add("busy");
+  let server = false;
+  try {
+    const r = await fetch("/api/refresh", { method: "POST",
+      headers: {"Content-Type": "application/json"}, body: "{}" });
+    if (r.ok) server = (await r.json()).ok !== false;
+  } catch (e) { /* 정적 모드 — 서버 갱신 불가 */ }
+  try {
+    await loadMetrics(); await Promise.all([loadRoutine(), loadQueue(), loadNotices()]);
+    toast(server ? "서버 동기화 + 갱신됨 ✓" : "화면만 갱신 — 서버 동기화 실패");
+  } finally { b.classList.remove("busy"); }
+}
+(async () => { await loadMetrics(); loadRoutine(); loadQueue(); loadNotices(); })();
+setInterval(async () => { await loadMetrics(); loadRoutine(); loadQueue(); loadNotices(); }, 5 * 60 * 1000);
+</script>
+</body>
+</html>
