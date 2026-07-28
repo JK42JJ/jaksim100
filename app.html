@@ -438,12 +438,18 @@
     var kidParam=(p.kid!=null? String(p.kid): '0');
     localStorage.setItem('jr_'+roomId, role);
     app.innerHTML='<div class="loading"><div class="spin"></div>방을 불러오는 중…</div>';
-    apiGet(roomId).then(function(data){ try{localStorage.setItem('jrc_'+roomId, JSON.stringify(data));}catch(e){} R=migrate(data);
+    apiGet(roomId).then(function(data){ var srv=migrate(data);
+        // 로컬 캐시 자가복원(2026-07-29): 폰에 남은 체크가 서버(복구 시드)보다 많으면 union으로 되올림.
+        // (jsonblob 만료 장애로 서버 로그 유실 → 아이 폰의 jrc_ 캐시가 유일한 실데이터. 추가만·삭제 없음.)
+        var cached=null; try{ cached=JSON.parse(localStorage.getItem('jrc_'+roomId)||'null'); }catch(e){}
+        var healed=false; if(cached){ var mr=unionRoom(srv, migrate(cached)); healed=mr; }
+        R=srv;
+        try{localStorage.setItem('jrc_'+roomId, JSON.stringify(R));}catch(e){}
         if(role==='parent'){ kid=0; }
         else { kid=resolveKid(kidParam); if(kid<0){ app.innerHTML='<div class="loading">이 아이 링크를 찾을 수 없어요. 부모님 화면에서 링크를 다시 받아주세요.<br><br><button class="btn btn-primary" onclick="location.hash=\'\';location.reload()" style="max-width:220px;margin:0 auto">처음으로</button></div>'; return; } }
         curKidId=R.children[kid]?R.children[kid].id:null;
-        // keep-alive: 열 때마다 재-PUT 해 블롭이 유휴로 사라지지 않게 + migrate/id 지속화
-        saveRoom();
+        // keep-alive + 복원분 서버 반영
+        saveRoom(); if(healed) toast('저장된 기록을 복구했어요');
         route(); startPoll(); })
       .catch(function(){
         // jsonblob 간헐 404 방어: 저장된 캐시가 있으면 그걸로 띄우고 백그라운드 재동기화(하드실패 금지)
@@ -455,6 +461,15 @@
           route(); startPoll(); return; }
         app.innerHTML='<div class="loading">연결이 잠깐 불안정해요. 잠시 후 다시 열어주세요.<br><br><button class="btn btn-primary" onclick="location.reload()" style="max-width:220px;margin:0 auto">다시 시도</button></div>'; });
   }
+  // 서버 방(srv)에 로컬 방(loc)의 체크/기분/메모/배지를 union(추가만). 변경 있으면 true.
+  function unionRoom(srv, loc){ var changed=false; var byId={}; (srv.children||[]).forEach(function(c){ byId[c.id]=c; });
+    (loc.children||[]).forEach(function(lc,i){ var sc=byId[lc.id]||srv.children[i]; if(!sc) return;
+      for(var d in (lc.log||{})){ var la=lc.log[d]||[]; sc.log[d]=sc.log[d]||[]; for(var j=0;j<la.length;j++){ if(la[j] && !sc.log[d][j]){ sc.log[d][j]=la[j]; changed=true; } } }
+      for(var md in (lc.mood||{})){ if(sc.mood[md]===undefined){ sc.mood[md]=lc.mood[md]; changed=true; } }
+      for(var mm in (lc.memo||{})){ if(!sc.memo[mm] && lc.memo[mm]){ sc.memo[mm]=lc.memo[mm]; changed=true; } }
+      for(var bg in (lc.badgeGifts||{})){ if(sc.badgeGifts[bg]===undefined){ sc.badgeGifts[bg]=lc.badgeGifts[bg]; changed=true; } }
+    }); return changed; }
+
   function migrate(d){ d=d||{}; if(!d.children){ d.children = d.child? [d.child] : [{}]; } delete d.child;
     if(!d.children.length) d.children=[{}];
     d.children.forEach(function(c,i){ c.goals=c.goals||[]; c.log=c.log||{}; c.memo=c.memo||{}; c.mood=c.mood||{}; c.badgeGifts=c.badgeGifts||{}; c.rewards=c.rewards||[]; c.seenBadges=c.seenBadges||[]; c.chat=c.chat||[]; c.reward=c.reward||(d.reward||{item:'게임 30분',bonus:''}); c.proposal=c.proposal||''; c.name=c.name||''; c.start=c.start||''; if(!c.id){ c.id='k'+i; } });  /* 결정론적 — 폴링마다 재생성 금지(레거시 방 축출버그 방지) */
