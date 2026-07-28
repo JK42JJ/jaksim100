@@ -314,14 +314,44 @@ function renderRoutine(r) {
       <div class="hint">화면을 꺼도 이어서 재생됩니다 · 끝나면 자동 기록</div></div>` : ""}
     <div class="rmemo" id="rm-${k}">
       <input type="text" id="rn-${k}" placeholder="코멘트 남기고 기록 (예: ~88p)"
-             onkeydown="if(event.key==='Enter')routineSave('${k}')">
+             onkeydown="if(event.key==='Enter')routineSave('${k}')" onblur="memoBlur()">
       <button onclick="routineSave('${k}')">기록</button>
     </div>`;
   }).join("");
   const note = r.note ? `<div class="rnote">오늘 기록 — ${esc(r.note)}</div>` : "";
+  const _snap = memoSnapshot();          // 재렌더 전 작성 중 메모(값·포커스·커서) 보존
   $("routine").innerHTML = rows + note;
+  memoRestore(_snap);
 }
 function toggleMemo(k) { document.getElementById("rm-" + k).classList.toggle("open"); }
+
+/* 코멘트 작성 보호: 재렌더가 innerHTML을 갈아엎어도 입력 유실 0 (편집 중 재렌더 보류 + 스냅샷 복원) */
+let _routinePending = false;
+function isMemoEditing() {
+  const a = document.activeElement;
+  if (a && a.id && a.id.indexOf("rn-") === 0) return true;          // 메모 input에 포커스
+  let dirty = false;
+  document.querySelectorAll(".rmemo input").forEach(i => { if (i.value.trim()) dirty = true; }); // 작성 중(비어있지 않음)
+  return dirty;
+}
+function memoSnapshot() {
+  const s = { open: [], vals: {}, focus: null, caret: null };
+  document.querySelectorAll(".rmemo.open").forEach(el => s.open.push(el.id.slice(3)));
+  document.querySelectorAll(".rmemo input").forEach(i => { if (i.value) s.vals[i.id.slice(3)] = i.value; });
+  const a = document.activeElement;
+  if (a && a.id && a.id.indexOf("rn-") === 0) { s.focus = a.id.slice(3); try { s.caret = a.selectionStart; } catch (e) {} }
+  return s;
+}
+function memoRestore(s) {
+  s.open.forEach(k => { const el = document.getElementById("rm-" + k); if (el) el.classList.add("open"); });
+  Object.keys(s.vals).forEach(k => { const i = document.getElementById("rn-" + k); if (i) i.value = s.vals[k]; });
+  if (s.focus) {
+    const el = document.getElementById("rm-" + s.focus); if (el) el.classList.add("open");
+    const i = document.getElementById("rn-" + s.focus);
+    if (i) { i.focus(); if (s.caret != null) { try { i.setSelectionRange(s.caret, s.caret); } catch (e) {} } }
+  }
+}
+function memoBlur() { if (_routinePending && !isMemoEditing()) { _routinePending = false; loadRoutine(); } }
 
 /* 미디어 재생 → 종료 시 자동 완료 (자체 오디오 — 백그라운드 재생 가능) */
 let _mediaActive = null, _audioEl = null;
@@ -362,10 +392,16 @@ async function routinePost(key, done, note, msg) {
 function routineCheck(key, checked) { routinePost(key, checked, "", checked ? "기록됨" : "기록 철회됨"); }
 function routineSave(key) {
   const el = document.getElementById("rn-" + key);
-  routinePost(key, true, el.value.trim()); el.value = "";
+  const val = el.value.trim();
+  el.value = "";
+  const memo = document.getElementById("rm-" + key); if (memo) memo.classList.remove("open"); // 닫고 blur → 저장 후 재렌더 허용
+  el.blur();
+  _routinePending = false;
+  routinePost(key, true, val);
 }
 async function loadRoutine() {
   if (_mediaActive) return; // 재생 중 재렌더로 플레이어가 죽지 않게 보호
+  if (isMemoEditing()) { _routinePending = true; return; } // 코멘트 작성 중엔 재렌더 보류(입력 유실 방지) → blur 시 반영
   try { renderRoutine(await (await fetch("/api/routine", {cache:"no-store"})).json()); }
   catch (e) { $("routine").innerHTML = `<div class="empty">루틴 API 없음 — 정적 모드</div>`; }
 }
