@@ -49,6 +49,9 @@
   .progress i { display:block; height:100%; border-radius:99px; background:var(--accent);
     transition:width .4s; }
   .cov { font-size:11px; color:var(--ink3); margin-top:7px; }
+  .spin { width:22px; height:22px; margin:0 auto 10px; border:3px solid var(--line); border-top-color:var(--accent); border-radius:50%; animation:sp 1s linear infinite; }
+  @keyframes sp { to { transform:rotate(360deg); } }
+  .loading { text-align:center; color:var(--ink3); font-size:13px; padding:34px 0; }
   .tabbar { display:flex; gap:6px; margin-top:11px; }
   .tabbar button { flex:1; font:inherit; font-size:13px; font-weight:700; padding:8px 4px;
     border-radius:10px; border:1px solid var(--line); background:var(--surface);
@@ -223,12 +226,12 @@
 
   <section class="tab" id="tab-routine">
     <h2>오늘의 루틴 <span class="cnt" id="rcnt">·</span></h2>
-    <div class="card" id="routine"><div class="empty">불러오는 중…</div></div>
+    <div class="card" id="routine"><div class="loading"><div class="spin"></div>불러오는 중…</div></div>
   </section>
 
   <section class="tab" id="tab-act">
     <h2>결정 대기 <span class="cnt" id="qcnt">·</span></h2>
-    <div class="queue" id="queue"><div class="empty">불러오는 중…</div></div>
+    <div class="queue" id="queue"><div class="loading"><div class="spin"></div>불러오는 중…</div></div>
   </section>
 
   <section class="tab" id="tab-obs">
@@ -241,6 +244,7 @@
 <div id="toast" role="status"></div>
 <script>
 const $ = (id) => document.getElementById(id);
+const LOADING = '<div class="loading"><div class="spin"></div>불러오는 중…</div>';
 function switchTab(name) {
   for (const t of ["routine", "act", "obs"]) {
     document.getElementById("tab-" + t).classList.toggle("on", t === name);
@@ -443,8 +447,25 @@ async function decide(btn, id, decision) {
   }
 }
 async function loadQueue() {
-  try { renderQueue(await (await fetch("hitl-queue.json?t=" + Date.now(), {cache:"no-store"})).json()); }
-  catch (e) { $("queue").innerHTML = `<div class="card empty">큐 로드 실패</div>`; }
+  const el = $("queue");
+  try {
+    const r = await fetch("hitl-queue.json?t=" + Date.now(), {cache:"no-store"});
+    if (r.status === 404) { hideActTab(); return; }   // 공개 콘솔 — 결정 큐는 보안상 비발행(정상). tailnet 콘솔 전용
+    if (!r.ok) throw new Error();
+    showActTab();
+    renderQueue(await r.json());
+  } catch (e) {
+    el.innerHTML = `<div class="empty">결정 큐를 잠시 불러오지 못했어요 — 자동 재시도 중…</div>`;
+  }
+}
+function hideActTab() {
+  const b = $("tabbtn-act");
+  if (b) b.style.display = "none";
+  if ($("tab-act").classList.contains("on")) switchTab("routine");
+}
+function showActTab() {
+  const b = $("tabbtn-act");
+  if (b && b.style.display === "none") b.style.display = "";
 }
 
 /* ── 지표 ── */
