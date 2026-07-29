@@ -386,8 +386,10 @@ function routineSave(key) {
 async function loadRoutine() {
   if (_mediaActive) return; // 재생 중 재렌더로 플레이어가 죽지 않게 보호
   if (isMemoEditing()) { _routinePending = true; return; } // 코멘트 작성 중엔 재렌더 보류(입력 유실 방지) → blur 시 반영
-  try { renderRoutine(await (await fetch("/api/routine", {cache:"no-store"})).json()); }
-  catch (e) { $("routine").innerHTML = `<div class="empty">루틴 API 없음 — 정적 모드</div>`; }
+  // macmini 서버(/api/routine)면 라이브, 공개 Pages면 정적 routine.json 폴백(캐시버스터로 CDN 캐시 우회).
+  try { renderRoutine(await (await fetch("/api/routine", {cache:"no-store"})).json()); return; } catch (e) {}
+  try { renderRoutine(await (await fetch("routine.json?t=" + Date.now(), {cache:"no-store"})).json()); }
+  catch (e2) { $("routine").innerHTML = `<div class="empty">루틴을 불러오지 못했어요 — 잠시 후 새로고침</div>`; }
 }
 
 /* ── 결정 대기 ── */
@@ -441,7 +443,7 @@ async function decide(btn, id, decision) {
   }
 }
 async function loadQueue() {
-  try { renderQueue(await (await fetch("hitl-queue.json", {cache:"no-store"})).json()); }
+  try { renderQueue(await (await fetch("hitl-queue.json?t=" + Date.now(), {cache:"no-store"})).json()); }
   catch (e) { $("queue").innerHTML = `<div class="card empty">큐 로드 실패</div>`; }
 }
 
@@ -500,7 +502,7 @@ function renderNotices(data) {
     <button class="nclear" onclick="clearNotice('${esc(n.id)}')">확인</button></div>`).join("");
 }
 async function loadNotices() {
-  try { renderNotices(await (await fetch("notices.json", {cache:"no-store"})).json()); }
+  try { renderNotices(await (await fetch("notices.json?t=" + Date.now(), {cache:"no-store"})).json()); }
   catch (e) { /* 노티 없음 */ }
 }
 async function clearNotice(id) {
@@ -512,7 +514,7 @@ async function clearNotice(id) {
   } catch (e) { toast("처리 실패 — 서버 확인"); }
 }
 async function loadMetrics() {
-  try { renderMetrics(await (await fetch("metrics.json", {cache:"no-store"})).json()); }
+  try { renderMetrics(await (await fetch("metrics.json?t=" + Date.now(), {cache:"no-store"})).json()); }
   catch (e) { $("cards").innerHTML = `<div class="card empty">metrics 로드 실패</div>`; }
 }
 
@@ -530,7 +532,7 @@ async function refreshAll() {
   } finally { b.classList.remove("busy"); }
 }
 (async () => { await loadMetrics(); loadRoutine(); loadQueue(); loadNotices(); })();
-setInterval(async () => { await loadMetrics(); loadRoutine(); loadQueue(); loadNotices(); }, 5 * 60 * 1000);
+setInterval(async () => { await loadMetrics(); loadRoutine(); loadQueue(); loadNotices(); }, 60 * 1000);  // 실시간 근접 — 60초 폴링(밀림 방지)
 </script>
 </body>
 </html>
