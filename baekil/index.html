@@ -498,7 +498,12 @@ async function loadQueue() {
   const el = $("queue");
   try {
     const r = await fetch("hitl-queue.json?t=" + Date.now(), {cache:"no-store"});
-    if (r.status === 404) { hideActTab(); return; }   // 공개 콘솔 — 결정 큐는 보안상 비발행(정상). tailnet 콘솔 전용
+    if (r.status === 404) {   // 공개 콘솔 — 결정 큐는 로그인 후 표시(보안). 탭은 유지, 안내만
+      showActTab();
+      el.innerHTML = `<div class="card empty">결정 큐는 로그인 후 표시됩니다 (준비 중)</div>`;
+      $("qcnt").textContent = "·"; $("tb-q").textContent = "";
+      return;
+    }
     if (!r.ok) throw new Error();
     showActTab();
     renderQueue(await r.json());
