@@ -368,14 +368,58 @@ function closePlayer(k) {
   if (was) loadRoutine();
 }
 
+/* ── Supabase 루틴 저장 (공개 콘솔: 백엔드 없이도 입력 저장. 작심백일 애들앱과 동일 패턴) ── */
+var SB_ROUTINE = "https://ohgrlqjzrbiumwguyawx.supabase.co/rest/v1/routine";
+var SB_KEY_R = "sb_publishable_0kfDtpHR1OaMfi2To9X-6w_zHj8y10l";
+var SBH_R = { "apikey": SB_KEY_R, "Authorization": "Bearer " + SB_KEY_R, "Content-Type": "application/json" };
+var ROUTINE_KEYS_R = ["run", "python", "english", "reading", "meditation"];
+function todayKST() { return new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10); }
+async function sbRoutineGetRow(date) {
+  const res = await fetch(SB_ROUTINE + "?date=eq." + date + "&select=*", { headers: SBH_R, cache: "no-store" });
+  if (!res.ok) throw new Error("sb " + res.status);
+  const rows = await res.json();
+  return rows && rows[0] ? rows[0] : null;
+}
+async function sbRoutineUpsert(key, done, note) {
+  const date = todayKST();
+  const cur = (await sbRoutineGetRow(date)) || { date: date };
+  cur[key] = !!done;
+  if (note) cur.note = cur.note ? (cur.note + " / " + note) : note;
+  cur.updated_at = new Date().toISOString();
+  const res = await fetch(SB_ROUTINE, { method: "POST",
+    headers: Object.assign({}, SBH_R, { "Prefer": "resolution=merge-duplicates,return=minimal" }),
+    body: JSON.stringify(cur) });
+  if (!res.ok) throw new Error("sb upsert " + res.status);
+}
+async function sbRoutineLoad() {
+  const row = await sbRoutineGetRow(todayKST());
+  const items = {};
+  ROUTINE_KEYS_R.forEach(k => { items[k] = row ? !!row[k] : null; });
+  return { date: todayKST(), items: items, note: row ? (row.note || "") : "" };
+}
+/* routine.json(SoT: CLI·텔레그램·동기된 Supabase) ∪ Supabase(방금 입력, 미동기) 병합 — done은 true 우선 */
+function mergeRoutine(base, sb) {
+  if (!base) return sb; if (!sb) return base;
+  const items = {}; ROUTINE_KEYS_R.forEach(k => {
+    const b = base.items ? base.items[k] : null, s = sb.items ? sb.items[k] : null;
+    items[k] = (b === true || s === true) ? true : (b === false || s === false) ? false : null;
+  });
+  const notes = [base.note, sb.note].filter(n => n && n.trim());
+  return { date: base.date || sb.date, items: items, note: notes.join(" / ") };
+}
+
 async function routinePost(key, done, note, msg) {
   try {
     const r = await fetch("/api/routine", { method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({ key, done, note }) });
     if (!r.ok) throw new Error();
-    toast(msg || "기록됨"); await loadMetrics(); loadRoutine();
-  } catch (e) { toast("저장 실패 — 서버 연결을 확인하세요"); }
+    toast(msg || "기록됨"); await loadMetrics(); loadRoutine(); return;
+  } catch (e) { /* 백엔드 없음(공개 콘솔) → Supabase 직접 저장 */ }
+  try {
+    await sbRoutineUpsert(key, done, note);
+    toast(msg || "기록됨"); loadRoutine();
+  } catch (e2) { toast("저장 실패 — 잠시 후 다시 시도"); }
 }
 function routineCheck(key, checked) { routinePost(key, checked, "", checked ? "기록됨" : "기록 철회됨"); }
 function routineSave(key) {
@@ -392,8 +436,12 @@ async function loadRoutine() {
   if (isMemoEditing()) { _routinePending = true; return; } // 코멘트 작성 중엔 재렌더 보류(입력 유실 방지) → blur 시 반영
   // macmini 서버(/api/routine)면 라이브, 공개 Pages면 정적 routine.json 폴백(캐시버스터로 CDN 캐시 우회).
   try { renderRoutine(await (await fetch("/api/routine", {cache:"no-store"})).json()); return; } catch (e) {}
-  try { renderRoutine(await (await fetch("routine.json?t=" + Date.now(), {cache:"no-store"})).json()); }
-  catch (e2) { $("routine").innerHTML = `<div class="empty">루틴을 불러오지 못했어요 — 잠시 후 새로고침</div>`; }
+  // 공개 콘솔(백엔드 없음): routine.json(SoT) ∪ Supabase(방금 입력, 미동기) 병합
+  let _base = null, _sb = null;
+  try { _base = await (await fetch("routine.json?t=" + Date.now(), {cache:"no-store"})).json(); } catch (e2) {}
+  try { _sb = await sbRoutineLoad(); } catch (e3) {}
+  if (_base || _sb) { renderRoutine(mergeRoutine(_base, _sb)); }
+  else { $("routine").innerHTML = `<div class="empty">루틴을 불러오지 못했어요 — 잠시 후 새로고침</div>`; }
 }
 
 /* ── 결정 대기 ── */
