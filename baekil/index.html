@@ -597,7 +597,7 @@ async function refreshAll() {
   } catch (e) { /* 정적 모드 — 서버 갱신 불가 */ }
   try {
     await loadMetrics(); await Promise.all([loadRoutine(), loadQueue(), loadNotices()]);
-    toast(server ? "서버 동기화 + 갱신됨" : "화면만 갱신 — 서버 동기화 실패");
+    toast(server ? "서버 동기화 + 갱신됨" : "갱신됨");
   } finally { b.classList.remove("busy"); }
 }
 (async () => { await loadMetrics(); loadRoutine(); loadQueue(); loadNotices(); })();
