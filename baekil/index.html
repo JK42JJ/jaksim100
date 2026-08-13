@@ -656,12 +656,21 @@ function closeNotes() { $("notesPanel").style.display = "none"; }
 /* ── 현황 탭 (James 요구 2026-08-13) — GET {API_BASE}/api/apply + /api/tracks (API 모드 전용).
    소스는 배포 박스에 5분 주기 동기되는 repo 데이터(applications·ops-log tracks·commitments D-7).
    현행 모드에선 안내만(백엔드 없음 — 회귀 0). */
-const APPLY_STATUS_LABEL = { applied: "지원", screening: "서류합격", interview: "면접",
-  task: "과제", final: "최종", offer: "오퍼", rejected: "불합격", withdrawn: "철회" };
+const APPLY_STATUS_LABEL = { offer: "오퍼", final: "최종", task: "실기", interview: "면접",
+  screening: "서류합격", applied: "지원", withdrawn: "철회", rejected: "off fit" };
+// 칩 표시 순서(James 2026-08-13): 앞에서부터 실기·면접·지원·철회·off fit (그 외는 뒤로).
+// 불합격→off fit = 역량 부족 아닌 핏 불일치(오버스펙·년차 미스핏) 프레임.
+const APPLY_STATUS_ORDER = ["task", "interview", "applied", "withdrawn", "rejected",
+  "offer", "final", "screening"];
 function renderApply(a) {
   $("apcnt").textContent = String(a.total ?? "·");
-  const chips = Object.entries(a.by_status || {}).map(([k, n]) =>
-    `<span class="chip act">${esc(APPLY_STATUS_LABEL[k] || k)} ${esc(n)}</span>`).join("");
+  const chips = Object.entries(a.by_status || {})
+    .sort(([x], [y]) => {
+      const ix = APPLY_STATUS_ORDER.indexOf(x), iy = APPLY_STATUS_ORDER.indexOf(y);
+      return (ix < 0 ? 99 : ix) - (iy < 0 ? 99 : iy);
+    })
+    .map(([k, n]) =>
+      `<span class="chip act">${esc(APPLY_STATUS_LABEL[k] || k)} ${esc(n)}</span>`).join("");
   const active = (a.active || []).map(r => `<div class="trow">
     <b>${esc(r.company)} · ${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none">${esc(r.position)} ↗</a>` : esc(r.position)}</b>
     <span><span class="chip">${esc(APPLY_STATUS_LABEL[r.status] || r.status)}</span> · ${esc(r.date)}</span></div>`).join("");
