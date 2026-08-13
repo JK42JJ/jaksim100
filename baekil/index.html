@@ -441,6 +441,7 @@ async function loadRoutine() {
   // 공개 콘솔(백엔드 없음): routine.json(SoT) ∪ Supabase(방금 입력, 미동기) 병합
   let _base = null, _sb = null;
   try { _base = await (await fetch("routine.json?t=" + Date.now(), {cache:"no-store"})).json(); } catch (e2) {}
+  if (_base && _base.date !== todayKST()) _base = null;  // 어제 발행분이 오늘 상태를 덮던 버그(2026-08-13) — 날짜 불일치 시 폐기
   try { _sb = await sbRoutineLoad(); } catch (e3) {}
   if (_base || _sb) { renderRoutine(mergeRoutine(_base, _sb)); }
   else { $("routine").innerHTML = `<div class="empty">루틴을 불러오지 못했어요 — 잠시 후 새로고침</div>`; }
@@ -529,8 +530,13 @@ function card(title, body, wide) {
 }
 function renderMetrics(m) {
   METRICS = m;
-  $("dayn").textContent = `Day ${m.day_n ?? "·"}/${m.total ?? 100}`;
-  $("daybar").style.width = `${m.elapsed_pct ?? 0}%`;
+  // Day/진행률은 클라이언트 계산이 정본 — metrics.json 발행 지연·자정 경과에도 오늘 기준 유지(2026-08-13)
+  const _total = m.total ?? 100;
+  let _dayN = m.day_n, _pct = m.elapsed_pct;
+  const _d = Math.floor((new Date(todayKST()) - new Date("2026-07-02")) / 864e5) + 1;
+  if (_d >= 1 && _d <= 366) { _dayN = Math.min(_total, _d); _pct = Math.min(100, Math.round(100 * _dayN / _total)); }
+  $("dayn").textContent = `Day ${_dayN ?? "·"}/${_total}`;
+  $("daybar").style.width = `${_pct ?? 0}%`;
   $("gen").textContent = m.generated_at ? m.generated_at.slice(5, 16).replace("T", " ") + " 갱신" : "";
   if (m.coverage) $("cov").textContent =
     `캡처 커버리지 ${m.coverage.pct}% (${m.coverage.confirmed}/${m.coverage.total}) · 미확인은 기록 공백이지 미수행이 아님`;
@@ -608,7 +614,13 @@ async function refreshAll() {
   } finally { b.classList.remove("busy"); }
 }
 (async () => { await loadMetrics(); loadRoutine(); loadQueue(); loadNotices(); })();
-setInterval(async () => { await loadMetrics(); loadRoutine(); loadQueue(); loadNotices(); }, 60 * 1000);  // 실시간 근접 — 60초 폴링(밀림 방지)
+setInterval(loadRoutine, 10 * 1000);  // 루틴은 10초 — 체크(어느 기기든)→Supabase 직독→10초 내 반영 (2026-08-13 James 요구)
+setInterval(async () => { await loadMetrics(); loadQueue(); loadNotices(); }, 60 * 1000);  // 나머지 60초 폴링
+document.addEventListener("visibilitychange", () => {                     // 탭/폰 화면 복귀 즉시 갱신
+  if (!document.hidden) { loadRoutine(); loadMetrics(); }
+});
+let _renderedDay = todayKST();                                             // 자정 롤오버 — 날이 바뀌면 전체 새 화면
+setInterval(() => { if (todayKST() !== _renderedDay) location.reload(); }, 30 * 1000);
 </script>
 </body>
 </html>
