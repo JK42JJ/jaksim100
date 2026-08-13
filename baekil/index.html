@@ -251,7 +251,10 @@ const LOADING = '<div class="loading"><div class="spin"></div>불러오는 중�
    localStorage.apiBase 설정 시 = 단일 API 모드: 루틴 읽기/쓰기 전부 {API_BASE}/api/routine 하나,
    구글 세션 쿠키(credentials:include), 401이면 {API_BASE}/auth/login 버튼.
    미설정(기본) = 현행 모드 그대로(macmini→routine.json∪Supabase 폴백) — 라이브 API 전 배포해도 무해. */
-const API_BASE = (() => { try { return (localStorage.getItem("apiBase") || "").replace(/\/+$/, ""); } catch (e) { return ""; } })();
+const API_BASE = (() => {  // 컷오버 활성(2026-08-13): 기본 = 라이브 API. localStorage.apiBase=""로 비상 롤백 가능.
+  try { const v = localStorage.getItem("apiBase"); return (v === null ? "https://console-api.insighta.one" : v).replace(/\/+$/, ""); }
+  catch (e) { return "https://console-api.insighta.one"; }
+})();
 const API_MODE = API_BASE !== "";
 let SNAPSHOT = null;        // API 모드 단일 스냅샷(items·note·strip·day_n·coverage) — 화면 전 요소의 유일 소스(S3 소멸)
 let _apiLoginShown = false; // 401 로그인 안내 표시 중(10초 폴링의 재렌더 소음 방지)
