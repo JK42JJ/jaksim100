@@ -283,6 +283,7 @@ function stripHtml(key) {
     `<i class="${v === true ? "on" : ""}${i === cells.length - 1 ? " today" : ""}"></i>`).join("") + `</div>`;
 }
 function renderRoutine(r) {
+  _lastRoutine = r;   // 낙관 반영용 마지막 상태(2026-08-13 — 체크 즉시 화면 갱신)
   if (isMemoEditing()) { _pendingRoutine = r; _routinePending = true; return; }  // 편집 중(포커스/작성 중)엔 DOM 재렌더 금지 — 한글 IME 조합·입력 유실 0. blur/기록 후 반영.
   _routinePending = false; _pendingRoutine = null;   // 렌더 진행 → 보류 해제
   const doneN = ROUTINE_DEF.filter(([k]) => r.items?.[k] === true).length;
@@ -316,7 +317,7 @@ function renderRoutine(r) {
 function toggleMemo(k) { document.getElementById("rm-" + k).classList.toggle("open"); }
 
 /* 코멘트 작성 보호: 재렌더가 innerHTML을 갈아엎어도 입력 유실 0 (편집 중 재렌더 보류 + 스냅샷 복원) */
-let _routinePending = false, _pendingRoutine = null;
+let _routinePending = false, _pendingRoutine = null, _lastRoutine = null;
 function isMemoEditing() {
   const a = document.activeElement;
   if (a && a.id && a.id.indexOf("rn-") === 0) return true;          // 메모 input에 포커스
@@ -423,7 +424,13 @@ async function routinePost(key, done, note, msg) {
     toast(msg || "기록됨"); loadRoutine();
   } catch (e2) { toast("저장 실패 — 잠시 후 다시 시도"); }
 }
-function routineCheck(key, checked) { routinePost(key, checked, "", checked ? "기록됨" : "기록 철회됨"); }
+function routineCheck(key, checked) {
+  if (_lastRoutine) {  // 낙관 반영: 서버 확인 전 즉시 체크박스·카운터 갱신, 이후 재로드가 사실로 덮음
+    _lastRoutine.items = _lastRoutine.items || {}; _lastRoutine.items[key] = checked;
+    renderRoutine(_lastRoutine);
+  }
+  routinePost(key, checked, "", checked ? "기록됨" : "기록 철회됨");
+}
 function routineSave(key) {
   const el = document.getElementById("rn-" + key);
   const val = el.value.trim();
