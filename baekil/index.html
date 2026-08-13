@@ -150,6 +150,8 @@
   .b-skip { color:var(--ink3); }
   .qdone { font-size:12.5px; color:var(--ok); font-weight:600; margin-top:9px; }
   .empty { color:var(--ink3); font-size:13.5px; padding:14px 16px; }
+  .b-login { font:inherit; font-size:13.5px; font-weight:700; margin-top:10px; padding:10px 18px;
+    border-radius:11px; border:none; background:var(--accent); color:var(--accent-ink); cursor:pointer; }
 
   /* ── 지표 */
   .grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
@@ -245,6 +247,14 @@
 <script>
 const $ = (id) => document.getElementById(id);
 const LOADING = '<div class="loading"><div class="spin"></div>불러오는 중…</div>';
+/* ── 컷오버 P2 (2026-08-13, app/CUTOVER.md §P2): API_BASE 스위치 ──
+   localStorage.apiBase 설정 시 = 단일 API 모드: 루틴 읽기/쓰기 전부 {API_BASE}/api/routine 하나,
+   구글 세션 쿠키(credentials:include), 401이면 {API_BASE}/auth/login 버튼.
+   미설정(기본) = 현행 모드 그대로(macmini→routine.json∪Supabase 폴백) — 라이브 API 전 배포해도 무해. */
+const API_BASE = (() => { try { return (localStorage.getItem("apiBase") || "").replace(/\/+$/, ""); } catch (e) { return ""; } })();
+const API_MODE = API_BASE !== "";
+let SNAPSHOT = null;        // API 모드 단일 스냅샷(items·note·strip·day_n·coverage) — 화면 전 요소의 유일 소스(S3 소멸)
+let _apiLoginShown = false; // 401 로그인 안내 표시 중(10초 폴링의 재렌더 소음 방지)
 function switchTab(name) {
   for (const t of ["routine", "act", "obs"]) {
     document.getElementById("tab-" + t).classList.toggle("on", t === name);
@@ -276,6 +286,17 @@ const ROUTINE_LINK = {
   english: { href: "self-intro.html", label: "자기소개", title: "영어 자기소개 · 음성 연습" }
 };
 function stripHtml(key, liveDone) {
+  if (API_MODE) {
+    // 단일 API 모드: 스트립도 /api/routine 스냅샷에서 — metrics.json 미사용(3중 평면 제거, CUTOVER S3)
+    const arr = (SNAPSHOT && SNAPSHOT.strip && Array.isArray(SNAPSHOT.strip[key])) ? SNAPSHOT.strip[key] : null;
+    if (!arr) return "";                                   // 필드 없으면 우아 강등 — 스트립만 생략
+    let cells = arr.slice(-14);
+    if (SNAPSHOT.date === todayKST()) cells = cells.slice(0, -1).concat(liveDone === true);
+    else cells = cells.slice(-13).concat(liveDone === true);
+    return `<div class="rstrip" title="최근 14일">` + cells.map((v, i) =>
+      `<i class="${v === true ? "on" : ""}${i === cells.length - 1 ? " today" : ""}"></i>`).join("") + `</div>`;
+  }
+  /* ▼ 현행 모드 전용(폴백): metrics.json 기반 — 변경 없음 */
   const it = (METRICS?.items || []).find(x => x.key === key);
   if (!it || !Array.isArray(it.strip)) return "";
   let cells = it.strip.slice(-14);
@@ -374,7 +395,8 @@ function closePlayer(k) {
   if (was) loadRoutine();
 }
 
-/* ── Supabase 루틴 저장 (공개 콘솔: 백엔드 없이도 입력 저장. 작심백일 애들앱과 동일 패턴) ── */
+/* ── Supabase 루틴 저장 (공개 콘솔: 백엔드 없이도 입력 저장. 작심백일 애들앱과 동일 패턴) ──
+   ★현행 모드 전용 — API 모드에선 전부 미사용(단일 /api/routine로 대체). 컷오버 후 폐기 예정(CUTOVER P4). */
 var SB_ROUTINE = "https://ohgrlqjzrbiumwguyawx.supabase.co/rest/v1/routine";
 var SB_KEY_R = "sb_publishable_0kfDtpHR1OaMfi2To9X-6w_zHj8y10l";
 var SBH_R = { "apikey": SB_KEY_R, "Authorization": "Bearer " + SB_KEY_R, "Content-Type": "application/json" };
@@ -403,7 +425,8 @@ async function sbRoutineLoad() {
   ROUTINE_KEYS_R.forEach(k => { items[k] = row ? !!row[k] : null; });
   return { date: todayKST(), items: items, note: row ? (row.note || "") : "" };
 }
-/* routine.json(SoT: CLI·텔레그램·동기된 Supabase) ∪ Supabase(방금 입력, 미동기) 병합 — done은 true 우선 */
+/* routine.json(SoT: CLI·텔레그램·동기된 Supabase) ∪ Supabase(방금 입력, 미동기) 병합 — done은 true 우선.
+   ★현행 모드 전용 — API 모드는 병합 자체가 없음(스냅샷 하나가 정본) */
 function mergeRoutine(base, sb) {
   if (!base) return sb; if (!sb) return base;
   const items = {}; ROUTINE_KEYS_R.forEach(k => {
@@ -416,7 +439,61 @@ function mergeRoutine(base, sb) {
   return { date: base.date || sb.date, items: items, note: uniq.join(" / ") };
 }
 
+/* ── 단일 API 모드 (컷오버 P2) — 읽기 GET {API_BASE}/api/routine 하나 · 쓰기 POST 하나 · 구글 세션 쿠키 ── */
+function renderLoginApi() {
+  if (_apiLoginShown) return;
+  _apiLoginShown = true;
+  $("routine").innerHTML = `<div class="empty">로그인이 필요합니다 — 구글 계정(allowlist)으로 로그인하면 루틴·기록이 표시됩니다.<br>
+    <button class="b-login" onclick="location.href = API_BASE + '/auth/login'">Google 계정으로 로그인</button></div>`;
+  $("rcnt").textContent = "·"; $("tb-r").textContent = "";
+}
+function renderHeaderApi(s) {
+  // 헤더(Day·진행률·갱신·커버리지)도 같은 스냅샷에서 — metrics.json 미사용. 필드 없으면 우아 강등.
+  const total = 100;
+  let dayN = (typeof s.day_n === "number") ? Math.min(total, s.day_n) : null;
+  if (dayN === null) {                       // day_n 없으면 클라이언트 계산(현행 renderMetrics와 동일 기준일)
+    const _d = Math.floor((new Date(todayKST()) - new Date("2026-07-02")) / 864e5) + 1;
+    if (_d >= 1 && _d <= 366) dayN = Math.min(total, _d);
+  }
+  if (dayN !== null) {
+    $("dayn").textContent = `Day ${dayN}/${total}`;
+    $("daybar").style.width = `${Math.min(100, Math.round(100 * dayN / total))}%`;
+  }
+  $("gen").textContent = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(5, 16).replace("T", " ") + " 갱신";
+  if (s.coverage && s.coverage.pct != null) $("cov").textContent =
+    `캡처 커버리지 ${s.coverage.pct}% (${s.coverage.recorded}/${s.coverage.total}) · 미확인은 기록 공백이지 미수행이 아님`;
+}
+async function loadRoutineApi() {
+  try {
+    const r = await fetch(API_BASE + "/api/routine", { cache: "no-store", credentials: "include" });
+    if (r.status === 401) { renderLoginApi(); return; }       // 세션 없음 → 로그인 버튼(폴링은 유지 — 로그인 복귀 시 자동 회복)
+    if (!r.ok) throw new Error("api " + r.status);
+    const s = await r.json();
+    _apiLoginShown = false;
+    SNAPSHOT = s;
+    renderHeaderApi(s);
+    renderRoutine(s);   // {date,items,note} 호환 — 낙관 반영·IME 보호 로직 공용
+  } catch (e) {
+    if (!_lastRoutine && !_apiLoginShown)
+      $("routine").innerHTML = `<div class="empty">콘솔 API에 연결하지 못했어요 — 자동 재시도 중…</div>`;
+  }
+}
+async function routinePostApi(key, done, note, msg) {
+  // 체크 해제 = 철회(done:null → 미확인 복귀, API 시맨틱). 명시적 미수행(false) 입력 UI는 콘솔에 없음.
+  const body = { key: key, done: (done === false ? null : done), note: note || null };
+  try {
+    const r = await fetch(API_BASE + "/api/routine", { method: "POST", credentials: "include",
+      headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    if (r.status === 401) { renderLoginApi(); toast("로그인 필요"); return; }
+    if (!r.ok) throw new Error("api " + r.status);
+    toast(msg || "기록됨");
+    await loadRoutineApi();                  // 스냅샷 재적재(스트립·커버리지 포함) — 낙관 반영을 사실로 덮음
+  } catch (e) { toast("저장 실패 — 잠시 후 다시 시도"); }
+}
+
 async function routinePost(key, done, note, msg) {
+  if (API_MODE) { await routinePostApi(key, done, note, msg); return; }
+  /* ▼ 현행 모드 전용(폴백): macmini 시도 → Supabase 직접 저장 — 변경 없음 */
   try {
     const r = await fetch("/api/routine", { method: "POST",
       headers: {"Content-Type": "application/json"},
@@ -448,6 +525,8 @@ function routineSave(key) {
 async function loadRoutine() {
   if (_mediaActive) return; // 재생 중 재렌더로 플레이어가 죽지 않게 보호
   if (isMemoEditing()) { _routinePending = true; return; } // 코멘트 작성 중엔 재렌더 보류(입력 유실 방지) → blur 시 반영
+  if (API_MODE) { await loadRoutineApi(); return; } // 단일 API 모드 — 아래 현행 경로(macmini 404 반복·routine.json∪Supabase 병합) 전부 미사용
+  /* ▼ 현행 모드 전용(폴백) — 변경 없음 */
   // macmini 서버(/api/routine)면 라이브, 공개 Pages면 정적 routine.json 폴백(캐시버스터로 CDN 캐시 우회).
   try { renderRoutine(await (await fetch("/api/routine", {cache:"no-store"})).json()); return; } catch (e) {}
   // 공개 콘솔(백엔드 없음): routine.json(SoT) ∪ Supabase(방금 입력, 미동기) 병합
@@ -542,16 +621,19 @@ function card(title, body, wide) {
 }
 function renderMetrics(m) {
   METRICS = m;
-  // Day/진행률은 클라이언트 계산이 정본 — metrics.json 발행 지연·자정 경과에도 오늘 기준 유지(2026-08-13)
-  const _total = m.total ?? 100;
-  let _dayN = m.day_n, _pct = m.elapsed_pct;
-  const _d = Math.floor((new Date(todayKST()) - new Date("2026-07-02")) / 864e5) + 1;
-  if (_d >= 1 && _d <= 366) { _dayN = Math.min(_total, _d); _pct = Math.min(100, Math.round(100 * _dayN / _total)); }
-  $("dayn").textContent = `Day ${_dayN ?? "·"}/${_total}`;
-  $("daybar").style.width = `${_pct ?? 0}%`;
-  $("gen").textContent = m.generated_at ? m.generated_at.slice(5, 16).replace("T", " ") + " 갱신" : "";
-  if (m.coverage) $("cov").textContent =
-    `캡처 커버리지 ${m.coverage.pct}% (${m.coverage.confirmed}/${m.coverage.total}) · 미확인은 기록 공백이지 미수행이 아님`;
+  if (!API_MODE) {
+    /* ▼ 현행 모드 전용: 헤더(Day·갱신·커버리지)를 metrics.json에서 — API 모드에선 renderHeaderApi(스냅샷)가 정본 */
+    // Day/진행률은 클라이언트 계산이 정본 — metrics.json 발행 지연·자정 경과에도 오늘 기준 유지(2026-08-13)
+    const _total = m.total ?? 100;
+    let _dayN = m.day_n, _pct = m.elapsed_pct;
+    const _d = Math.floor((new Date(todayKST()) - new Date("2026-07-02")) / 864e5) + 1;
+    if (_d >= 1 && _d <= 366) { _dayN = Math.min(_total, _d); _pct = Math.min(100, Math.round(100 * _dayN / _total)); }
+    $("dayn").textContent = `Day ${_dayN ?? "·"}/${_total}`;
+    $("daybar").style.width = `${_pct ?? 0}%`;
+    $("gen").textContent = m.generated_at ? m.generated_at.slice(5, 16).replace("T", " ") + " 갱신" : "";
+    if (m.coverage) $("cov").textContent =
+      `캡처 커버리지 ${m.coverage.pct}% (${m.coverage.confirmed}/${m.coverage.total}) · 미확인은 기록 공백이지 미수행이 아님`;
+  }
   const out = [];
   if (m.apply) {
     const a = m.apply, pct = a.total ? Math.min(100, Math.round(100 * a.now / a.total)) : 0;
@@ -608,7 +690,9 @@ async function clearNotice(id) {
   } catch (e) { toast("처리 실패 — 서버 확인"); }
 }
 async function loadMetrics() {
-  try { renderMetrics(await (await fetch("metrics.json?t=" + Date.now(), {cache:"no-store"})).json()); }
+  // API 모드: 캐시버스터 제거(CDN이 쿼리스트링을 캐시키에서 무시 — 실측 무효) + 부팅 1회 로드 전용(폴링 없음).
+  const u = API_MODE ? "metrics.json" : "metrics.json?t=" + Date.now();
+  try { renderMetrics(await (await fetch(u, {cache:"no-store"})).json()); }
   catch (e) { $("cards").innerHTML = `<div class="card empty">metrics 로드 실패</div>`; }
 }
 
@@ -616,17 +700,30 @@ async function refreshAll() {
   // 물리 새로고침(2026-08-13 James 지시) — 데이터 재fetch가 아니라 페이지 자체를 캐시 우회로 재적재.
   // 새 빌드·전 상태(체크·스트립·지표)가 한 번에 갱신된다.
   const b = $("refresh"); b.classList.add("busy");
+  if (API_MODE) { location.reload(); return; }  // macmini /api/refresh POST(404)·?r= 캐시버스터(CDN 무효) 미사용 — 데이터는 어차피 no-store API
+  /* ▼ 현행 모드 전용(폴백) — 변경 없음 */
   try {
     await fetch("/api/refresh", { method: "POST",
       headers: {"Content-Type": "application/json"}, body: "{}" });
   } catch (e) { /* 정적 모드 — 서버 없음 */ }
   location.replace(location.pathname + "?r=" + Date.now());
 }
-(async () => { await loadMetrics(); loadRoutine(); loadQueue(); loadNotices(); })();
-setInterval(loadRoutine, 10 * 1000);  // 루틴은 10초 — 체크(어느 기기든)→Supabase 직독→10초 내 반영 (2026-08-13 James 요구)
-setInterval(async () => { await loadMetrics(); loadQueue(); loadNotices(); }, 60 * 1000);  // 나머지 60초 폴링
-document.addEventListener("visibilitychange", () => {                     // 탭/폰 화면 복귀 즉시 갱신
-  if (!document.hidden) { loadRoutine(); loadMetrics(); }
+if (API_MODE) {
+  // 단일 API 모드: 폴링은 10초 GET {API_BASE}/api/routine 하나뿐(죽은 요청 0 — macmini 404·hitl/notices 404·캐시버스터 소멸).
+  // hitl·notices는 API가 제공할 때까지 미요청(로그인 후 표시 예정, CUTOVER P2). metrics.json은 파생 지표 카드용 부팅 1회만.
+  hideActTab();
+  const ft = document.querySelector("#tab-obs footer");
+  if (ft) ft.textContent = "단일 소스: 콘솔 API /api/routine (이벤트 소싱 DB) — 지표 카드는 발행 스냅샷(metrics.json) 1회 로드.";
+  (async () => { await loadRoutine(); loadMetrics(); })();
+  setInterval(loadRoutine, 10 * 1000);
+} else {
+  /* ▼ 현행 모드 전용(폴백) — 변경 없음 */
+  (async () => { await loadMetrics(); loadRoutine(); loadQueue(); loadNotices(); })();
+  setInterval(loadRoutine, 10 * 1000);  // 루틴은 10초 — 체크(어느 기기든)→Supabase 직독→10초 내 반영 (2026-08-13 James 요구)
+  setInterval(async () => { await loadMetrics(); loadQueue(); loadNotices(); }, 60 * 1000);  // 나머지 60초 폴링
+}
+document.addEventListener("visibilitychange", () => {                     // 탭/폰 화면 복귀 즉시 갱신 (양 모드 유지)
+  if (!document.hidden) { loadRoutine(); if (!API_MODE) loadMetrics(); }
 });
 let _renderedDay = todayKST();                                             // 자정 롤오버 — 날이 바뀌면 전체 새 화면
 setInterval(() => { if (todayKST() !== _renderedDay) location.reload(); }, 30 * 1000);
