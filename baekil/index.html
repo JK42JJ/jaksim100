@@ -472,7 +472,7 @@ function closePlayer(k) {
 var SB_ROUTINE = "https://ohgrlqjzrbiumwguyawx.supabase.co/rest/v1/routine";
 var SB_KEY_R = "sb_publishable_0kfDtpHR1OaMfi2To9X-6w_zHj8y10l";
 var SBH_R = { "apikey": SB_KEY_R, "Authorization": "Bearer " + SB_KEY_R, "Content-Type": "application/json" };
-var ROUTINE_KEYS_R = ["run", "python", "english", "reading", "meditation", "checkin"];
+var ROUTINE_KEYS_R = ["run", "python", "english", "reading", "meditation", "checkin", "diet"];
 function todayKST() { return new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10); }
 async function sbRoutineGetRow(date) {
   const res = await fetch(SB_ROUTINE + "?date=eq." + date + "&select=*", { headers: SBH_R, cache: "no-store" });
