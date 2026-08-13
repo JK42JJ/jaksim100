@@ -36,9 +36,14 @@
     padding:calc(env(safe-area-inset-top,0px) + 14px) 0 11px;
     border-bottom:1px solid var(--line2); margin-bottom:4px; }
   .top-row { display:flex; align-items:baseline; gap:10px; }
-  .top h1 { font-size:16.5px; margin:0; font-weight:800; letter-spacing:.02em; }
-  .day { font-size:16.5px; font-weight:800; color:var(--accent); font-variant-numeric:tabular-nums; }
-  .gen { margin-left:auto; font-size:11px; color:var(--ink3); font-variant-numeric:tabular-nums; }
+  /* 모바일 과밀 수리(2026-08-13): 제목·Day는 줄바꿈 금지(flex:none), gen은 한 줄 말줄임 —
+     아바타·새로고침 포함 헤더 한 줄 유지 */
+  .top h1 { font-size:16.5px; margin:0; font-weight:800; letter-spacing:.02em;
+    white-space:nowrap; flex:none; }
+  .day { font-size:16.5px; font-weight:800; color:var(--accent); font-variant-numeric:tabular-nums;
+    white-space:nowrap; flex:none; }
+  .gen { margin-left:auto; font-size:11px; color:var(--ink3); font-variant-numeric:tabular-nums;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
   .refresh { flex:none; align-self:center; width:30px; height:30px; border-radius:9px;
     border:1px solid var(--line); background:var(--surface); color:var(--ink2);
     display:grid; place-items:center; cursor:pointer; padding:0; }
@@ -106,10 +111,16 @@
   .rcheck.on { background:var(--ok); border-color:var(--ok); }
   .rcheck.on::after { content:"✓"; color:#fff; font-size:13px; font-weight:800; }
   .rmain { flex:1; min-width:0; cursor:pointer; user-select:none; overflow:hidden; }
-  .rlabel { font-size:14.5px; font-weight:600; display:flex; align-items:center; gap:7px; }
+  /* 라벨 텍스트는 줄바꿈 금지(좁은 폭에서 "달/리/기" 세로 낱자 붕괴 방지) — 칩이 밀리면
+     라벨 아래로 자연 wrap(flex-wrap). 2026-08-13 모바일 수리 */
+  .rlabel { font-size:14.5px; font-weight:600; display:flex; align-items:center; gap:7px;
+    flex-wrap:wrap; white-space:nowrap; }
   .rmini { flex:none; border:none; background:var(--accent-soft); color:var(--accent); height:22px; padding:0 9px;
     border-radius:8px; display:inline-flex; align-items:center; justify-content:center; font-size:11.5px; font-weight:700;
-    cursor:pointer; text-decoration:none; line-height:1; white-space:nowrap; }
+    cursor:pointer; text-decoration:none; line-height:1; white-space:nowrap; position:relative; }
+  /* 터치 타깃 확장(높이 22px+11px×2=44px) — 시각 크기 불변, 탭 영역만 확대. 수평은 이웃 칩과
+     겹치지 않게 최소(-4px). "기록" 칩 탭 불능(과밀·클리핑) 수리의 일부(2026-08-13) */
+  .rmini::after { content:""; position:absolute; inset:-11px -4px; }
   .rhint { font-size:11px; color:var(--ink3); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .rstrip { display:flex; gap:2.5px; flex:none; }
   .rstrip i { width:6px; height:14px; border-radius:3px; background:var(--line); }
@@ -209,12 +220,18 @@
 
 
   @media (max-width:560px) {
-    .rrow { gap:9px; padding:12px 12px; }
-    .rstrip { gap:2px; }
+    .rrow { gap:9px; padding:12px 12px; flex-wrap:wrap; }
+    /* 좁은 폭: 스트립을 행 아래 전체 폭 줄로(체크박스 폭 23+갭 9=32px 들여쓰기) —
+       라벨·칩 공간 확보(세로 낱자 붕괴·"기록" 칩 클리핑 수리, 2026-08-13).
+       560px 초과(데스크톱)는 현행 우측 인라인 유지. */
+    .rstrip { gap:2px; flex-basis:calc(100% - 32px); order:10; margin-left:32px; }
     .rstrip i { width:4px; height:12px; }
     .rplay-btn { padding:6px 10px; }
     .rplayer { padding-left:12px; padding-right:12px; }
     .rmemo { padding-left:12px; }
+  }
+  @media (max-width:430px) {
+    .top h1, .day { font-size:15px; }            /* 초협폭 — 헤더 한 줄 유지용 축소 */
   }
   footer { margin-top:40px; font-size:11px; color:var(--ink3); line-height:1.7; }
 
@@ -253,6 +270,7 @@
       <button id="tabbtn-routine" onclick="switchTab('routine')">루틴<span class="tbn" id="tb-r"></span></button>
       <button id="tabbtn-act" onclick="switchTab('act')">결정<span class="tbn" id="tb-q"></span></button>
       <button id="tabbtn-obs" onclick="switchTab('obs')">지표</button>
+      <button id="tabbtn-status" onclick="switchTab('status')">현황</button>
     </div>
   </div>
 
@@ -280,6 +298,16 @@
     <footer>단일 소스: ops-log.json · hitl-queue.json · warfront-daily.json — 미확인은 공백(추정 없음).<br>
     체크·결정은 즉시 repo에 커밋되고, 승인 항목은 에이전트가 수행 후 결과를 남깁니다.</footer>
   </section>
+
+  <section class="tab" id="tab-status">
+    <h2>지원 <span class="cnt" id="apcnt">·</span></h2>
+    <div id="applyBox"><div class="loading"><div class="spin"></div>불러오는 중…</div></div>
+    <h2>트랙</h2>
+    <div id="trackBox"><div class="loading"><div class="spin"></div>불러오는 중…</div></div>
+    <h2>임박 원장 <span class="cnt" id="duecnt">·</span></h2>
+    <div id="dueBox"><div class="loading"><div class="spin"></div>불러오는 중…</div></div>
+    <footer>소스: applications.json · ops-log.json tracks · commitments.json(D-7) — 배포 박스 5분 주기 동기.</footer>
+  </section>
 </div>
 <div id="toast" role="status"></div>
 <script>
@@ -297,11 +325,12 @@ const API_MODE = API_BASE !== "";
 let SNAPSHOT = null;        // API 모드 단일 스냅샷(items·note·strip·day_n·coverage) — 화면 전 요소의 유일 소스(S3 소멸)
 let _apiLoginShown = false; // 401 로그인 안내 표시 중(10초 폴링의 재렌더 소음 방지)
 function switchTab(name) {
-  for (const t of ["routine", "act", "obs"]) {
+  for (const t of ["routine", "act", "obs", "status"]) {
     document.getElementById("tab-" + t).classList.toggle("on", t === name);
     document.getElementById("tabbtn-" + t).classList.toggle("on", t === name);
   }
   try { localStorage.setItem("tab", name); } catch (e) {}
+  if (name === "status") loadStatusApi();        // 현황 탭 진입 시 최신화(내부에서 API 모드 가드)
 }
 switchTab((() => { try { return localStorage.getItem("tab") || "routine"; } catch (e) { return "routine"; } })());
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -317,7 +346,8 @@ const ROUTINE_DEF = [
   ["python", "Python", "30분 · warfront2 자동 연동"],
   ["english", "영어", "15분 스피킹"],
   ["reading", "독서", "5페이지+"],
-  ["meditation", "명상", "가이드 10분 · 화면 꺼도 재생 · 자동기록"]
+  ["meditation", "명상", "가이드 10분 · 화면 꺼도 재생 · 자동기록"],
+  ["checkin", "체크인", "저녁 회고 확인·기록"]   // 6번째(James 요구 2026-08-13) — 데일리 5종 제도와 별개, 과거는 공백(null)
 ];
 // 루틴 미디어: ▶ 재생 → 종료 시 자동 완료 기록. 자체 제작 오디오(오리지널 대본+TTS) — 백그라운드 재생 가능 (2026-07-22)
 const ROUTINE_MEDIA = { meditation: { audio: "meditation.mp3", note: "가이드 명상 10분34초(대시보드 오디오, 자동기록)" } };
@@ -441,7 +471,7 @@ function closePlayer(k) {
 var SB_ROUTINE = "https://ohgrlqjzrbiumwguyawx.supabase.co/rest/v1/routine";
 var SB_KEY_R = "sb_publishable_0kfDtpHR1OaMfi2To9X-6w_zHj8y10l";
 var SBH_R = { "apikey": SB_KEY_R, "Authorization": "Bearer " + SB_KEY_R, "Content-Type": "application/json" };
-var ROUTINE_KEYS_R = ["run", "python", "english", "reading", "meditation"];
+var ROUTINE_KEYS_R = ["run", "python", "english", "reading", "meditation", "checkin"];
 function todayKST() { return new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10); }
 async function sbRoutineGetRow(date) {
   const res = await fetch(SB_ROUTINE + "?date=eq." + date + "&select=*", { headers: SBH_R, cache: "no-store" });
@@ -590,9 +620,13 @@ let _notesFilter = null;
 const NOTES_LABEL = Object.fromEntries(ROUTINE_DEF.map(([k, label]) => [k, label]));
 async function openNotes(item) {
   _notesFilter = item || null;
-  $("notesPanel").style.display = "";
+  const panel = $("notesPanel");
+  panel.style.display = "";
   renderNotesChips();
   $("npList").innerHTML = LOADING;
+  // 패널은 루틴 카드 아래라 폰에선 화면 밖(폴드 아래)에 열림 — "기록" 탭이 무반응으로
+  // 보이던 원인의 하나(2026-08-13 수리). 열자마자 뷰포트 안으로 스크롤.
+  if (panel.scrollIntoView) panel.scrollIntoView({ block: "nearest", behavior: "smooth" });
   try {
     const u = API_BASE + "/api/notes" + (_notesFilter ? "?item=" + _notesFilter : "");
     const r = await fetch(u, { cache: "no-store", credentials: "include" });
@@ -618,6 +652,65 @@ function renderNotesList(notes) {
     <span class="np-text">${esc(n.text)}</span></div>`).join("");
 }
 function closeNotes() { $("notesPanel").style.display = "none"; }
+
+/* ── 현황 탭 (James 요구 2026-08-13) — GET {API_BASE}/api/apply + /api/tracks (API 모드 전용).
+   소스는 배포 박스에 5분 주기 동기되는 repo 데이터(applications·ops-log tracks·commitments D-7).
+   현행 모드에선 안내만(백엔드 없음 — 회귀 0). */
+const APPLY_STATUS_LABEL = { applied: "지원", screening: "서류합격", interview: "면접",
+  task: "과제", final: "최종", offer: "오퍼", rejected: "불합격", withdrawn: "철회" };
+function renderApply(a) {
+  $("apcnt").textContent = String(a.total ?? "·");
+  const chips = Object.entries(a.by_status || {}).map(([k, n]) =>
+    `<span class="chip act">${esc(APPLY_STATUS_LABEL[k] || k)} ${esc(n)}</span>`).join("");
+  const active = (a.active || []).map(r => `<div class="trow">
+    <b>${esc(r.company)} · ${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none">${esc(r.position)} ↗</a>` : esc(r.position)}</b>
+    <span><span class="chip">${esc(APPLY_STATUS_LABEL[r.status] || r.status)}</span> · ${esc(r.date)}</span></div>`).join("");
+  const recent = (a.recent || []).map(r =>
+    `<div class="rec"><span>${esc(r.company)} · ${esc(r.position)} — ${esc(APPLY_STATUS_LABEL[r.status] || r.status)}</span><i>${esc((r.date || "").slice(5))}</i></div>`).join("");
+  $("applyBox").innerHTML =
+    `<div class="card stat"><div class="big">${esc(a.total ?? 0)}<small>건 지원</small></div>
+      <div class="qhead" style="margin:9px 0 0">${chips}</div></div>
+    <div class="card stat" style="margin-top:10px"><h3>활성 파이프</h3>${active || '<div class="empty" style="padding:4px 0">활성 파이프 없음</div>'}</div>
+    <div class="card stat" style="margin-top:10px"><h3>최근 10건</h3>${recent || '<div class="empty" style="padding:4px 0">기록 없음</div>'}</div>`;
+}
+function renderTracks(t) {
+  const tracks = (t.tracks || []).map(x => `<div class="trow"><b>${esc(x.label)}</b>
+    <span>${esc(x.status)}</span>${x.next ? `<span> · 다음: ${esc(x.next)}</span>` : ""}</div>`).join("");
+  $("trackBox").innerHTML = `<div class="card stat">${tracks || '<div class="empty" style="padding:4px 0">트랙 없음</div>'}</div>`;
+  const up = t.upcoming || [];
+  $("duecnt").textContent = up.length ? String(up.length) : "·";
+  const today = todayKST();
+  const rows = up.map(u => {
+    const dd = Math.round((new Date(u.due) - new Date(today)) / 864e5);
+    const lbl = dd < 0 ? `D+${-dd}` : dd === 0 ? "D-DAY" : `D-${dd}`;
+    return `<div class="trow"><b>${esc(u.title)}</b>
+      <span>${esc(u.due)} <span class="${dd <= 1 ? "flag" : ""}">${lbl}</span>${u.owner ? ` · ${esc(u.owner)}` : ""}</span></div>`;
+  }).join("");
+  $("dueBox").innerHTML = `<div class="card stat">${rows || '<div class="empty" style="padding:4px 0">D-7 내 임박 없음</div>'}</div>`;
+}
+function renderStatusUnavailable(html) {
+  $("applyBox").innerHTML = html;
+  $("trackBox").innerHTML = ""; $("dueBox").innerHTML = "";
+  $("apcnt").textContent = "·"; $("duecnt").textContent = "·";
+}
+async function loadStatusApi() {
+  if (!API_MODE) return;                         // 현행 모드 — 백엔드 없음(부팅 시 안내 렌더)
+  try {
+    const [ra, rt] = await Promise.all([
+      fetch(API_BASE + "/api/apply", { cache: "no-store", credentials: "include" }),
+      fetch(API_BASE + "/api/tracks", { cache: "no-store", credentials: "include" })]);
+    if (ra.status === 401 || rt.status === 401) {
+      renderStatusUnavailable(`<div class="card empty">로그인이 필요합니다 — 구글 계정(allowlist)으로 로그인하면 현황이 표시됩니다.<br>
+        <button class="b-login" onclick="location.href = API_BASE + '/auth/login'">Google 계정으로 로그인</button></div>`);
+      return;
+    }
+    if (!ra.ok || !rt.ok) throw new Error("api " + ra.status + "/" + rt.status);
+    renderApply(await ra.json());
+    renderTracks(await rt.json());
+  } catch (e) {
+    renderStatusUnavailable(`<div class="empty">현황을 잠시 불러오지 못했어요 — 자동 재시도 중…</div>`);
+  }
+}
 
 async function routinePost(key, done, note, msg) {
   if (API_MODE) { await routinePostApi(key, done, note, msg); return; }
@@ -840,11 +933,14 @@ if (API_MODE) {
   // notices는 API가 제공할 때까지 미요청. metrics.json은 파생 지표 카드용 부팅 1회만.
   const ft = document.querySelector("#tab-obs footer");
   if (ft) ft.textContent = "단일 소스: 콘솔 API /api/routine · /api/hitl (이벤트 소싱 DB) — 지표 카드는 발행 스냅샷(metrics.json) 1회 로드.";
-  (async () => { await loadRoutine(); loadMetrics(); loadHitlApi(); loadMeApi(); })();
+  (async () => { await loadRoutine(); loadMetrics(); loadHitlApi(); loadMeApi(); loadStatusApi(); })();
   setInterval(loadRoutine, 10 * 1000);
   setInterval(loadHitlApi, 60 * 1000);   // 결정 큐 60초 폴링(현행 모드와 동일 주기 유지)
+  setInterval(loadStatusApi, 300 * 1000);  // 현황은 5분 — 소스 자체가 박스 5분 주기 동기(그 이상 무의미)
 } else {
-  /* ▼ 현행 모드 전용(폴백) — 변경 없음 */
+  /* ▼ 현행 모드 전용(폴백) — 신규는 현황 탭 안내뿐, 기존 경로 변경 없음 */
+  $("applyBox").innerHTML = `<div class="card empty">현황은 콘솔 API 모드에서 표시됩니다</div>`;
+  $("trackBox").innerHTML = ""; $("dueBox").innerHTML = "";
   (async () => { await loadMetrics(); loadRoutine(); loadQueue(); loadNotices(); })();
   setInterval(loadRoutine, 10 * 1000);  // 루틴은 10초 — 체크(어느 기기든)→Supabase 직독→10초 내 반영 (2026-08-13 James 요구)
   setInterval(async () => { await loadMetrics(); loadQueue(); loadNotices(); }, 60 * 1000);  // 나머지 60초 폴링
