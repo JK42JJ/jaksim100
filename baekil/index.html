@@ -362,20 +362,20 @@ function stripHtml(key, liveDone) {
     // 단일 API 모드: 스트립도 /api/routine 스냅샷에서 — metrics.json 미사용(3중 평면 제거, CUTOVER S3)
     const arr = (SNAPSHOT && SNAPSHOT.strip && Array.isArray(SNAPSHOT.strip[key])) ? SNAPSHOT.strip[key] : null;
     if (!arr) return "";                                   // 필드 없으면 우아 강등 — 스트립만 생략
-    let cells = arr.slice(-14);
+    let cells = arr.slice(-30);
     if (SNAPSHOT.date === todayKST()) cells = cells.slice(0, -1).concat(liveDone === true);
-    else cells = cells.slice(-13).concat(liveDone === true);
-    return `<div class="rstrip" title="최근 14일">` + cells.map((v, i) =>
+    else cells = cells.slice(-29).concat(liveDone === true);
+    return `<div class="rstrip" title="최근 30일">` + cells.map((v, i) =>
       `<i class="${v === true ? "on" : ""}${i === cells.length - 1 ? " today" : ""}"></i>`).join("") + `</div>`;
   }
   /* ▼ 현행 모드 전용(폴백): metrics.json 기반 — 변경 없음 */
   const it = (METRICS?.items || []).find(x => x.key === key);
   if (!it || !Array.isArray(it.strip)) return "";
-  let cells = it.strip.slice(-14);
+  let cells = it.strip.slice(-30);
   // 오늘 칸은 라이브 병합 상태가 정본 — 발행(metrics.json) 지연으로 빈 칸으로 남던 결함(2026-08-13)
   if (METRICS?.today === todayKST()) cells = cells.slice(0, -1).concat(liveDone === true);
-  else cells = cells.slice(-13).concat(liveDone === true);
-  return `<div class="rstrip" title="최근 14일">` + cells.map((v, i) =>
+  else cells = cells.slice(-29).concat(liveDone === true);
+  return `<div class="rstrip" title="최근 30일">` + cells.map((v, i) =>
     `<i class="${v === true ? "on" : ""}${i === cells.length - 1 ? " today" : ""}"></i>`).join("") + `</div>`;
 }
 function renderRoutine(r) {
