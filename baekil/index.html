@@ -20,7 +20,7 @@
   --hairline:#dce1e6; --accent:#2f5d8a;
   --good:#2f7d54; --watch:#b3812a; --behind:#a94d47; --unknown:#cdd3d8;
   --good-bg:#e8f2ec; --watch-bg:#f8f0dd; --behind-bg:#f7e8e7; --unknown-bg:#eef1f4;
-  --radius:12px; --tap:44px; --on-accent:#ffffff;
+  --radius:12px; --tap:44px; --on-accent:#ffffff; --accent-soft:#2f5d8a0f;
 }
 @media (prefers-color-scheme: dark){
   :root{
@@ -29,7 +29,7 @@
     --good:#5cb98a; --watch:#d6a94e; --behind:#d97e77; --unknown:#3a4249;
     --good-bg:#16302447; --watch-bg:#3a2e1247; --behind-bg:#3a1f1d47; --unknown-bg:#20262b;
     /* 다크의 --accent는 밝은 파랑이라 흰 글자를 얹으면 대비가 무너진다(라이브 실측) */
-    --on-accent:#0f1214;
+    --on-accent:#0f1214; --accent-soft:#7aa8d614;
   }
 }
 *{box-sizing:border-box}
@@ -141,6 +141,26 @@ input,select{min-height:36px;padding:6px 9px;border:1px solid var(--hairline);bo
   padding:9px 11px;font-size:12.5px;color:var(--muted);margin-bottom:10px}
 .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin-top:8px}
 .legend i{width:11px;height:11px;border-radius:3px;display:inline-block;vertical-align:-1px;margin-right:4px}
+
+/* 다음 한 수 (시안 D) — 할 일이 다섯이면 미루고 하나면 시작한다 */
+.next{border:1px solid var(--accent);border-radius:var(--radius);background:var(--accent-soft);
+  padding:14px;margin-bottom:12px}
+.next .q{font:600 16px/1.45 inherit;margin:8px 0 6px}
+.next .why{color:var(--muted);font-size:12.5px;margin-bottom:10px}
+.next .rest{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;
+  border-top:1px solid var(--hairline);padding-top:9px}
+.next .rest span{font:600 11px ui-monospace,Menlo,monospace;color:var(--muted)}
+/* 일지 (시안 C) */
+.entry{border-left:2px solid var(--hairline);padding:0 0 14px 13px;margin-left:5px;position:relative}
+.entry:before{content:"";position:absolute;left:-6px;top:6px;width:9px;height:9px;border-radius:99px;
+  background:var(--accent)}
+.entry .dt{font:600 11.5px ui-monospace,Menlo,monospace;color:var(--muted)}
+.entry .txt{font-size:13.5px;margin-top:3px;white-space:pre-wrap}
+.entry .marks{display:flex;gap:3px;margin-top:6px}
+.entry .marks i{width:15px;height:15px;border-radius:3px;background:var(--unknown-bg);display:block;
+  border:1px solid var(--hairline)}
+.entry .marks i.g{background:var(--good);border-color:var(--good)}
+.entry .marks i.b{background:var(--behind);border-color:var(--behind)}
 #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(80px);
   background:var(--ink);color:var(--surface);padding:10px 16px;border-radius:999px;font-size:13.5px;
   opacity:0;transition:.22s;z-index:60;max-width:88vw;display:flex;gap:12px;align-items:center}
@@ -172,6 +192,7 @@ svg.curve{width:100%;height:210px;display:block}
   <div class="daybar"><i id="daybar" style="width:0"></i></div>
   <nav>
     <button data-tab="today" class="on">오늘</button>
+    <button data-tab="journal">일지</button>
     <button data-tab="progress">진행</button>
     <button data-tab="metrics">지표</button>
     <button data-tab="decide">결정</button>
@@ -189,6 +210,7 @@ svg.curve{width:100%;height:210px;display:block}
       <span class="spacer"></span>
       <button class="btn" id="btnEdit">항목 편집</button>
     </div>
+    <div id="nextBox"></div>
     <div id="groups"><div class="loading">불러오는 중…</div></div>
     <div class="card edit-only" style="flex-direction:column;align-items:stretch">
       <h2>항목 추가</h2>
@@ -215,6 +237,18 @@ svg.curve{width:100%;height:210px;display:block}
       <span><i style="background:var(--unknown-bg);border:1px solid var(--hairline)"></i>미확인</span>
       <span>· 탭 = 미확인 → 수행 → 미수행 순환 · 길게 누르면 메모</span>
     </div>
+  </section>
+
+  <!-- ── 일지 (시안 방향 C — 남는 자산은 체크가 아니라 기록이다) ── -->
+  <section id="tab-journal">
+    <div class="card">
+      <div class="row">
+        <input id="jInput" placeholder="오늘 한 줄" style="flex:1;min-width:0">
+        <select id="jItem" style="width:104px"></select>
+        <button class="btn pri" id="jSave">남기기</button>
+      </div>
+    </div>
+    <div id="journal"><div class="loading">불러오는 중…</div></div>
   </section>
 
   <!-- ── 진행 ─────────────────────────────────────────── -->
@@ -330,11 +364,12 @@ function toast(msg, actLabel, actFn) {
 }
 
 /* ── 탭 ─────────────────────────────────────────────── */
-const TABS = ["today", "progress", "metrics", "decide", "status"];
+const TABS = ["today", "journal", "progress", "metrics", "decide", "status"];
 function switchTab(name) {
   TABS.forEach((t) => $("tab-" + t).classList.toggle("on", t === name));
   document.querySelectorAll("nav button").forEach((b) => b.classList.toggle("on", b.dataset.tab === name));
   try { localStorage.setItem("tab", name); } catch (e) {}
+  if (name === "journal") loadJournal();
   if (name === "progress") loadProgress();
   if (name === "metrics") loadMetrics();
   if (name === "decide") loadHitl();
@@ -458,6 +493,7 @@ async function tapItem(key) {
     const res = await api("/api/routine", jsonOpts("POST", body));
     SNAP.items = res.items; SNAP.note = res.note || "";
     await refreshSnapshot();
+    loadNext();
   } catch (e) {
     if (String(e.message).startsWith("401")) { SNAP.items[key] = cur; renderToday(); return; }
     qPush(body);                       // 네트워크 실패 = 기록 유실 아님. 큐에 보관 후 재전송
@@ -804,6 +840,100 @@ async function loadStatus() {
   } catch (e) { $("applyBox").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
 }
 
+
+/* ── 다음 한 수 (시안 D) ─────────────────────────────── */
+async function loadNext() {
+  try {
+    const n = await api("/api/next");
+    const badge = n.kind === "commitment"
+      ? `<span class="pill ${n.meta.d_day <= 1 ? "behind" : "partial"}">${
+          n.meta.d_day === 0 ? "오늘 기한" : n.meta.d_day > 0 ? "D-" + n.meta.d_day : (-n.meta.d_day) + "일 지남"}</span>`
+      : n.kind === "clear" ? '<span class="pill done">전부 확인</span>'
+      : `<span class="pill unknown">다음</span>`;
+    const res = n.meta || {};
+    const actions = n.kind === "routine" ? `<div class="row" style="margin-top:4px">
+        <button class="btn pri" data-nextdone="${esc(res.key)}">했다 — 기록</button>
+        ${res.link_url ? `<a class="btn" href="${esc(res.link_url)}">${esc(res.link_label || "가이드")}</a>` : ""}
+        ${res.audio_url ? `<button class="btn" data-nextplay="${esc(res.key)}">재생</button>` : ""}
+      </div>` : "";
+    $("nextBox").innerHTML = `<div class="next">${badge}
+      <div class="q">${esc(n.title)}</div>
+      <div class="why">${esc(n.why)}</div>
+      ${actions}
+      ${n.rest.length ? `<div class="rest"><span>끝내면 다음 ·</span>${
+        n.rest.map((r) => `<span>${esc(r.label)}${r.broken_days ? ` (${r.broken_days}일 끊김)` : ""}</span>`).join("")}</div>` : ""}
+      ${n.done_today.length ? `<div class="rest"><span>오늘 한 것 · ${esc(n.done_today.join(" · "))}</span></div>` : ""}
+    </div>`;
+    document.querySelectorAll("[data-nextdone]").forEach((b) => b.onclick = async () => {
+      const key = b.dataset.nextdone;
+      const body = { key, done: true, date: SNAP.date };
+      try { await api("/api/routine", jsonOpts("POST", body)); await refreshSnapshot(); await loadNext(); toast("기록했습니다"); }
+      catch (e) { qPush(body); toast("오프라인 — 보관했습니다"); }
+    });
+    document.querySelectorAll("[data-nextplay]").forEach((b) => b.onclick = () => {
+      switchTab("today"); togglePlayer(b.dataset.nextplay);
+      document.querySelector(`.item[data-key="${CSS.escape(b.dataset.nextplay)}"]`)?.scrollIntoView({ block: "center" });
+    });
+  } catch (e) { $("nextBox").innerHTML = ""; }
+}
+
+/* ── 일지 (시안 C) — 남는 자산은 체크가 아니라 기록이다 ── */
+async function loadJournal() {
+  $("jItem").innerHTML = '<option value="">항목 없음</option>' +
+    SCHEMA.items.map((i) => `<option value="${esc(i.key)}">${esc(i.label)}</option>`).join("");
+  $("journal").innerHTML = '<div class="loading">불러오는 중…</div>';
+  try {
+    const [notes, prog] = await Promise.all([
+      api("/api/notes"),
+      api("/api/progress?granularity=day&mode=detail"),
+    ]);
+    const marks = new Map();          // date → [{key,state}]
+    prog.buckets.forEach((b) => marks.set(b.bucket, b.items));
+    const byDate = new Map();
+    (notes.notes || []).forEach((n) => {
+      if (!byDate.has(n.date)) byDate.set(n.date, []);
+      byDate.get(n.date).push(n);
+    });
+    // 기록이 있는 날 ∪ 코멘트가 있는 날, 최신순
+    const days = [...new Set([...byDate.keys(), ...prog.buckets
+      .filter((b) => b.items.some((i) => i.done || i.missed)).map((b) => b.bucket)])]
+      .sort().reverse();
+    const labels = Object.fromEntries(SCHEMA.items.map((i) => [i.key, i.label]));
+    const W = ["일", "월", "화", "수", "목", "금", "토"];
+    $("journal").innerHTML = days.length ? days.map((d) => {
+      const all = byDate.get(d) || [];
+      // ★내 기록과 자동화 기록을 가른다 — 힐러·체크인 같은 시스템 노트가 James의 문장을
+      //   덮으면 일지가 아니라 로그가 된다(2026-08-19 렌더 검증에서 실제로 덮였다).
+      const mine = all.filter((n) => n.item);
+      const sys = all.filter((n) => !n.item);
+      const ms = marks.get(d) || [];
+      const dow = W[new Date(d + "T00:00:00+09:00").getDay()];
+      return `<div class="card" style="padding:12px 12px 10px"><div class="entry">
+        <div class="dt">${esc(d.slice(5))} · ${dow}</div>
+        ${mine.length ? `<div class="txt">${mine.map((n) =>
+            `<b>${esc(labels[n.item] || n.item)}</b> — ` + esc(n.text)).join("\n")}</div>`
+          : (sys.length ? "" : '<div class="txt" style="color:var(--muted)">기록만 있고 코멘트는 없다.</div>')}
+        <div class="marks">${ms.map((i) =>
+          `<i class="${i.done ? "g" : i.missed ? "b" : ""}" title="${esc(i.label)} ${
+            i.done ? "수행" : i.missed ? "미수행" : "미확인"}"></i>`).join("")}</div>
+        ${sys.length ? `<details style="margin-top:7px"><summary class="st" style="cursor:pointer">
+            시스템 기록 ${sys.length}건</summary>
+          <div class="txt" style="color:var(--muted);margin-top:5px">${sys.map((n) => esc(n.text)).join("\n")}</div>
+        </details>` : ""}
+      </div></div>`;
+    }).join("") : '<div class="card">아직 기록이 없습니다.</div>';
+  } catch (e) { $("journal").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+$("jSave").onclick = async () => {
+  const v = $("jInput").value.trim();
+  if (!v) return toast("한 줄 남겨보세요");
+  const key = $("jItem").value || (SCHEMA.items[0] && SCHEMA.items[0].key);
+  const body = { key, done: $("jItem").value ? true : SNAP.items[key], date: SNAP.date, note: v };
+  $("jInput").value = "";
+  try { await api("/api/routine", jsonOpts("POST", body)); await refreshSnapshot(); await loadJournal(); toast("남겼습니다"); }
+  catch (e) { qPush(body); toast("오프라인 — 보관했습니다"); }
+};
+
 /* ── 로그인 / 부트 ──────────────────────────────────── */
 function renderLogin() {
   $("groups").innerHTML = `<div class="card"><h2>로그인이 필요합니다</h2>
@@ -825,6 +955,7 @@ async function refreshSnapshot() {
 async function reloadAll() {
   SCHEMA = await api("/api/routine/schema");
   await refreshSnapshot();
+  await loadNext();
 }
 async function boot() {
   renderOffline();
