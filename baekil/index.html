@@ -68,10 +68,13 @@ section.on{display:block}
 .pill.partial{background:var(--watch-bg);color:var(--watch)}
 .pill.behind{background:var(--behind-bg);color:var(--behind)}
 .pill.unknown{background:var(--unknown-bg);color:var(--muted)}
-/* 항목 행 — 탭 타깃 44px 이상, 한 손 도달 범위 */
-.item{display:flex;align-items:center;gap:10px;min-height:var(--tap);padding:4px 2px;
-  border-top:1px solid var(--hairline)}
+/* 항목 행 — 탭 타깃 44px 이상. ★flex 한 줄에 다 넣으면 폰에서 이름 칸이 0으로 눌려
+   한글이 한 글자씩 세로로 쪼개진다(2026-08-19 실기 확인). 그리드로 짜고 편집 컨트롤은
+   **아래 줄 전체 폭**으로 내린다. */
+.item{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;
+  gap:6px 10px;min-height:var(--tap);padding:6px 2px;border-top:1px solid var(--hairline)}
 .item:first-of-type{border-top:0}
+.item .edit-only{grid-column:1/-1;flex-wrap:wrap;justify-content:flex-start;gap:6px;padding-top:2px}
 .mark{width:26px;height:26px;border-radius:7px;flex:0 0 auto;border:1.5px solid var(--hairline);
   background:transparent;display:grid;place-items:center;cursor:pointer;position:relative}
 .mark[data-s="true"]{background:var(--good);border-color:var(--good)}
@@ -81,19 +84,20 @@ section.on{display:block}
 .mark svg{width:15px;height:15px;stroke:var(--on-accent);fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
 .mark.pending{opacity:.5}
 .iname{flex:1;min-width:0}
-.iname b{font-weight:600;font-size:15px}
-.iname small{display:block;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;
-  text-overflow:ellipsis}
+.iname b{font-weight:600;font-size:15px;word-break:keep-all;overflow-wrap:anywhere}
+.iname small{display:block;color:var(--muted);font-size:12px;overflow:hidden;
+  text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.iname .chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:3px}
 .st{font:600 11px ui-monospace,Menlo,monospace;color:var(--muted);white-space:nowrap}
 /* 코멘트 입력 — 항상 보이는 한 줄. 길게 눌러야 나오는 방식은 있는지도 모르고 지나친다
    (2026-08-19 James: "코멘트 입력기능 사라짐"). 구 콘솔의 인라인 입력을 되살린 것. */
-.memorow{display:flex;gap:6px;padding:0 0 8px 36px}
+.memorow{display:flex;gap:6px;padding:0 0 10px 0}
 .memorow input{flex:1;min-width:0}
-.mini{display:inline-block;margin-left:6px;padding:1px 7px;border:1px solid var(--hairline);
+.mini{display:inline-block;padding:2px 8px;border:1px solid var(--hairline);
   border-radius:999px;background:var(--surface);color:var(--muted);font:600 10.5px inherit;
   text-decoration:none;cursor:pointer;vertical-align:1px}
 .mini:active{transform:scale(.97)}
-.player{padding:0 0 8px 36px}
+.player{padding:0 0 10px 0}
 .player audio{width:100%}
 #notesPanel{position:fixed;inset:auto 0 0 0;max-height:72vh;overflow:auto;background:var(--surface);
   border-top:1px solid var(--hairline);border-radius:14px 14px 0 0;padding:14px;z-index:50;
@@ -114,6 +118,19 @@ a.btn{text-decoration:none;display:inline-grid;place-items:center}
 .seg button.on{background:var(--accent);color:var(--on-accent)}
 input,select{min-height:36px;padding:6px 9px;border:1px solid var(--hairline);border-radius:8px;
   background:var(--surface);color:var(--ink);font:14px inherit}
+
+/* 일 단위 = 달력형(주 7칸씩 접어 내린다). 49일을 한 줄에 밀어넣으면 2px 점이 되어
+   "전부 보인다"는 말이 무의미해진다(2026-08-19 실기 확인). 접으면 전부 보이고 읽힌다. */
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
+.cal .dow{font:600 9.5px ui-monospace,Menlo,monospace;color:var(--faint,var(--muted));
+  text-align:center;padding-bottom:1px}
+.cal .pad{aspect-ratio:1}
+.cal .cell{font-size:11px;max-height:none;border-radius:6px}
+.calwk{font:600 9.5px ui-monospace,Menlo,monospace;color:var(--muted);
+  grid-column:1/-1;padding:6px 0 1px;border-top:1px solid var(--hairline);margin-top:3px}
+.calitem{margin-bottom:14px}
+.calitem>h3{display:flex;align-items:baseline;gap:8px;margin:0 0 6px;font-size:13.5px;font-weight:600}
+.calitem>h3 span{font:600 11px ui-monospace,Menlo,monospace;color:var(--muted);margin-left:auto}
 /* 진행 그리드 — ★가로 스크롤 금지. 버킷이 몇 개든 화면 안에 전부 들어와야 한다
    (James 2026-08-19: "진행은 화면에서 잘리면 안 된다"). 표 대신 CSS 그리드로 짜서
    칸이 남는 폭을 1fr씩 나눠 갖게 하고, 좁아지면 숫자만 감춘다(색·툴팁은 유지). */
@@ -409,10 +426,12 @@ function renderToday() {
              data-key="${esc(it.key)}" role="button" tabindex="0"
              aria-label="${esc(it.label)} ${stateWord(s)}">${s === true ? CHECK : ""}</div>
         <div class="iname"><b>${esc(it.label)}</b>
-          ${it.link_url ? `<a class="mini" href="${esc(it.link_url)}" title="${esc(it.link_label || "가이드")}">${esc(it.link_label || "가이드")}</a>` : ""}
-          ${it.audio_url ? `<button class="mini" data-play="${esc(it.key)}">재생</button>` : ""}
-          <button class="mini" data-notes="${esc(it.key)}" title="코멘트 히스토리">기록</button>
-          <small>${esc(noteFor(it) || it.hint || "")}</small></div>
+          <small>${esc(noteFor(it) || it.hint || "")}</small>
+          <span class="chips">
+            ${it.link_url ? `<a class="mini" href="${esc(it.link_url)}">${esc(it.link_label || "가이드")}</a>` : ""}
+            ${it.audio_url ? `<button class="mini" data-play="${esc(it.key)}">재생</button>` : ""}
+            <button class="mini" data-notes="${esc(it.key)}" title="코멘트 히스토리">기록</button>
+          </span></div>
         <span class="st">${stateWord(s)}</span>
         <span class="edit-only" style="gap:4px">
           <button class="btn" data-mv="up" data-key="${esc(it.key)}" ${idx === 0 ? "disabled" : ""} aria-label="위로">▲</button>
@@ -654,6 +673,7 @@ async function loadProgress() {
       if (!rows.has(k)) rows.set(k, []);
       rows.get(k).push({ b, x });
     }));
+    if (g === "day") { renderCalendar(d, m); return; }        // 일 단위는 달력형으로
     const n = d.buckets.length;
     // 라벨 열 + 버킷 n개가 폭을 나눠 갖는다 → 몇 개든 잘리지 않는다.
     // 칸이 대략 22px 아래로 좁아지면 dense 모드(숫자 숨김, 색+툴팁만).
@@ -674,6 +694,34 @@ async function loadProgress() {
     }
     $("progressBox").innerHTML = html + "</div>";
   } catch (e) { $("progressBox").innerHTML = `<div class="err">불러오지 못했습니다 — ${esc(e.message)}</div>`; }
+}
+
+/* 일 단위 렌더 — 항목마다 7열 달력. 모든 날이 보이고, 칸이 손가락만 하다. */
+function renderCalendar(d, mode) {
+  const DOW = ["월", "화", "수", "목", "금", "토", "일"];
+  const rows = new Map();
+  d.buckets.forEach((b) => ((mode === "rollup" ? b.groups : b.items) || []).forEach((x) => {
+    const k = mode === "rollup" ? x.name : x.label;
+    if (!rows.has(k)) rows.set(k, []);
+    rows.get(k).push({ date: b.bucket, x });
+  }));
+  const head = DOW.map((w) => `<div class="dow">${w}</div>`).join("");
+  let html = "";
+  for (const [name, cells] of rows) {
+    const done = cells.filter((c) => c.x.done).length;
+    const rec = cells.filter((c) => c.x.done || c.x.missed).length;
+    // 첫 날의 요일만큼 빈칸을 채워 요일 열을 맞춘다(월요일 시작)
+    const lead = (new Date(cells[0].date + "T00:00:00+09:00").getDay() + 6) % 7;
+    html += `<div class="calitem"><h3>${esc(name)}
+        <span>${done}일 수행 · 기록 ${rec}/${cells.length}</span></h3>
+      <div class="cal">${head}${"<div class='pad'></div>".repeat(lead)}` +
+      cells.map(({ date, x }) => {
+        const st = x.done ? "done" : x.missed ? "behind" : "unknown";
+        const tip = `${date} · ${x.done ? "수행" : x.missed ? "미수행" : "미확인"}`;
+        return `<div class="cell ${st}" title="${esc(tip)}">${Number(date.slice(-2))}</div>`;
+      }).join("") + `</div></div>`;
+  }
+  $("progressBox").innerHTML = html || '<div class="loading">표시할 기간이 없습니다.</div>';
 }
 function shortBucket(b, g) {
   if (g === "day") return b.slice(5);
