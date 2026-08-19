@@ -85,8 +85,22 @@ section.on{display:block}
 .iname small{display:block;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;
   text-overflow:ellipsis}
 .st{font:600 11px ui-monospace,Menlo,monospace;color:var(--muted);white-space:nowrap}
-.memo{width:100%;margin:2px 0 8px;padding:8px;border:1px solid var(--hairline);border-radius:8px;
-  background:var(--surface);color:var(--ink);font:14px inherit;resize:vertical}
+/* 코멘트 입력 — 항상 보이는 한 줄. 길게 눌러야 나오는 방식은 있는지도 모르고 지나친다
+   (2026-08-19 James: "코멘트 입력기능 사라짐"). 구 콘솔의 인라인 입력을 되살린 것. */
+.memorow{display:flex;gap:6px;padding:0 0 8px 36px}
+.memorow input{flex:1;min-width:0}
+.mini{display:inline-block;margin-left:6px;padding:1px 7px;border:1px solid var(--hairline);
+  border-radius:999px;background:var(--surface);color:var(--muted);font:600 10.5px inherit;
+  text-decoration:none;cursor:pointer;vertical-align:1px}
+.mini:active{transform:scale(.97)}
+.player{padding:0 0 8px 36px}
+.player audio{width:100%}
+#notesPanel{position:fixed;inset:auto 0 0 0;max-height:72vh;overflow:auto;background:var(--surface);
+  border-top:1px solid var(--hairline);border-radius:14px 14px 0 0;padding:14px;z-index:50;
+  transform:translateY(110%);transition:.22s;box-shadow:0 -8px 30px #0003}
+#notesPanel.on{transform:none}
+#notesPanel .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+#notesPanel .chips button.on{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .btn{min-height:36px;padding:0 12px;border:1px solid var(--hairline);background:var(--card);
   color:var(--ink);border-radius:9px;font:600 13px inherit;cursor:pointer}
@@ -100,14 +114,18 @@ a.btn{text-decoration:none;display:inline-grid;place-items:center}
 .seg button.on{background:var(--accent);color:var(--on-accent)}
 input,select{min-height:36px;padding:6px 9px;border:1px solid var(--hairline);border-radius:8px;
   background:var(--surface);color:var(--ink);font:14px inherit}
-/* 진행 그리드 */
-.gridwrap{overflow-x:auto}
-.pgrid{border-collapse:separate;border-spacing:3px;font-size:12px}
-.pgrid th{font:600 11px ui-monospace,Menlo,monospace;color:var(--muted);text-align:left;
-  padding:0 4px;white-space:nowrap}
-.pgrid td.lab{color:var(--ink);font-weight:600;white-space:nowrap;padding-right:6px}
-.cell{width:26px;height:26px;border-radius:6px;display:grid;place-items:center;
+/* 진행 그리드 — ★가로 스크롤 금지. 버킷이 몇 개든 화면 안에 전부 들어와야 한다
+   (James 2026-08-19: "진행은 화면에서 잘리면 안 된다"). 표 대신 CSS 그리드로 짜서
+   칸이 남는 폭을 1fr씩 나눠 갖게 하고, 좁아지면 숫자만 감춘다(색·툴팁은 유지). */
+.pgrid{display:grid;gap:3px;align-items:center;width:100%}
+.pgrid .hd{font:600 10px ui-monospace,Menlo,monospace;color:var(--muted);text-align:center;
+  overflow:hidden;text-overflow:clip;white-space:nowrap}
+.pgrid .lab{color:var(--ink);font-weight:600;white-space:nowrap;padding-right:6px;
+  font-size:12.5px;overflow:hidden;text-overflow:ellipsis}
+.cell{min-width:0;aspect-ratio:1;max-height:28px;border-radius:5px;display:grid;place-items:center;
   font:600 9.5px ui-monospace,Menlo,monospace;color:var(--on-accent);cursor:default}
+.pgrid.dense .cell{font-size:0}                    /* 칸이 좁으면 숫자를 지우고 색만 남긴다 */
+.pgrid.dense .hd{font-size:8.5px}
 .cell.done{background:var(--good)}
 .cell.partial{background:var(--watch)}
 .cell.behind{background:var(--behind)}
@@ -245,6 +263,12 @@ svg.curve{width:100%;height:210px;display:block}
   </section>
 </div>
 
+<div id="notesPanel">
+  <div class="row" style="margin-bottom:8px"><b style="font-size:14px">코멘트 히스토리</b>
+    <span class="spacer"></span><button class="btn" id="npClose">닫기</button></div>
+  <div class="chips" id="npChips"></div>
+  <div id="npList"></div>
+</div>
 <div id="toast"><span id="toastMsg"></span><button id="toastAct" style="display:none"></button></div>
 
 <script>
@@ -325,6 +349,7 @@ const stateWord = (s) => s === true ? "수행" : s === false ? "미수행" : "�
 
 function renderToday() {
   if (!SNAP || !SCHEMA) return;
+  const _memo = memoSnapshot();          // 재렌더 전 작성 중 코멘트 보존
   $("todayLabel").textContent = SNAP.date + " · D" + SNAP.day_n;
   $("dday").textContent = "D" + SNAP.day_n + " / 100";
   $("daybar").style.width = Math.min(100, SNAP.day_n) + "%";
@@ -348,7 +373,11 @@ function renderToday() {
         <div class="mark" data-s="${s === true ? "true" : s === false ? "false" : "null"}"
              data-key="${esc(it.key)}" role="button" tabindex="0"
              aria-label="${esc(it.label)} ${stateWord(s)}">${s === true ? CHECK : ""}</div>
-        <div class="iname"><b>${esc(it.label)}</b>${noteFor(it) ? `<small>${esc(noteFor(it))}</small>` : ""}</div>
+        <div class="iname"><b>${esc(it.label)}</b>
+          ${it.link_url ? `<a class="mini" href="${esc(it.link_url)}" title="${esc(it.link_label || "가이드")}">${esc(it.link_label || "가이드")}</a>` : ""}
+          ${it.audio_url ? `<button class="mini" data-play="${esc(it.key)}">재생</button>` : ""}
+          <button class="mini" data-notes="${esc(it.key)}" title="코멘트 히스토리">기록</button>
+          <small>${esc(noteFor(it) || it.hint || "")}</small></div>
         <span class="st">${stateWord(s)}</span>
         <span class="edit-only" style="gap:4px">
           <button class="btn" data-mv="up" data-key="${esc(it.key)}" ${idx === 0 ? "disabled" : ""} aria-label="위로">▲</button>
@@ -357,6 +386,12 @@ function renderToday() {
           <button class="btn" data-ren="${esc(it.key)}">이름</button>
           <button class="btn warn" data-arch="${esc(it.key)}">보관</button>
         </span>
+      </div>
+      ${it.audio_url ? `<div class="player" id="pl-${esc(it.key)}"></div>` : ""}
+      <div class="memorow">
+        <input type="text" id="mi-${esc(it.key)}" placeholder="${esc(it.label)} 코멘트 (예: ~88p)"
+               autocomplete="off" data-memo="${esc(it.key)}">
+        <button class="btn" data-save="${esc(it.key)}">기록</button>
       </div>`;
     });
     html += "</div>";
@@ -369,6 +404,7 @@ function renderToday() {
     ${g.is_system ? "" : `<button class="btn warn" style="min-height:24px;padding:0 7px" data-gdel="${g.id}">삭제</button>`}
   </span>`).join("");
   bindToday();
+  memoRestore(_memo);
   document.querySelectorAll("[data-gren]").forEach((b) => b.onclick = async () => {
     const g = SCHEMA.groups.find((x) => String(x.id) === b.dataset.gren);
     const v = prompt("그룹 이름", g ? g.name : ""); if (v === null || !v.trim()) return;
@@ -388,14 +424,15 @@ function noteFor(it) {
 
 function bindToday() {
   document.querySelectorAll(".mark").forEach((el) => {
-    let timer = null, longed = false;
-    const start = () => { longed = false; timer = setTimeout(() => { longed = true; openMemo(el.dataset.key); }, 480); };
-    const end = (e) => { clearTimeout(timer); if (!longed) { e.preventDefault(); tapItem(el.dataset.key); } };
-    el.addEventListener("pointerdown", start);
-    el.addEventListener("pointerup", end);
-    el.addEventListener("pointerleave", () => clearTimeout(timer));
+    el.addEventListener("click", (e) => { e.preventDefault(); tapItem(el.dataset.key); });
     el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); tapItem(el.dataset.key); } });
   });
+  document.querySelectorAll("[data-save]").forEach((b) => b.onclick = () => saveMemo(b.dataset.save));
+  document.querySelectorAll("[data-memo]").forEach((i) => i.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.isComposing) saveMemo(i.dataset.memo);   // 한글 IME 조합 중 Enter 무시
+  }));
+  document.querySelectorAll("[data-notes]").forEach((b) => b.onclick = () => openNotes(b.dataset.notes));
+  document.querySelectorAll("[data-play]").forEach((b) => b.onclick = () => togglePlayer(b.dataset.play));
   document.querySelectorAll("[data-mv]").forEach((b) => b.onclick = () => moveItem(b.dataset.key, b.dataset.mv));
   document.querySelectorAll("[data-ren]").forEach((b) => b.onclick = () => renameItem(b.dataset.ren));
   document.querySelectorAll("[data-arch]").forEach((b) => b.onclick = () => archiveItem(b.dataset.arch));
@@ -428,23 +465,88 @@ async function tapItem(key) {
   }
 }
 
-function openMemo(key) {
-  const it = SCHEMA.items.find((i) => i.key === key);
-  if (!it) return;
-  const row = document.querySelector(`.item[data-key="${CSS.escape(key)}"]`);
-  if (!row || row.nextElementSibling?.classList?.contains("memo")) return;
-  const ta = document.createElement("textarea");
-  ta.className = "memo"; ta.rows = 2; ta.placeholder = it.label + " 메모";
-  ta.value = noteFor(it);
-  row.after(ta); ta.focus();
-  ta.addEventListener("blur", async () => {
-    const v = ta.value.trim(); ta.remove();
-    if (!v || v === noteFor(it)) return;
-    try { await api("/api/routine", jsonOpts("POST", { key, done: SNAP.items[key], date: SNAP.date, note: v }));
-          await refreshSnapshot(); toast("메모 저장"); }
-    catch (e) { qPush({ key, done: SNAP.items[key], date: SNAP.date, note: v }); toast("오프라인 — 메모 보관"); }
-  });
+/* 코멘트 저장. 값이 있으면 수행(true)으로 함께 기록한다 — 구 콘솔과 동일(코멘트를 남긴다는 건
+   그 항목을 했다는 뜻). 상태만 따로 바꾸고 싶으면 왼쪽 체크를 탭한다. */
+async function saveMemo(key) {
+  const i = $("mi-" + key);
+  const v = (i?.value || "").trim();
+  if (!v) return toast("코멘트를 입력하세요");
+  const body = { key, done: true, date: SNAP.date, note: v };
+  i.value = "";
+  try { await api("/api/routine", jsonOpts("POST", body)); await refreshSnapshot(); toast("기록했습니다"); }
+  catch (e) {
+    if (String(e.message).startsWith("401")) { i.value = v; return; }
+    qPush(body); toast("오프라인 — 기록을 보관했습니다");
+  }
 }
+
+/* 재렌더가 입력을 삼키지 않게 — 30초 폴링·낙관적 갱신이 innerHTML을 갈아엎어도 작성 중인
+   코멘트(값·포커스·커서)는 유지한다. 구 콘솔이 IME 유실을 잡으려고 넣었던 방어를 이어받음. */
+function memoSnapshot() {
+  const s = { vals: {}, focus: null, caret: null };
+  document.querySelectorAll("[data-memo]").forEach((i) => { if (i.value) s.vals[i.dataset.memo] = i.value; });
+  const a = document.activeElement;
+  if (a && a.dataset && a.dataset.memo) { s.focus = a.dataset.memo; try { s.caret = a.selectionStart; } catch (e) {} }
+  return s;
+}
+function memoRestore(s) {
+  Object.keys(s.vals).forEach((k) => { const i = $("mi-" + k); if (i) i.value = s.vals[k]; });
+  if (s.focus) { const i = $("mi-" + s.focus); if (i) { i.focus();
+    if (s.caret != null) { try { i.setSelectionRange(s.caret, s.caret); } catch (e) {} } } }
+}
+const memoEditing = () => [...document.querySelectorAll("[data-memo]")].some(
+  (i) => i.value.trim() || document.activeElement === i);
+
+/* 가이드 오디오 — 끝까지 들으면 자동 기록(구 콘솔 동작 유지). 화면을 꺼도 이어서 재생된다. */
+let _audio = null, _audioKey = null;
+function togglePlayer(key) {
+  const it = SCHEMA.items.find((i) => i.key === key);
+  const box = $("pl-" + key);
+  if (!it || !box) return;
+  if (_audioKey === key) { closePlayer(); return; }
+  closePlayer();
+  _audioKey = key;
+  _audio = document.createElement("audio");
+  _audio.src = it.audio_url; _audio.controls = true; _audio.setAttribute("playsinline", "");
+  _audio.onended = async () => {
+    const body = { key, done: true, date: SNAP.date, note: "가이드 오디오 완료 — 자동 기록" };
+    try { await api("/api/routine", jsonOpts("POST", body)); await refreshSnapshot(); toast("완료 — 자동 기록"); }
+    catch (e) { qPush(body); }
+    closePlayer();
+  };
+  box.innerHTML = "";
+  box.appendChild(_audio);
+  const hint = document.createElement("div");
+  hint.className = "st"; hint.style.marginTop = "4px";
+  hint.textContent = "화면을 꺼도 이어서 재생됩니다 · 끝나면 자동 기록";
+  box.appendChild(hint);
+  _audio.play().catch(() => {});
+}
+function closePlayer() {
+  if (_audio) { try { _audio.pause(); } catch (e) {} }
+  if (_audioKey && $("pl-" + _audioKey)) $("pl-" + _audioKey).innerHTML = "";
+  _audio = null; _audioKey = null;
+}
+
+/* 코멘트 히스토리 — 전 기간, 항목 필터. GET /api/notes */
+let _notesFilter = null;
+async function openNotes(item) {
+  _notesFilter = item || null;
+  $("notesPanel").classList.add("on");
+  $("npList").innerHTML = '<div class="loading">불러오는 중…</div>';
+  $("npChips").innerHTML = [["", "전체"]].concat(SCHEMA.items.map((i) => [i.key, i.label]))
+    .map(([k, label]) => `<button class="btn${(_notesFilter || "") === k ? " on" : ""}" data-nf="${esc(k)}">${esc(label)}</button>`).join("");
+  document.querySelectorAll("[data-nf]").forEach((b) => b.onclick = () => openNotes(b.dataset.nf || null));
+  try {
+    const d = await api("/api/notes" + (item ? "?item=" + encodeURIComponent(item) : ""));
+    const labels = Object.fromEntries(SCHEMA.items.map((i) => [i.key, i.label]));
+    $("npList").innerHTML = (d.notes || []).length
+      ? d.notes.map((n) => `<div class="item"><div class="iname"><b>${esc(n.text)}</b>
+          <small>${esc(n.date)}${n.item ? " · " + esc(labels[n.item] || n.item) : ""}</small></div></div>`).join("")
+      : '<div class="loading">기록이 없습니다.</div>';
+  } catch (e) { $("npList").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+$("npClose").onclick = () => $("notesPanel").classList.remove("on");
 
 /* 편집 — 항목 CRUD */
 $("btnEdit").onclick = () => {
@@ -516,19 +618,25 @@ async function loadProgress() {
       if (!rows.has(k)) rows.set(k, []);
       rows.get(k).push({ b, x });
     }));
-    const heads = d.buckets.map((b) => `<th>${esc(shortBucket(b.bucket, g))}</th>`).join("");
-    let html = `<div class="gridwrap"><table class="pgrid"><tr><th></th>${heads}</tr>`;
+    const n = d.buckets.length;
+    // 라벨 열 + 버킷 n개가 폭을 나눠 갖는다 → 몇 개든 잘리지 않는다.
+    // 칸이 대략 22px 아래로 좁아지면 dense 모드(숫자 숨김, 색+툴팁만).
+    const labW = n > 20 ? 44 : 62;
+    const dense = n > 14;
+    let html = `<div class="pgrid${dense ? " dense" : ""}" style="grid-template-columns:${labW}px repeat(${n},minmax(0,1fr))">`;
+    html += `<div></div>` + d.buckets.map((b) => `<div class="hd">${esc(shortBucket(b.bucket, g))}</div>`).join("");
     for (const [name, cells] of rows) {
-      html += `<tr><td class="lab">${esc(name)}</td>` + cells.map(({ b, x }) => {
+      html += `<div class="lab" title="${esc(name)}">${esc(name)}</div>`;
+      html += cells.map(({ b, x }) => {
         const pct = x.pct === null ? null : Math.round(x.pct * 100);
         const thin = x.coverage < 0.5 ? " thin" : "";
         const tip = `${b.start}~${b.end} · 수행 ${x.done} / 미수행 ${x.missed} / 미확인 ${x.unknown}` +
                     (pct === null ? " · 완료율 없음(기록 0)" : ` · 완료율 ${pct}%`) +
                     ` · 기록률 ${Math.round(x.coverage * 100)}%`;
-        return `<td><div class="cell ${x.state}${thin}" title="${esc(tip)}">${pct === null ? "" : pct}</div></td>`;
-      }).join("") + "</tr>";
+        return `<div class="cell ${x.state}${thin}" title="${esc(tip)}">${pct === null ? "" : pct}</div>`;
+      }).join("");
     }
-    $("progressBox").innerHTML = html + "</table></div>";
+    $("progressBox").innerHTML = html + "</div>";
   } catch (e) { $("progressBox").innerHTML = `<div class="err">불러오지 못했습니다 — ${esc(e.message)}</div>`; }
 }
 function shortBucket(b, g) {
@@ -657,9 +765,24 @@ async function loadHitl() {
 /* 응답 형태는 라이브 실측 기준(2026-08-19):
    /api/apply  {total, by_status:{}, active:[{company,position,status,date}], recent:[…]}
    /api/tracks {tracks:[{key,label,status,next,source}], upcoming:[{id,title,due?}], watch:{}} */
+/* ★날짜 표기 규칙(2026-08-19 James 지적으로 변경): 상태 옆의 날짜가 '지원일'이면 면접이
+   이미 지난 것처럼 읽힌다("면접 지난 줄 알고 깜짝 놀랐다"). 면접 일정이 있으면 **그것을
+   앞에 세우고 D-day를 붙이고**, 지원일은 작게 '지원 …'으로 구분해 적는다. */
+function ivBadge(iv, status) {
+  // 면접 단계인데 일정이 없으면 그걸 그대로 말한다 — 빈칸은 "없다"가 아니라 "모른다"로 읽혀야 한다
+  if (!iv) return status === "interview"
+    ? '<span class="pill unknown">면접 일정 미확정</span>' : "";
+  const d = iv.d_day;
+  const label = d === 0 ? "오늘" : d > 0 ? `D-${d}` : `${-d}일 지남`;
+  const cls = iv.past ? "unknown" : (d <= 1 ? "behind" : d <= 3 ? "partial" : "done");
+  return `<span class="pill ${cls}" title="${esc(iv.title)}">면접 ${esc(iv.due.slice(5))} · ${label}</span>`;
+}
 const applyRow = (x) => `<div class="item">
   <div class="iname"><b>${esc(x.company || "-")}</b><small>${esc(x.position || "")}</small></div>
-  <span class="st">${esc(x.status || "")}${x.date ? " · " + esc(x.date) : ""}</span></div>`;
+  <span class="row" style="gap:6px;justify-content:flex-end">
+    ${ivBadge(x.interview, x.status)}
+    <span class="st">${esc(x.status || "")}${x.applied_on ? " · 지원 " + esc(x.applied_on.slice(5)) : ""}</span>
+  </span></div>`;
 async function loadStatus() {
   try {
     const [a, t] = await Promise.all([api("/api/apply"), api("/api/tracks")]);
@@ -719,7 +842,9 @@ async function boot() {
 }
 $("btnRefresh").onclick = () => { reloadAll().then(() => toast("갱신")).catch((e) => toast("실패: " + e.message)); };
 $("avatar").onclick = () => { if (!AUTHED) location.href = API + "/auth/login"; };
-setInterval(() => { if (AUTHED && $("tab-today").classList.contains("on")) refreshSnapshot().catch(() => {}); }, 30000);
+// 폴링 재렌더가 입력을 방해하지 않게 — 코멘트 작성 중이면 이번 주기는 건너뛴다
+setInterval(() => { if (AUTHED && $("tab-today").classList.contains("on") && !memoEditing())
+  refreshSnapshot().catch(() => {}); }, 30000);
 boot();
 </script>
 </body>
