@@ -192,6 +192,18 @@ body.editing .mark{pointer-events:none;opacity:.45}
 .drag{cursor:grab;color:var(--muted);user-select:none}
 .item.dragover{outline:2px dashed var(--accent);outline-offset:2px}
 svg.curve{width:100%;height:210px;display:block}
+
+/* 오늘 탭 항목별 14일 스트릭 — 매일 보는 화면에 진행이 보여야 동기가 생긴다(2026-08-24 James) */
+.streak{display:flex;align-items:center;gap:6px;margin-top:5px;flex-wrap:wrap}
+.streak .dots{display:flex;gap:2px}
+.streak .d{width:9px;height:9px;border-radius:2px;background:var(--unknown-bg);
+           border:1px solid var(--hairline);flex:0 0 auto}
+.streak .d.done{background:var(--good);border-color:var(--good)}
+.streak .d.missed{background:var(--behind);border-color:var(--behind)}
+.streak .d.today{outline:2px solid var(--ink);outline-offset:1px}
+.streak .cnt{font-size:11px;color:var(--muted);white-space:nowrap}
+.streak .cnt b{color:var(--ink)}
+@media (max-width:420px){.streak .d{width:8px;height:8px}}
 </style>
 </head>
 <body>
@@ -431,7 +443,8 @@ function renderToday() {
             ${it.link_url ? `<a class="mini" href="${esc(it.link_url)}">${esc(it.link_label || "가이드")}</a>` : ""}
             ${it.audio_url ? `<button class="mini" data-play="${esc(it.key)}">재생</button>` : ""}
             <button class="mini" data-notes="${esc(it.key)}" title="코멘트 히스토리">기록</button>
-          </span></div>
+          </span>
+          ${streakHtml(it.key)}</div>
         <span class="st">${stateWord(s)}</span>
         <span class="edit-only" style="gap:4px">
           <button class="btn" data-mv="up" data-key="${esc(it.key)}" ${idx === 0 ? "disabled" : ""} aria-label="위로">▲</button>
@@ -528,7 +541,7 @@ async function saveMemo(key) {
   if (!v) return toast("코멘트를 입력하세요");
   const body = { key, done: true, date: SNAP.date, note: v };
   i.value = "";
-  try { await api("/api/routine", jsonOpts("POST", body)); await refreshSnapshot(); toast("기록했습니다"); }
+  try { await api("/api/routine", jsonOpts("POST", body)); await loadStreak(); await refreshSnapshot(); toast("기록했습니다"); }
   catch (e) {
     if (String(e.message).startsWith("401")) { i.value = v; return; }
     qPush(body); toast("오프라인 — 기록을 보관했습니다");
@@ -996,12 +1009,46 @@ async function loadMe() {
     if (AUTHED) { $("avatar").textContent = me.email.slice(0, 1).toUpperCase(); $("avatar").title = me.email; }
   } catch (e) { AUTHED = false; }
 }
+/* 항목별 최근 14일 상태. 오늘 탭에서 바로 보이게 한다. */
+let STREAK = null;
+async function loadStreak() {
+  try {
+    const from = new Date(Date.now() - 13 * 86400000).toISOString().slice(0, 10);
+    const d = await api(`/api/progress?granularity=day&mode=detail&from=${from}`);
+    const m = new Map();                       // key -> [{date, state}] (오래된 → 최신)
+    (d.buckets || []).forEach((b) => {
+      (b.items || []).forEach((x) => {
+        if (!m.has(x.key)) m.set(x.key, []);
+        m.get(x.key).push({ date: b.bucket, done: x.done > 0, missed: x.missed > 0 });
+      });
+    });
+    STREAK = m;
+  } catch (e) { STREAK = null; }               // 실패해도 오늘 탭은 그대로 뜬다
+}
+function streakHtml(key) {
+  if (!STREAK) return "";
+  const cells = STREAK.get(key) || [];
+  if (!cells.length) return "";
+  let run = 0;                                 // 최신부터 거슬러 연속 수행 일수
+  for (let i = cells.length - 1; i >= 0; i--) { if (cells[i].done) run++; else break; }
+  const dots = cells.map((c, i) => {
+    const cls = c.done ? "done" : c.missed ? "missed" : "";
+    const last = i === cells.length - 1 ? " today" : "";
+    const w = c.done ? "수행" : c.missed ? "미수행" : "미확인";
+    return `<span class="d ${cls}${last}" title="${c.date} ${w}"></span>`;
+  }).join("");
+  const doneN = cells.filter((c) => c.done).length;
+  return `<div class="streak"><span class="dots">${dots}</span>
+    <span class="cnt">${run > 0 ? `<b>${run}일 연속</b> · ` : ""}최근 ${cells.length}일 중 <b>${doneN}일</b></span></div>`;
+}
+
 async function refreshSnapshot() {
   SNAP = await api("/api/routine");
   renderToday();
 }
 async function reloadAll() {
   SCHEMA = await api("/api/routine/schema");
+  await loadStreak();          // renderToday보다 먼저 — 첫 화면부터 스트릭이 보여야 한다
   await refreshSnapshot();
   await loadNext();
 }
@@ -1022,8 +1069,14 @@ async function boot() {
 $("btnRefresh").onclick = () => { reloadAll().then(() => toast("갱신")).catch((e) => toast("실패: " + e.message)); };
 $("avatar").onclick = () => { if (!AUTHED) location.href = API + "/auth/login"; };
 // 폴링 재렌더가 입력을 방해하지 않게 — 코멘트 작성 중이면 이번 주기는 건너뛴다
-setInterval(() => { if (AUTHED && $("tab-today").classList.contains("on") && !memoEditing())
-  refreshSnapshot().catch(() => {}); }, 30000);
+let LAST_DAY = null;
+setInterval(async () => {
+  if (!AUTHED || !$("tab-today").classList.contains("on") || memoEditing()) return;
+  try {
+    await refreshSnapshot();
+    if (SNAP && SNAP.date !== LAST_DAY) { LAST_DAY = SNAP.date; await loadStreak(); renderToday(); }
+  } catch (e) {}
+}, 30000);
 boot();
 </script>
 </body>
