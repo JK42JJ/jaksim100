@@ -851,10 +851,13 @@ async function loadHitl() {
     $("queue").innerHTML = items.length ? items.map((q) => `<div class="item">
       <div class="iname"><b>${esc(q.title || q.summary || q.id)}</b><small>${esc(q.detail || q.note || "")}</small></div>
       <span class="row"><button class="btn pri" data-dec="approve" data-id="${esc(q.id)}">승인</button>
-      <button class="btn" data-dec="reject" data-id="${esc(q.id)}">보류</button></span></div>`).join("")
+      <button class="btn" data-dec="hold" data-id="${esc(q.id)}">보류</button></span></div>`).join("")
       : '<div class="loading">대기 중인 결정이 없습니다.</div>';
     document.querySelectorAll("[data-dec]").forEach((b) => b.onclick = async () => {
-      try { await api("/api/hitl/decide", jsonOpts("POST", { id: b.dataset.id, decision: b.dataset.dec }));
+      /* 필드명은 action — 서버 계약(DecideIn.action: approve|hold|skip).
+         2026-08-24까지 decision:"approve"|"reject"를 보내고 있어서 두 버튼 다 422로 떨어졌다.
+         큐가 눈에 보이는데 눌러도 아무 일이 없었던 이유다. */
+      try { await api("/api/hitl/decide", jsonOpts("POST", { id: b.dataset.id, action: b.dataset.dec }));
             loadHitl(); toast("처리했습니다"); } catch (e) { toast("실패: " + e.message); }
     });
   } catch (e) { $("queue").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
