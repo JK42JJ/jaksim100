@@ -1016,7 +1016,9 @@ async function loadMe() {
 let STREAK = null;
 async function loadStreak() {
   try {
-    const from = new Date(Date.now() - 13 * 86400000).toISOString().slice(0, 10);
+    // KST 기준 14일 창. +9h 를 빼먹으면 00:00~09:00 KST 사이에 하루 더 이른 날짜가 나와
+    // 창이 15일이 된다(서버 UTC 버그와 같은 계열 — app/services/metrics.py:_today).
+    const from = new Date(Date.now() + 9 * 36e5 - 13 * 864e5).toISOString().slice(0, 10);
     const d = await api(`/api/progress?granularity=day&mode=detail&from=${from}`);
     const m = new Map();                       // key -> [{date, state}] (오래된 → 최신)
     (d.buckets || []).forEach((b) => {
