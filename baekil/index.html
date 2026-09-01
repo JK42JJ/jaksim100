@@ -954,7 +954,9 @@ async function loadNext() {
       <div class="why">${esc(n.why)}</div>
       ${actions}
       ${n.rest.length ? `<div class="rest"><span>끝내면 다음 ·</span>${
-        n.rest.map((r) => `<span>${esc(r.label)}${r.broken_days ? ` (${r.broken_days}일 끊김)` : ""}</span>`).join("")}</div>` : ""}
+        // broken_days = 마지막 수행 이후 흐른 날. 1은 "어제 했고 오늘 아직"이라 끊긴 게 아니다.
+        // 그걸 "1일 끊김"이라 쓰는 바람에 13일 연속인 달리기가 같은 화면에서 끊긴 것처럼 보였다.
+        n.rest.map((r) => `<span>${esc(r.label)}${r.broken_days > 1 ? ` (${r.broken_days}일 안 함)` : ""}</span>`).join("")}</div>` : ""}
       ${n.done_today.length ? `<div class="rest"><span>오늘 한 것 · ${esc(n.done_today.join(" · "))}</span></div>` : ""}
     </div>`;
     document.querySelectorAll("[data-nextdone]").forEach((b) => b.onclick = async () => {
