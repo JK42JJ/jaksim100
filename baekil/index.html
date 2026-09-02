@@ -82,6 +82,13 @@ section.on{display:block}
   border-top:1px solid var(--hairline)}
 .item:first-of-type{border-top:0}
 .item .edit-only{grid-column:1/-1;flex-wrap:wrap;justify-content:flex-start;gap:6px;padding-top:2px}
+/* 2026-09-02 수리: .item 을 격자로 바꿀 때(09-01) 체크 표시가 없는 행(결정·현황·트랙·연속기록·기여도)은
+   손대지 않았다. 영역 이름이 없는 상태·버튼이 첫 빈 칸(mark 자리)으로 자동 배치돼 제목 왼쪽으로 튀어나갔다.
+   상태·버튼 묶음은 meta 영역으로 보내고, 체크 표시가 없는 행은 mark 열 자체를 없앤다. */
+.item>.st,.item>.row{grid-area:meta;justify-self:end;text-align:right}
+.item:not(:has(.mark)){grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"name meta" "memo memo"}
+.item:not(:has(.mark)) .iname{flex-wrap:wrap}
+.item:not(:has(.mark)) .iname b{white-space:normal;flex:0 1 auto;min-width:0}  /* 긴 제목(결정 대기)이 버튼 밑으로 깔리지 않게 줄바꿈 허용 — 이름 칸이 격자 열이라 0 으로 눌리지 않는다 */
 .mark{width:26px;height:26px;border-radius:7px;flex:0 0 auto;border:1.5px solid var(--hairline);
   background:transparent;display:grid;place-items:center;cursor:pointer;position:relative}
 .mark[data-s="true"]{background:var(--good);border-color:var(--good)}
@@ -147,7 +154,7 @@ input,select{min-height:36px;padding:6px 9px;border:1px solid var(--hairline);bo
 .cal .dow{font:600 9.5px ui-monospace,Menlo,monospace;color:var(--faint,var(--muted));
   text-align:center;padding-bottom:1px}
 .cal .pad{aspect-ratio:1}
-.cal .cell{font-size:11px;max-height:none;border-radius:6px}
+.cal .cell{font-size:11px;max-height:30px;border-radius:6px}  /* 2026-09-02: none 이면 칸이 열 폭만큼 부풀어 항목 9개×63일이 7,000px 를 넘는다 */
 .calwk{font:600 9.5px ui-monospace,Menlo,monospace;color:var(--muted);
   grid-column:1/-1;padding:6px 0 1px;border-top:1px solid var(--hairline);margin-top:3px}
 .calitem{margin-bottom:14px}
