@@ -5,247 +5,341 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>百日作戰 · 관측 콘솔</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <!--
-  관측 콘솔 V2 — 설계 app/CONSOLE-V2-DESIGN.md
-  소스 위치: 이 repo web/console/index.html (SoT). 발행만 jaksim100/baekil/ 로 push(§11).
-    이전에는 UI가 jaksim100 repo에만 있어 API 계약과 원자적으로 못 바뀌었다 — 그 분리를 없앤다.
-  데이터 평면: console-api 하나뿐. Supabase 직결·정적 routine.json 폴백은 **쓰지 않는다**
-    (병렬 평면이 '웹은 되는데 기록은 반영 안 됨' 사고의 원인이었다 — ops/sot-registry.json).
+  관측 콘솔 V3 — 2026-09-02 James "디자인 적용해".
+  시안: web/console/redesign-2026-09-02/ (방향 E 한 줄 계기판 · 탭 4개 · 작성창 하나 · 그룹별 색 · 스트라바식 달력)
+  설계 원칙은 V2(app/CONSOLE-V2-DESIGN.md)와 같다.
+    소스 위치: 이 repo web/console/index.html (SoT). 발행만 jaksim100/baekil/ 로 push.
+    데이터 평면: console-api 하나뿐. Supabase 직결·정적 폴백은 쓰지 않는다(ops/sot-registry.json).
     API가 죽으면 조용히 옛 데이터를 보여주지 않고 명시적 오류를 낸다.
-  이모지 금지(인라인 SVG만) · 색은 항상 수치·형태와 병기(색각 대응).
+    이모지 금지(인라인 SVG만) · 색은 항상 수치·형태와 병기(색각 대응).
+  V2 → V3 에서 바뀐 것은 화면뿐이다. api()·오프라인 큐·항목 편집·오디오·코멘트 이력은 그대로다.
+    탭 7 → 4: 오늘 / 기록(진행+일지) / 지표 / 관리(결정+현황+운영)
+    항목마다 있던 입력창 8개 → 하단 작성창 하나(항목 칩으로 대상 선택, 이름을 누르면 바뀐다)
+    항목 한 줄: [체크 44px | 이름·힌트 | 7일 점 · 연속 일수 · 링크/재생]
+    그룹마다 색 하나(파랑·보라·청록·회색 순). 체크·점·달력 점·연속기록 막대가 그 색을 쓴다.
+    기록 탭 달력 = 달 단위 격자, 날마다 그룹 점(채움=전부, 테두리=일부, 빨강=전부 미수행), 오른쪽 주 합계.
 -->
 <style>
 :root{
-  --surface:#ffffff; --ground:#f4f6f8; --card:#ffffff; --ink:#15181b; --muted:#6c737b;
-  --hairline:#dce1e6; --accent:#2f5d8a;
-  --good:#2f7d54; --watch:#b3812a; --behind:#a94d47; --unknown:#cdd3d8;
-  --good-bg:#e8f2ec; --watch-bg:#f8f0dd; --behind-bg:#f7e8e7; --unknown-bg:#eef1f4;
-  --radius:12px; --tap:44px; --on-accent:#ffffff; --accent-soft:#2f5d8a0f;
+  --ground:#f2f3f5; --card:#ffffff; --ink:#16191d; --muted:#626b74; --faint:#98a0a8; --rule:#e1e5e9;
+  --accent:#2c5fb3; --accent-soft:#eaf0fb; --on-accent:#ffffff;
+  --good:#2f7d54; --good-bg:#e6f2ea; --watch:#b3812a; --watch-bg:#f8f0dd; --behind:#a94d47; --behind-bg:#f7e8e7;
+  --unknown:#cfd5db; --unknown-bg:#eef1f4;
+  --gc1:#2c5fb3; --gc2:#7b4fb5; --gc3:#1f8577; --gc4:#5f6b7a;
+  --box-border:#c3c9d0; --dot-border:#d5dbe1; --shadow:rgba(20,25,30,.08);
+  --sans:'IBM Plex Sans KR','Apple SD Gothic Neo','Pretendard',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  --radius:12px; --tap:44px; --tabbar:64px;
 }
 @media (prefers-color-scheme: dark){
   :root{
-    --surface:#14171a; --ground:#0f1214; --card:#1b1f23; --ink:#e8ebee; --muted:#9aa3ab;
-    --hairline:#2a3036; --accent:#7aa8d6;
-    --good:#5cb98a; --watch:#d6a94e; --behind:#d97e77; --unknown:#3a4249;
-    --good-bg:#16302447; --watch-bg:#3a2e1247; --behind-bg:#3a1f1d47; --unknown-bg:#20262b;
-    /* 다크의 --accent는 밝은 파랑이라 흰 글자를 얹으면 대비가 무너진다(라이브 실측) */
-    --on-accent:#0f1214; --accent-soft:#7aa8d614;
+    --ground:#0e1013; --card:#171a1f; --ink:#e7eaee; --muted:#9aa3ab; --faint:#6b747c; --rule:#262b31;
+    --accent:#8fb4ea; --accent-soft:#1b2a42; --on-accent:#0e1013;
+    --good:#5cb98a; --good-bg:#16302a; --watch:#d6a94e; --watch-bg:#3a2e12; --behind:#d97e77; --behind-bg:#3a1f1d;
+    --unknown:#3a4249; --unknown-bg:#20262b;
+    --gc1:#8fb4ea; --gc2:#b79ae6; --gc3:#5fc4b4; --gc4:#9aa5b3;
+    --box-border:#3a4249; --dot-border:#2e343b; --shadow:rgba(0,0,0,.35);
   }
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--ground);color:var(--ink);
-  font:15px/1.55 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard",system-ui,sans-serif;
-  padding-bottom:env(safe-area-inset-bottom)}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.5 var(--sans);
+  padding-bottom:calc(var(--tabbar) + env(safe-area-inset-bottom))}
 a{color:var(--accent)}
-.wrap{max-width:720px;margin:0 auto;padding:0 14px 40px}
-header{position:sticky;top:0;z-index:20;background:var(--surface);border-bottom:1px solid var(--hairline)}
-.hrow{max-width:720px;margin:0 auto;padding:10px 14px;display:flex;align-items:center;gap:10px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.icon{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.icon.fill{fill:currentColor;stroke:none}
+button{font:inherit;color:inherit}
+
+/* ── 상단 ── */
+header{position:sticky;top:0;z-index:20;background:var(--card);border-bottom:1px solid var(--rule)}
+.hrow{max-width:1200px;margin:0 auto;height:56px;padding:0 16px;display:flex;align-items:center;gap:10px}
 h1{font-size:17px;margin:0;letter-spacing:.02em;font-weight:700}
-.dday{font:600 12px ui-monospace,Menlo,monospace;color:var(--muted)}
+.dday{font:600 12.5px var(--mono);color:var(--muted);white-space:nowrap}
+.dday span{color:var(--faint)}
 .spacer{flex:1}
-.iconbtn{width:var(--tap);height:36px;display:grid;place-items:center;border:1px solid var(--hairline);
-  background:var(--card);color:var(--ink);border-radius:9px;cursor:pointer}
-.iconbtn:active{transform:scale(.97)}
-.avatar{width:32px;height:32px;border-radius:50%;background:var(--accent);color:var(--on-accent);display:grid;
-  place-items:center;font:600 13px sans-serif;cursor:pointer}
-.daybar{height:3px;background:var(--hairline)}
+.ghost{width:36px;height:36px;border-radius:9px;display:grid;place-items:center;color:var(--muted);
+  border:1px solid var(--rule);background:var(--card);cursor:pointer;padding:0;flex:0 0 auto}
+.ghost:active{transform:scale(.97)}
+.ghost.sm{width:32px;height:32px;border-radius:8px}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;
+  place-items:center;font:600 13px var(--sans);cursor:pointer;flex:0 0 auto}
+.daybar{height:2px;background:var(--rule)}
 .daybar>i{display:block;height:100%;background:var(--accent)}
-nav{display:flex;gap:2px;max-width:720px;margin:0 auto;padding:0 8px;overflow-x:auto;
-  scrollbar-width:none;background:var(--surface)}
-nav::-webkit-scrollbar{display:none}
-nav button{flex:0 0 auto;min-height:40px;padding:0 12px;border:0;background:none;color:var(--muted);
-  font:600 14px inherit;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
-nav button.on{color:var(--ink);border-bottom-color:var(--accent)}
-section{display:none;padding-top:14px}
+.topnav{display:none;gap:4px;height:56px;margin-left:14px}
+.topnav button{padding:0 12px;height:56px;border:0;background:none;display:flex;align-items:center;gap:6px;
+  font:500 14px var(--sans);color:var(--muted);border-bottom:2px solid transparent;cursor:pointer}
+.topnav button.on{color:var(--ink);font-weight:600;border-bottom-color:var(--accent)}
+.badge{display:inline-block;min-width:18px;line-height:18px;border-radius:9px;background:var(--behind);color:#fff;
+  font:600 11px var(--mono);padding:0 5px;text-align:center}
+.badge:empty{display:none}
+
+/* ── 하단 탭 4개(폰) ── */
+.tabbar{position:fixed;left:0;right:0;bottom:0;height:calc(var(--tabbar) + env(safe-area-inset-bottom));
+  padding:0 8px env(safe-area-inset-bottom);background:var(--card);border-top:1px solid var(--rule);display:flex;z-index:30}
+.tabbar button{flex:1;border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:3px;
+  font:500 11px var(--sans);color:var(--muted);padding:8px 0 4px;position:relative;cursor:pointer}
+.tabbar button.on{color:var(--accent)}
+.tabbar .badge{position:absolute;top:4px;right:calc(50% - 22px)}
+
+/* ── 본문 ── */
+.wrap{max-width:720px;margin:0 auto;padding:10px 14px 40px}
+section{display:none}
 section.on{display:block}
-.card{background:var(--card);border:1px solid var(--hairline);border-radius:var(--radius);
-  padding:12px;margin-bottom:12px}
-.card>h2{font-size:13px;margin:0 0 10px;color:var(--muted);font-weight:600;letter-spacing:.02em;
-  display:flex;align-items:center;gap:8px}
-.pill{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:2px 9px;
-  font:600 11px ui-monospace,Menlo,monospace}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px}
+.card>h2{margin:0 0 6px;font-size:13px;font-weight:600;color:var(--muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.card>h2 .r{margin-left:auto;font-weight:500}
+.hint{font-size:12.5px;color:var(--muted)}
+.pill{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:2px 9px;font:600 11.5px var(--mono);white-space:nowrap}
 .pill.done{background:var(--good-bg);color:var(--good)}
 .pill.partial{background:var(--watch-bg);color:var(--watch)}
 .pill.behind{background:var(--behind-bg);color:var(--behind)}
 .pill.unknown{background:var(--unknown-bg);color:var(--muted)}
-/* 항목 행 — 탭 타깃 44px 이상. ★flex 한 줄에 다 넣으면 폰에서 이름 칸이 0으로 눌려
-   한글이 한 글자씩 세로로 쪼개진다(2026-08-19 실기 확인). 그리드로 짜고 편집 컨트롤은
-   **아래 줄 전체 폭**으로 내린다. */
-/* 항목 한 칸 = 2줄. 2026-09-01 James: "상당히 공간 비효율적이고 아마추어적 디자인".
-   그전에는 이름·힌트(2줄)·칩·스트릭·상태·메모입력이 각각 줄을 먹어 항목 하나가 5~6줄이었다.
-   항목이 8개가 되면서 한 화면에 하나 반이 들어갔다.
-   윗줄에 [체크|이름·힌트|스트릭|상태]를 담고, 아랫줄은 메모와 링크만 남긴다. */
-.item{display:grid;
-  grid-template-columns:auto minmax(0,1fr) auto;
-  grid-template-areas:"mark name meta" ".  memo memo";
-  align-items:center; gap:4px 9px; padding:9px 2px;
-  border-top:1px solid var(--hairline)}
-.item:first-of-type{border-top:0}
-.item .edit-only{grid-column:1/-1;flex-wrap:wrap;justify-content:flex-start;gap:6px;padding-top:2px}
-/* 2026-09-02 수리: .item 을 격자로 바꿀 때(09-01) 체크 표시가 없는 행(결정·현황·트랙·연속기록·기여도)은
-   손대지 않았다. 영역 이름이 없는 상태·버튼이 첫 빈 칸(mark 자리)으로 자동 배치돼 제목 왼쪽으로 튀어나갔다.
-   상태·버튼 묶음은 meta 영역으로 보내고, 체크 표시가 없는 행은 mark 열 자체를 없앤다. */
-.item>.st,.item>.row{grid-area:meta;justify-self:end;text-align:right}
-.item:not(:has(.mark)){grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"name meta" "memo memo"}
-.item:not(:has(.mark)) .iname{flex-wrap:wrap}
-.item:not(:has(.mark)) .iname b{white-space:normal;flex:0 1 auto;min-width:0}  /* 긴 제목(결정 대기)이 버튼 밑으로 깔리지 않게 줄바꿈 허용 — 이름 칸이 격자 열이라 0 으로 눌리지 않는다 */
-.mark{width:26px;height:26px;border-radius:7px;flex:0 0 auto;border:1.5px solid var(--hairline);
-  background:transparent;display:grid;place-items:center;cursor:pointer;position:relative}
-.mark[data-s="true"]{background:var(--good);border-color:var(--good)}
-.mark[data-s="false"]{border-color:var(--behind);background:color-mix(in srgb,var(--behind) 16%,transparent)}
-.mark[data-s="false"]::after{content:"";width:11px;height:2px;border-radius:1px;background:var(--behind)}
-.mark[data-s="false"]{border-color:var(--behind);
-  background:repeating-linear-gradient(45deg,transparent,transparent 3px,var(--behind) 3px,var(--behind) 5px)}
-.mark[data-s="null"]{background:transparent}
-.mark svg{width:15px;height:15px;stroke:var(--on-accent);fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
-.mark.pending{opacity:.5}
-.mark{grid-area:mark}
-/* 이름과 힌트를 한 줄에 나란히. 힌트는 남는 폭만큼만 보이고 잘린다 — 두 줄을 먹지 않는다. */
-.iname{grid-area:name;min-width:0;display:flex;align-items:baseline;gap:7px}
-.iname b{font-weight:600;font-size:15px;white-space:nowrap;flex:0 0 auto}
-.iname small{color:var(--muted);font-size:11.5px;min-width:0;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-/* 오른쪽 칸은 고정폭 격자다. 항목마다 폭이 달라지면 스트릭이 계단처럼 어긋나 보인다. */
-.imeta{grid-area:meta;display:grid;grid-template-columns:max-content 52px;
-  align-items:center;gap:8px;white-space:nowrap}
-.streak{display:contents}          /* 점과 숫자가 위 격자의 칸을 직접 차지한다 */
-.streak .cnt{justify-self:end}
-/* 코멘트 입력 — 항상 보이는 한 줄. 길게 눌러야 나오는 방식은 있는지도 모르고 지나친다
-   (2026-08-19 James: "코멘트 입력기능 사라짐"). 구 콘솔의 인라인 입력을 되살린 것. */
-/* 메모는 계속 보인다. 숨기면 있는지도 모르고 지나친다(2026-08-19 James 지적).
-   대신 높이를 줄이고 링크 칩을 같은 줄로 끌어와 한 줄에 끝낸다. */
-.memorow{grid-area:memo;display:flex;gap:6px;align-items:center;padding:0}
-.memorow input{flex:1;min-width:0;height:26px;font-size:12.5px;padding:0 2px;
-  background:transparent;border:0;border-bottom:1px solid var(--hairline);border-radius:0;
-  transition:border-color .15s}
-.memorow input::placeholder{color:var(--muted);opacity:.65}
-.memorow input:focus{outline:none;border-bottom-color:var(--accent)}
-.memorow .btn,.memorow .mini{height:24px;padding:0 8px;font-size:11px;white-space:nowrap}
-.chips{display:flex;gap:4px;flex:0 0 auto}
-.mini{display:inline-block;padding:2px 8px;border:1px solid var(--hairline);
-  border-radius:999px;background:var(--surface);color:var(--muted);font:600 10.5px inherit;
-  text-decoration:none;cursor:pointer;vertical-align:1px}
-.mini:active{transform:scale(.97)}
-.player{padding:0 0 10px 0}
-.player audio{width:100%}
-#notesPanel{position:fixed;inset:auto 0 0 0;max-height:72vh;overflow:auto;background:var(--surface);
-  border-top:1px solid var(--hairline);border-radius:14px 14px 0 0;padding:14px;z-index:50;
-  transform:translateY(110%);transition:.22s;box-shadow:0 -8px 30px #0003}
-#notesPanel.on{transform:none}
-#notesPanel .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
-#notesPanel .chips button.on{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
-.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.btn{min-height:36px;padding:0 12px;border:1px solid var(--hairline);background:var(--card);
-  color:var(--ink);border-radius:9px;font:600 13px inherit;cursor:pointer}
+.chip{display:inline-block;font:600 11.5px var(--sans);border-radius:999px;padding:1px 8px;background:var(--unknown-bg);color:var(--muted);white-space:nowrap}
+.btn{min-height:40px;padding:0 16px;border:1px solid var(--rule);background:var(--card);color:var(--ink);
+  border-radius:9px;font:600 13.5px var(--sans);cursor:pointer;display:inline-grid;place-items:center;text-decoration:none}
 .btn.pri{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
-a.btn{text-decoration:none;display:inline-grid;place-items:center}
 .btn.warn{color:var(--behind);border-color:var(--behind)}
+.btn.sm{min-height:32px;padding:0 12px;font-size:12.5px;border-radius:8px}
 .btn:disabled{opacity:.45;cursor:default}
-.seg{display:inline-flex;border:1px solid var(--hairline);border-radius:9px;overflow:hidden}
-.seg button{min-height:34px;padding:0 11px;border:0;background:var(--card);color:var(--muted);
-  font:600 13px inherit;cursor:pointer}
-.seg button.on{background:var(--accent);color:var(--on-accent)}
-input,select{min-height:36px;padding:6px 9px;border:1px solid var(--hairline);border-radius:8px;
-  background:var(--surface);color:var(--ink);font:14px inherit}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+input,select{min-height:36px;padding:6px 9px;border:1px solid var(--rule);border-radius:8px;
+  background:var(--card);color:var(--ink);font:14px var(--sans)}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:9px;overflow:hidden;background:var(--card)}
+.seg button{padding:0 11px;height:36px;border:0;background:none;color:var(--muted);font:500 13px var(--sans);cursor:pointer}
+.seg button.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.warnbox{background:var(--behind-bg);border:1px solid var(--behind);color:var(--behind);border-radius:9px;padding:9px 11px;font-size:13px;margin-bottom:10px}
+.notebox{background:var(--watch-bg);border-radius:8px;padding:8px 10px;font-size:13px;text-wrap:pretty}
+.loading{color:var(--muted);font-size:13px;padding:10px 0}
+.err{color:var(--behind);font-size:13px;padding:6px 0}
+.more{font-size:12.5px;color:var(--accent);padding:8px 0 2px;border-top:1px solid var(--rule);cursor:pointer;background:none;border-left:0;border-right:0;border-bottom:0;width:100%;text-align:left;font-family:var(--sans)}
 
-/* 일 단위 = 달력형(주 7칸씩 접어 내린다). 49일을 한 줄에 밀어넣으면 2px 점이 되어
-   "전부 보인다"는 말이 무의미해진다(2026-08-19 실기 확인). 접으면 전부 보이고 읽힌다. */
-.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
-.cal .dow{font:600 9.5px ui-monospace,Menlo,monospace;color:var(--faint,var(--muted));
-  text-align:center;padding-bottom:1px}
-.cal .pad{aspect-ratio:1}
-.cal .cell{font-size:11px;max-height:30px;border-radius:6px}  /* 2026-09-02: none 이면 칸이 열 폭만큼 부풀어 항목 9개×63일이 7,000px 를 넘는다 */
-.calwk{font:600 9.5px ui-monospace,Menlo,monospace;color:var(--muted);
-  grid-column:1/-1;padding:6px 0 1px;border-top:1px solid var(--hairline);margin-top:3px}
-.calitem{margin-bottom:14px}
-.calitem>h3{display:flex;align-items:baseline;gap:8px;margin:0 0 6px;font-size:13.5px;font-weight:600}
-.calitem>h3 span{font:600 11px ui-monospace,Menlo,monospace;color:var(--muted);margin-left:auto}
-/* 진행 그리드 — ★가로 스크롤 금지. 버킷이 몇 개든 화면 안에 전부 들어와야 한다
-   (James 2026-08-19: "진행은 화면에서 잘리면 안 된다"). 표 대신 CSS 그리드로 짜서
-   칸이 남는 폭을 1fr씩 나눠 갖게 하고, 좁아지면 숫자만 감춘다(색·툴팁은 유지). */
+/* ── 오늘: 날짜 줄 ── */
+.daterow{display:flex;align-items:center;gap:4px;min-height:44px;margin-bottom:10px}
+.daterow .dt{flex:1;display:flex;align-items:baseline;gap:8px;padding-left:6px;min-width:0;flex-wrap:wrap}
+.daterow .dt b{font-weight:600;font-size:16px;white-space:nowrap;cursor:pointer}
+.daterow .dt .rem{font:500 12.5px var(--mono);color:var(--muted);white-space:nowrap}
+.daterow .dt .past{font:600 11.5px var(--mono);color:var(--behind);background:var(--behind-bg);border-radius:999px;padding:1px 8px}
+#dPick{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+body.past-mode .daterow .dt b{color:var(--behind)}
+body.past-mode #groups{outline:2px solid var(--behind);outline-offset:4px;border-radius:14px}
+
+/* ── 오늘: 다음 한 수 ── */
+.next{background:var(--card);border:1px solid var(--rule);border-left:3px solid var(--accent);border-radius:var(--radius);
+  padding:12px 14px 12px 13px;display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.next .hd{display:flex;align-items:center;gap:8px}
+.next .lab{font-size:11.5px;font-weight:600;color:var(--muted);letter-spacing:.04em}
+.next .q{font-weight:600;font-size:16px;line-height:1.4;text-wrap:pretty}
+.next .why{font-size:13px;color:var(--muted)}
+.next .rest{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px;font-size:12px;color:var(--muted);align-items:center}
+.next .rest .chip{font-weight:500;font-size:12px;color:var(--muted)}
+.next .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+
+/* ── 오늘: 그룹 카드와 항목 한 줄 ── */
+.gcard{padding:10px 12px 4px}
+.gcard>h2{color:var(--ink);font-size:14px;margin:0;padding:0 0 6px;gap:10px;flex-wrap:nowrap}
+.sw{width:10px;height:10px;border-radius:50%;display:block;flex:0 0 auto;background:var(--g)}
+.gseg{display:flex;gap:3px}
+.gseg i{display:block;width:14px;height:6px;border-radius:2px;background:var(--unknown-bg);border:1px solid var(--dot-border)}
+.gseg i.d{background:var(--g);border-color:var(--g)}
+.gcard .cnt{font:500 12.5px var(--mono);color:var(--muted)}
+.gcard .unk{font-size:11.5px;color:var(--faint);margin-left:auto;white-space:nowrap}
+.gcard .sys{font:500 11px var(--mono);color:var(--faint)}
+.item{display:grid;grid-template-columns:44px minmax(0,1fr) auto;align-items:center;gap:0 6px;
+  min-height:56px;padding:6px 0;border-top:1px solid var(--rule)}
+.item:first-of-type{border-top:0}
+.mark{width:44px;height:44px;display:grid;place-items:center;cursor:pointer;background:none;border:0;padding:0}
+.mark i{width:26px;height:26px;border-radius:7px;border:1.5px solid var(--box-border);background:var(--card);display:grid;place-items:center}
+.mark[data-s="true"] i{background:var(--g);border-color:var(--g)}
+.mark[data-s="false"] i{border-color:var(--behind);
+  background:repeating-linear-gradient(45deg,transparent,transparent 3px,var(--behind) 3px,var(--behind) 5px)}
+.mark svg{width:16px;height:16px;stroke:#fff;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.mark.pending{opacity:.5}
+.name{min-width:0;display:flex;flex-direction:column;gap:1px;cursor:pointer;background:none;border:0;padding:0;text-align:left;font:inherit;color:inherit}
+.name b{font-weight:600;font-size:15px;line-height:1.3}
+.name small{color:var(--muted);font-size:12.5px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.name small.cm{color:var(--ink)}
+.meta{display:flex;align-items:center;gap:8px}
+.dots{display:flex;gap:3px}
+.dots i{display:block;width:8px;height:8px;border-radius:2px;background:var(--unknown-bg);border:1px solid var(--dot-border)}
+.dots i.d{background:var(--g);border-color:var(--g)}
+.dots i.m{background:var(--behind);border-color:var(--behind)}
+.dots i.t{border:1.5px solid var(--faint);background:var(--card)}
+.dots i.t.d{background:var(--g);border-color:var(--g)}
+.dots i.t.m{background:var(--behind);border-color:var(--behind)}
+.cnt{font:500 12.5px var(--mono);color:var(--muted);min-width:30px;text-align:right;white-space:nowrap}
+.cnt b{color:var(--ink);font-weight:600}
+.meta .ghost,.meta .gap{width:36px;height:36px}
+.player{grid-column:1/-1;padding:4px 0 6px}
+.player audio{width:100%}
+.edit-only{display:none}
+body.editing .edit-only{display:flex}
+body.editing .item .edit-only{grid-column:1/-1;flex-wrap:wrap;gap:6px;padding:4px 0 2px 44px}
+body.editing .mark{pointer-events:none;opacity:.45}
+body.editing .name{pointer-events:none}
+@media (max-width:360px){.name small{display:none}.dots i{width:7px;height:7px}}
+
+/* ── 오늘: 하단 작성창 하나 ── */
+.composer{position:fixed;left:0;right:0;bottom:calc(var(--tabbar) + env(safe-area-inset-bottom));z-index:25;
+  padding:8px 14px;background:linear-gradient(to top,var(--ground) 70%,transparent)}
+.composer>div{max-width:720px;margin:0 auto;display:flex;align-items:center;gap:8px;background:var(--card);
+  border:1px solid var(--rule);border-radius:12px;padding:6px 6px 6px 8px;box-shadow:0 4px 16px var(--shadow)}
+.composer select{appearance:none;-webkit-appearance:none;min-height:26px;padding:2px 9px;border:0;border-radius:999px;
+  background:var(--accent-soft);color:var(--accent);font:600 12px var(--sans);max-width:110px;text-overflow:ellipsis;cursor:pointer}
+.composer input{flex:1;min-width:0;min-height:36px;border:0;background:transparent;padding:0 4px;font-size:14px}
+.composer input:focus{outline:none}
+.composer input::placeholder{color:var(--faint)}
+.composer .send{width:36px;height:36px;border-radius:9px;background:var(--accent);color:var(--on-accent);border:0;display:grid;place-items:center;cursor:pointer;padding:0}
+.composer .ghost{width:36px;height:36px;border-radius:9px}
+body.noauth .composer,body.noauth .tabbar .badge{display:none}
+#tab-today.on ~ * .composer{}
+.composer[hidden]{display:none}
+section#tab-today.on{padding-bottom:70px}
+
+/* ── 오늘: 데스크톱 두 열 ── */
+.two{display:block}
+.rail{display:none}
+.kv{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:36px;border-top:1px solid var(--rule);font-size:13.5px}
+.kv:first-of-type{border-top:0}
+.kv b.v{font:600 13.5px var(--mono)}
+.kv .who b{font-family:var(--sans);font-size:13.5px}
+.kv .who small{display:block;color:var(--muted);font-size:12px}
+
+/* ── 기록: 달력 ── */
+.recbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.lg{display:flex;gap:10px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);align-items:center}
+.lg i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px}
+.mcard{padding:10px 10px 8px}
+.mcard .mh{display:flex;align-items:center;gap:6px;padding:0 2px 6px}
+.mcard .mh b{font-weight:600;font-size:16px;padding:0 4px}
+.mcard .mh .mono{font-size:11.5px;color:var(--muted)}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr)) 30px;gap:3px}
+.cal .h{font-size:10.5px;color:var(--faint);text-align:center;font-weight:500;padding-bottom:2px}
+.cal .h.we{color:var(--muted)}
+.day{height:46px;border-radius:6px;background:var(--card);border:1px solid var(--rule);padding:3px 4px;
+  display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;text-align:left;font:inherit;color:inherit}
+.day.out{opacity:.38}
+.day.fut{background:transparent;border-style:dashed;cursor:default}
+.day.today{border:1.5px solid var(--accent)}
+.day.sel{background:var(--accent-soft)}
+.day .n{font:500 11px var(--mono);color:var(--muted);line-height:1}
+.day.today .n{color:var(--accent);font-weight:600}
+.day .ds{display:flex;gap:3px;height:8px;flex-wrap:wrap;overflow:hidden}
+.day .ds i{display:block;width:8px;height:8px;border-radius:50%;background:var(--g)}
+.day .ds i.part{background:transparent;border:1.5px solid var(--g)}
+.day .ds i.miss{background:var(--behind)}
+.wk{font:500 10.5px var(--mono);color:var(--muted);text-align:right;align-self:center;padding-right:2px}
+.dcard .dh{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}
+.dcard .dh b{font-weight:600;font-size:15px}
+.dcard .dh .mono{font-size:11.5px;color:var(--muted)}
+.note{display:flex;gap:8px;padding:6px 0;border-top:1px solid var(--rule);font-size:13.5px}
+.note:first-of-type{border-top:0;padding-top:0}
+.note b{font-size:12.5px;font-weight:600;white-space:nowrap;min-width:52px;color:var(--g)}
+.note p{margin:0;text-wrap:pretty;white-space:pre-wrap}
+details.sysn{margin-top:6px}
+details.sysn summary{font-size:12px;color:var(--muted);cursor:pointer}
+details.sysn .note{font-size:12.5px;color:var(--muted)}
+
+/* ── 기록: 주·월·분기·년 격자 ── */
 .pgrid{display:grid;gap:3px;align-items:center;width:100%}
-.pgrid .hd{font:600 10px ui-monospace,Menlo,monospace;color:var(--muted);text-align:center;
-  overflow:hidden;text-overflow:clip;white-space:nowrap}
-.pgrid .lab{color:var(--ink);font-weight:600;white-space:nowrap;padding-right:6px;
-  font-size:12.5px;overflow:hidden;text-overflow:ellipsis}
+.pgrid .hd{font:600 10px var(--mono);color:var(--muted);text-align:center;overflow:hidden;white-space:nowrap}
+.pgrid .lab{font-weight:600;white-space:nowrap;padding-right:6px;font-size:12.5px;overflow:hidden;text-overflow:ellipsis}
 .cell{min-width:0;aspect-ratio:1;max-height:28px;border-radius:5px;display:grid;place-items:center;
-  font:600 9.5px ui-monospace,Menlo,monospace;color:var(--on-accent);cursor:default}
-.pgrid.dense .cell{font-size:0}                    /* 칸이 좁으면 숫자를 지우고 색만 남긴다 */
+  font:600 9.5px var(--mono);color:#fff;cursor:default}
+.pgrid.dense .cell{font-size:0}
 .pgrid.dense .hd{font-size:8.5px}
 .cell.done{background:var(--good)}
 .cell.partial{background:var(--watch)}
 .cell.behind{background:var(--behind)}
-.cell.unknown{background:var(--unknown-bg);color:var(--muted);border:1px solid var(--hairline)}
-.thin{opacity:.45}                     /* coverage<50% — 근거 얇은 버킷은 진하게 단정하지 않는다 */
-.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
-.tile{background:var(--card);border:1px solid var(--hairline);border-radius:var(--radius);padding:11px}
-.tile b{display:block;font:700 22px ui-monospace,Menlo,monospace;line-height:1.2}
-.tile small{color:var(--muted);font-size:11.5px}
-.warnbox{background:var(--behind-bg);border:1px solid var(--behind);color:var(--behind);
-  border-radius:9px;padding:9px 11px;font-size:13px;margin-bottom:10px}
-.notebox{background:var(--unknown-bg);border:1px solid var(--hairline);border-radius:9px;
-  padding:9px 11px;font-size:12.5px;color:var(--muted);margin-bottom:10px}
-.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin-top:8px}
-.legend i{width:11px;height:11px;border-radius:3px;display:inline-block;vertical-align:-1px;margin-right:4px}
+.cell.unknown{background:var(--unknown-bg);color:var(--muted);border:1px solid var(--rule)}
+.thin{opacity:.45}
 
-/* 다음 한 수 (시안 D) — 할 일이 다섯이면 미루고 하나면 시작한다 */
-.next{border:1px solid var(--accent);border-radius:var(--radius);background:var(--accent-soft);
-  padding:14px;margin-bottom:12px}
-.next .q{font:600 16px/1.45 inherit;margin:8px 0 6px}
-.next .why{color:var(--muted);font-size:12.5px;margin-bottom:10px}
-.next .rest{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;
-  border-top:1px solid var(--hairline);padding-top:9px}
-.next .rest span{font:600 11px ui-monospace,Menlo,monospace;color:var(--muted)}
-/* 일지 (시안 C) */
-.entry{border-left:2px solid var(--hairline);padding:0 0 14px 13px;margin-left:5px;position:relative}
-.entry:before{content:"";position:absolute;left:-6px;top:6px;width:9px;height:9px;border-radius:99px;
-  background:var(--accent)}
-.entry .dt{font:600 11.5px ui-monospace,Menlo,monospace;color:var(--muted)}
-.entry .txt{font-size:13.5px;margin-top:3px;white-space:pre-wrap}
-.entry .marks{display:flex;gap:3px;margin-top:6px}
-.entry .marks i{width:15px;height:15px;border-radius:3px;background:var(--unknown-bg);display:block;
-  border:1px solid var(--hairline)}
-.entry .marks i.g{background:var(--good);border-color:var(--good)}
-.entry .marks i.b{background:var(--behind);border-color:var(--behind)}
-#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(80px);
-  background:var(--ink);color:var(--surface);padding:10px 16px;border-radius:999px;font-size:13.5px;
+/* ── 지표 ── */
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px}
+.tile{background:var(--card);border:1px solid var(--rule);border-radius:var(--radius);padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.tile b{font:600 20px var(--mono);line-height:1.2}
+.tile small{font-size:11.5px;color:var(--muted);line-height:1.3}
+svg.curve{width:100%;height:190px;display:block;font-family:var(--mono)}
+.lgl{display:flex;gap:12px;font-size:11.5px;color:var(--muted);flex-wrap:wrap;margin:6px 0}
+.lgl i{display:inline-block;width:12px;height:3px;vertical-align:3px;margin-right:4px}
+.lgl i.dash{height:0;border-top:2px dashed currentColor;background:none}
+.wdg{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;align-items:end;height:84px}
+.wdg>div{display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;justify-content:flex-end}
+.wdg span{font:500 10.5px var(--mono);color:var(--muted)}
+.wdg i{display:block;width:100%;background:var(--good);border-radius:4px 4px 0 0}
+.wdg i.low{background:var(--watch)}
+.wdl{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;font-size:11px;color:var(--muted);text-align:center;margin-top:4px}
+.bar{display:grid;grid-template-columns:62px minmax(0,1fr) 62px;align-items:center;gap:8px;height:28px}
+.bar .l{font-size:13px;font-weight:500;color:var(--g);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .t{height:8px;border-radius:4px;background:var(--unknown-bg);overflow:hidden}
+.bar .t i{display:block;height:100%;background:var(--g);border-radius:4px}
+.bar .n{font:500 12px var(--mono);color:var(--muted);text-align:right}
+.bar .n b{color:var(--ink);font-weight:600}
+.stack{display:flex;height:10px;border-radius:5px;overflow:hidden;gap:2px;margin:4px 0 8px}
+.stack i{display:block;background:var(--g)}
+.share{display:flex;gap:14px;font-size:12.5px;color:var(--muted);flex-wrap:wrap}
+.share b{color:var(--g)}
+
+/* ── 관리 ── */
+.q{display:flex;flex-direction:column;gap:8px;padding:10px 0;border-top:1px solid var(--rule)}
+.q:first-of-type{border-top:0;padding-top:4px}
+.q .t{font-size:14.5px;font-weight:600;line-height:1.35;text-wrap:pretty}
+.q .s{font-size:12.5px;color:var(--muted)}
+.q .a{display:flex;gap:8px;align-items:center}
+.ap{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;min-height:52px;padding:6px 0;border-top:1px solid var(--rule)}
+.ap:first-of-type{border-top:0}
+.ap b{display:block;font-size:14.5px;font-weight:600;line-height:1.3}
+.ap small{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ap .pills{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.sec{display:grid;grid-template-columns:12px minmax(0,1fr) auto;align-items:center;gap:10px;min-height:44px;border-top:1px solid var(--rule)}
+.sec:first-of-type{border-top:0}
+.sec i{width:10px;height:10px;border-radius:50%;display:block}
+.sec b{font:600 12.5px var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sec b small{display:block;font:400 11px var(--sans);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sec span{font-size:12px;white-space:nowrap}
+h3.sub{font-size:12.5px;color:var(--muted);margin:10px 0 2px;font-weight:600}
+
+/* ── 코멘트 이력 시트 · 토스트 ── */
+#notesPanel{position:fixed;inset:auto 0 0 0;max-height:72vh;overflow:auto;background:var(--card);
+  border-top:1px solid var(--rule);border-radius:14px 14px 0 0;padding:14px;z-index:50;
+  transform:translateY(110%);transition:.22s;box-shadow:0 -8px 30px var(--shadow)}
+#notesPanel.on{transform:none}
+#notesPanel .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+#notesPanel .chips button{min-height:30px;padding:0 10px;border-radius:999px;font-size:12px}
+#notesPanel .chips button.on{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+#toast{position:fixed;left:50%;bottom:calc(var(--tabbar) + 18px);transform:translateX(-50%) translateY(80px);
+  background:var(--ink);color:var(--card);padding:10px 16px;border-radius:999px;font-size:13.5px;
   opacity:0;transition:.22s;z-index:60;max-width:88vw;display:flex;gap:12px;align-items:center}
 #toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
-#toast button{background:none;border:0;color:var(--surface);font:700 13px inherit;
-  text-decoration:underline;cursor:pointer}
-.loading{color:var(--muted);font-size:13px;padding:12px 0}
-.err{color:var(--behind);font-size:13px}
-/* 지난 날짜를 편집 중이면 화면 전체가 달라 보여야 한다. 모르고 어제 칸에 체크하는 사고를 막는다. */
-body.past-mode #tab-today{outline:2px solid var(--behind);outline-offset:6px;border-radius:12px}
-body.past-mode #todayLabel{color:var(--behind)}
-#dPick{height:30px;font:600 12px ui-monospace,Menlo,monospace;padding:0 6px;
-  background:var(--surface);color:var(--ink);border:1px solid var(--hairline);border-radius:8px}
-.edit-only{display:none}
-body.editing .edit-only{display:flex}
-body.editing .mark{pointer-events:none;opacity:.45}
-.drag{cursor:grab;color:var(--muted);user-select:none}
-.item.dragover{outline:2px dashed var(--accent);outline-offset:2px}
-svg.curve{width:100%;height:210px;display:block}
+#toast button{background:none;border:0;color:var(--card);font:700 13px var(--sans);text-decoration:underline;cursor:pointer}
 
-/* 오늘 탭 항목별 14일 스트릭 — 매일 보는 화면에 진행이 보여야 동기가 생긴다(2026-08-24 James) */
-.streak{display:flex;align-items:center;gap:5px}
-.streak .dots{display:flex;gap:1.5px}
-.streak .d{width:9px;height:9px;border-radius:2px;background:var(--unknown-bg);
-           border:1px solid var(--hairline);flex:0 0 auto}
-.streak .d.done{background:var(--good);border-color:var(--good)}
-.streak .d.missed{background:var(--behind);border-color:var(--behind)}
-.streak .d.today{box-shadow:0 0 0 1px var(--card),0 0 0 2px var(--muted)}
-.streak .cnt{font:600 11px ui-monospace,Menlo,monospace;color:var(--muted);
-  white-space:nowrap;font-variant-numeric:tabular-nums}
-.streak .cnt b{color:var(--ink)}
-/* 폰에서는 점을 줄여 이름·힌트 쪽에 폭을 넘긴다. 힌트가 "최소 ..."로 잘리면 없느니만 못하다. */
-@media (max-width:420px){
-  .streak .d{width:6px;height:6px}
-  .streak .dots{gap:1px}
-  .imeta{grid-template-columns:max-content 34px;gap:6px}
+/* ── 데스크톱(1000px~): 탭은 상단, 오늘은 두 열, 작성창은 본문 안 ── */
+@media (min-width:1000px){
+  body{padding-bottom:24px}
+  .tabbar{display:none}
+  .topnav{display:flex}
+  .wrap{max-width:1200px;padding:18px 28px 24px}
+  #tab-today .two{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:20px;align-items:start}
+  .rail{display:block}
+  section#tab-today.on{padding-bottom:0}
+  .composer{position:static;padding:0;background:none;margin-top:2px}
+  .composer>div{max-width:none;box-shadow:none}
+  .gcards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
+  .gcards .gcard{margin-bottom:0}
+  .item{grid-template-columns:40px minmax(0,1fr) auto;min-height:50px;padding:4px 0}
+  .name{flex-direction:row;align-items:baseline;gap:8px}
+  .name b{font-size:14.5px;white-space:nowrap}
+  .name small{min-width:0}
+  .dots i{width:9px;height:9px}
+  .meta .ghost,.meta .gap{width:32px;height:32px}
+  #tab-record,#tab-metrics,#tab-manage{max-width:760px;margin:0 auto}
+  .tiles{grid-template-columns:repeat(4,minmax(0,1fr))}
+  #toast{bottom:22px}
 }
-/* 더 좁으면 힌트를 접는다. 연속 일수는 어느 폭에서도 남긴다 — 그게 매일 보는 숫자다. */
-@media (max-width:360px){.iname small{display:none}}
 </style>
 </head>
 <body>
@@ -253,151 +347,132 @@ svg.curve{width:100%;height:210px;display:block}
   <div class="hrow">
     <h1>百日作戰</h1>
     <span class="dday" id="dday">·</span>
+    <nav class="topnav" id="topnav">
+      <button data-tab="today" class="on">오늘</button>
+      <button data-tab="record">기록</button>
+      <button data-tab="metrics">지표</button>
+      <button data-tab="manage">관리 <span class="badge" data-badge></span></button>
+    </nav>
     <span class="spacer"></span>
-    <button class="iconbtn" id="btnRefresh" title="새로고침" aria-label="새로고침">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-           stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
+    <button class="ghost" id="btnRefresh" title="새로고침" aria-label="새로고침">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
     </button>
     <div class="avatar" id="avatar" title="계정">·</div>
   </div>
   <div class="daybar"><i id="daybar" style="width:0"></i></div>
-  <nav>
-    <button data-tab="today" class="on">오늘</button>
-    <button data-tab="journal">일지</button>
-    <button data-tab="progress">진행</button>
-    <button data-tab="metrics">지표</button>
-    <button data-tab="decide">결정</button>
-    <button data-tab="status">현황</button>
-    <button data-tab="ops">운영</button>
-  </nav>
 </header>
 
 <div class="wrap">
   <div id="offline" class="warnbox" style="display:none"></div>
 
-  <!-- ── 오늘 ─────────────────────────────────────────── -->
+  <!-- ── 오늘 ── -->
   <section id="tab-today" class="on">
-    <div class="row" style="margin-bottom:10px">
-      <!-- 지난 날짜도 기록한다(James 2026-09-02). 서버는 처음부터 date 를 받았는데
-           화면이 늘 오늘만 보내서 소급 기록이 안 됐다. -->
-      <button class="btn" id="dPrev" aria-label="하루 전">‹</button>
-      <input type="date" id="dPick" aria-label="기록할 날짜">
-      <button class="btn" id="dNext" aria-label="하루 뒤">›</button>
-      <span class="dday" id="todayLabel"></span>
-      <button class="btn" id="dToday" style="display:none">오늘로</button>
-      <span class="spacer"></span>
-      <button class="btn" id="btnEdit">항목 편집</button>
-    </div>
-    <div id="nextBox"></div>
-    <div id="groups"><div class="loading">불러오는 중…</div></div>
-    <div class="card edit-only" style="flex-direction:column;align-items:stretch">
-      <h2>항목 추가</h2>
-      <div class="row">
-        <input id="niKey" placeholder="key (영문소문자_)" style="width:150px">
-        <input id="niLabel" placeholder="표시 이름" style="width:130px">
-        <select id="niGroup"></select>
-        <button class="btn pri" id="niAdd">추가</button>
+    <div class="two">
+      <div class="main">
+        <div class="daterow">
+          <button class="ghost" id="dPrev" aria-label="하루 전"><svg class="icon" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+          <div class="dt">
+            <b id="todayLabel" title="날짜 고르기">·</b>
+            <span class="rem" id="remLabel"></span>
+            <span class="past" id="pastLabel" style="display:none">지난 기록</span>
+            <input type="date" id="dPick" aria-label="기록할 날짜">
+            <button class="btn sm" id="dToday" style="display:none">오늘로</button>
+          </div>
+          <button class="ghost" id="dNext" aria-label="하루 뒤"><svg class="icon" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+          <button class="ghost" id="btnEdit" title="항목 편집" aria-label="항목 편집"><svg class="icon" viewBox="0 0 24 24"><path d="M4 20h4l10-10-4-4L4 16z"/><path d="M13 7l4 4"/></svg></button>
+        </div>
+        <div id="nextBox"></div>
+        <div id="groups" class="gcards"><div class="loading">불러오는 중…</div></div>
+        <div class="card edit-only" id="editCard" style="flex-direction:column;align-items:stretch">
+          <h2>항목 추가</h2>
+          <div class="row">
+            <input id="niKey" placeholder="key (영문소문자_)" style="width:150px">
+            <input id="niLabel" placeholder="표시 이름" style="width:130px">
+            <select id="niGroup"></select>
+            <button class="btn pri" id="niAdd">추가</button>
+          </div>
+          <h2 style="margin:14px 0 6px">그룹</h2>
+          <div class="row" id="grpList"></div>
+          <div class="row" style="margin-top:8px">
+            <input id="ngName" placeholder="새 그룹 이름" style="width:150px">
+            <button class="btn" id="ngAdd">그룹 추가</button>
+          </div>
+          <div class="hint" style="margin-top:10px">
+            key는 기록이 붙잡는 식별자라 만든 뒤 바꿀 수 없고 재사용도 안 된다. 표시 이름은 언제든 바꿔도
+            과거 기록이 그대로 남는다. 삭제는 보관 처리라 되돌릴 수 있다.
+          </div>
+        </div>
+        <div class="hint" style="padding:2px 4px 0">체크를 누르면 미확인 → 수행 → 미수행 순서로 바뀐다. 이름을 누르면 아래 작성창이 그 항목으로 바뀐다.</div>
+        <!-- 코멘트 작성창 — 항목마다 있던 입력창 8개를 하나로 -->
+        <div class="composer" id="composer">
+          <div>
+            <select id="cmpItem" aria-label="기록할 항목"></select>
+            <input id="cmpInput" placeholder="오늘 한 줄" autocomplete="off" enterkeyhint="send">
+            <button class="ghost" id="cmpHist" title="이 항목의 지난 코멘트" aria-label="지난 코멘트"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></button>
+            <button class="send" id="cmpSend" title="기록" aria-label="기록"><svg class="icon" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg></button>
+          </div>
+        </div>
       </div>
-      <h2 style="margin:14px 0 6px">그룹</h2>
-      <div class="row" id="grpList"></div>
-      <div class="row" style="margin-top:8px">
-        <input id="ngName" placeholder="새 그룹 이름" style="width:150px">
-        <button class="btn" id="ngAdd">그룹 추가</button>
-      </div>
-      <div class="notebox" style="margin:10px 0 0">
-        key는 기록이 붙잡는 식별자라 <b>만든 뒤 바꿀 수 없고 재사용도 안 된다</b>. 표시 이름은 언제든 바꿔도
-        과거 기록이 그대로 남는다. 삭제는 보관 처리라 되돌릴 수 있다.
-      </div>
-    </div>
-    <div class="legend">
-      <span><i style="background:var(--good)"></i>수행</span>
-      <span><i style="background:var(--behind)"></i>미수행</span>
-      <span><i style="background:var(--unknown-bg);border:1px solid var(--hairline)"></i>미확인</span>
-      <span>· 탭 = 미확인 → 수행 → 미수행 순환 · 길게 누르면 메모</span>
+      <aside class="rail" id="rail"></aside>
     </div>
   </section>
 
-  <!-- ── 일지 (시안 방향 C — 남는 자산은 체크가 아니라 기록이다) ── -->
-  <section id="tab-journal">
-    <div class="card">
-      <div class="row">
-        <input id="jInput" placeholder="오늘 한 줄" style="flex:1;min-width:0">
-        <select id="jItem" style="width:104px"></select>
-        <button class="btn pri" id="jSave">남기기</button>
-      </div>
-    </div>
-    <div id="journal"><div class="loading">불러오는 중…</div></div>
-  </section>
-
-  <!-- ── 진행 ─────────────────────────────────────────── -->
-  <section id="tab-progress">
-    <div class="row" style="margin-bottom:12px">
+  <!-- ── 기록 = 진행(달력·격자) + 일지(고른 날의 코멘트) ── -->
+  <section id="tab-record">
+    <div class="recbar">
       <div class="seg" id="segGran">
-        <button data-g="day">일</button><button data-g="week" class="on">주</button>
-        <button data-g="month">월</button><button data-g="quarter">분기</button><button data-g="year">년</button>
+        <button data-g="day" class="on">달력</button><button data-g="week">주</button><button data-g="month">월</button>
+        <button data-g="quarter">분기</button><button data-g="year">년</button>
       </div>
-      <div class="seg" id="segMode">
-        <button data-m="rollup" class="on">통합</button><button data-m="detail">상세</button>
-      </div>
+      <div class="seg" id="segMode"><button data-m="rollup" class="on">그룹</button><button data-m="detail">항목</button></div>
+      <div class="lg" id="recLegend"></div>
     </div>
-    <div class="card"><div id="progressBox"><div class="loading">불러오는 중…</div></div></div>
-    <div class="notebox">
-      완료율은 <b>미확인을 분모에서 뺀다</b> — 기록하지 않은 날과 하지 않은 날은 다르다.
-      기록률이 절반에 못 미치는 칸은 흐리게 그린다(근거가 얇다는 뜻).
-    </div>
+    <div id="recordBox"><div class="loading">불러오는 중…</div></div>
+    <div class="hint" id="recHint" style="padding:0 4px"></div>
   </section>
 
-  <!-- ── 지표 ─────────────────────────────────────────── -->
+  <!-- ── 지표 ── -->
   <section id="tab-metrics">
     <div id="tiles" class="tiles"></div>
-    <div class="card" style="margin-top:12px">
-      <h2>진행곡선 <span class="dday" id="curveMeta"></span></h2>
-      <div id="curveWarn"></div>
-      <svg class="curve" id="curve" viewBox="0 0 720 210" preserveAspectRatio="none" role="img"
-           aria-label="계획·실적·필요페이스 진행곡선"></svg>
-      <div class="legend">
-        <span><i style="background:var(--accent)"></i>실적(누적)</span>
-        <span><i style="background:var(--muted)"></i>계획</span>
-        <span><i style="background:var(--watch)"></i>필요 페이스</span>
-      </div>
-    </div>
-    <div class="card"><h2>요일 프로파일</h2><div id="weekday"></div></div>
-    <div class="card"><h2>연속 기록</h2><div id="streaks"></div></div>
-    <div class="card"><h2>그룹 기여도 · 주간 델타</h2><div id="contrib"></div></div>
-  </section>
-
-  <!-- ── 결정 / 현황 (기존 기능 유지) ───────────────────── -->
-  <section id="tab-decide"><div class="card"><h2>결정 대기 <span id="qcnt" class="dday"></span></h2>
-    <div id="queue"><div class="loading">불러오는 중…</div></div></div></section>
-  <section id="tab-status">
-    <div class="card"><h2>지원 <span id="apcnt" class="dday"></span></h2><div id="applyBox"></div></div>
-    <div class="card"><h2>트랙</h2><div id="trackBox"></div></div>
-  </section>
-
-  <!-- ── 운영 — 크레덴셜 상태 ─────────────────────────────────────
-       James 지시(2026-09-02): 키를 관리할 수 있는 화면.
-       **값은 여기 오지 않는다.** 값의 유일한 저장소는 GitHub Secrets 이고
-       그것은 쓰기 전용이라 읽어올 수 없다. 여기서 보는 것은 목록과 상태뿐이다.
-       2026-09-01 에 PAGES_PUSH_TOKEN 이 만료돼 발행이 멈췄는데 아무도 몰랐다.
-       그 자리를 메우는 화면이다. -->
-  <section id="tab-ops">
     <div class="card">
-      <h2>크레덴셜 <span class="dday" id="secMeta"></span></h2>
-      <div class="hint" style="margin-bottom:10px">
-        값은 GitHub Secrets 에만 있고 이 화면에는 오지 않습니다.
-        여기서는 무엇이 있고, 언제 넣었고, 어디서 쓰이고, 지금 되는지만 봅니다.
+      <h2>진행곡선 <span class="mono r" id="curveMeta"></span></h2>
+      <svg class="curve" id="curve" viewBox="0 0 340 190" role="img" aria-label="계획·실적·필요페이스 진행곡선"></svg>
+      <div class="lgl">
+        <span><i style="background:var(--accent)"></i>실적(누적)</span>
+        <span style="color:var(--faint)"><i class="dash"></i><span style="color:var(--muted)">계획</span></span>
+        <span style="color:var(--watch)"><i class="dash"></i><span style="color:var(--muted)">필요 페이스</span></span>
       </div>
+      <div id="curveWarn"></div>
+    </div>
+    <div class="card"><h2>요일 프로파일 <span class="r">막대 = 기록률 · 숫자 = 수행률</span></h2><div id="weekday"></div></div>
+    <div class="card"><h2>연속 기록 <span class="r">현재 / 최장 · 색은 그룹</span></h2><div id="streaks"></div></div>
+    <div class="card"><h2>그룹 기여도 <span class="r" id="contribMeta"></span></h2><div id="contrib"></div></div>
+  </section>
+
+  <!-- ── 관리 = 결정 + 지원·트랙 + 크레덴셜 ── -->
+  <section id="tab-manage">
+    <div class="card"><h2>결정 대기 <span class="mono" id="qcnt" style="color:var(--behind)"></span></h2>
+      <div id="queue"><div class="loading">불러오는 중…</div></div></div>
+    <div class="card"><h2>지원 <span class="mono" id="apcnt"></span><span class="r" id="apsum"></span></h2><div id="applyBox"><div class="loading">불러오는 중…</div></div></div>
+    <div class="card"><h2>트랙</h2><div id="trackBox"><div class="loading">불러오는 중…</div></div></div>
+    <!-- 크레덴셜 — 값은 GitHub Secrets 에만 있고 여기 오지 않는다. 목록과 상태만 본다(2026-09-02 James). -->
+    <div class="card"><h2>크레덴셜 <span class="mono r" id="secMeta"></span></h2>
       <div id="secBox"><div class="loading">불러오는 중…</div></div>
-      <div class="row" style="margin-top:12px">
-        <a class="btn pri" id="secSet" href="#" target="_blank" rel="noopener">GitHub 에서 값 설정</a>
-      </div>
+      <a class="more" id="secSet" href="#" target="_blank" rel="noopener">GitHub에서 값 설정</a>
     </div>
   </section>
 </div>
 
+<nav class="tabbar" id="tabbar">
+  <button data-tab="today" class="on"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg>오늘</button>
+  <button data-tab="record"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>기록</button>
+  <button data-tab="metrics"><svg class="icon" viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>지표</button>
+  <button data-tab="manage"><svg class="icon" viewBox="0 0 24 24"><path d="M3 13h5l2 3h4l2-3h5"/><path d="M5 5h14l2 8v6H3v-6z"/></svg>관리<span class="badge" data-badge></span></button>
+</nav>
+
 <div id="notesPanel">
   <div class="row" style="margin-bottom:8px"><b style="font-size:14px">코멘트 히스토리</b>
-    <span class="spacer"></span><button class="btn" id="npClose">닫기</button></div>
+    <span class="spacer"></span><button class="btn sm" id="npClose">닫기</button></div>
   <div class="chips" id="npChips"></div>
   <div id="npList"></div>
 </div>
@@ -411,13 +486,19 @@ const API = (() => { try { const v = localStorage.getItem("apiBase");
   catch (e) { return "https://console-api.insighta.one"; } })();
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g,
   (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const todayKST = () => new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);
+const kstToday = () => new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);
+const DOWK = ["일", "월", "화", "수", "목", "금", "토"];
+const dow = (d) => DOWK[new Date(d + "T00:00:00+09:00").getDay()];
+const mdLabel = (d) => `${Number(d.slice(5, 7))}월 ${Number(d.slice(8, 10))}일`;
+const HORIZON = 100;
 
-let SNAP = null, SCHEMA = null, PREFS = { "progress.granularity": "week", "progress.mode": "rollup" };
+let SNAP = null, SCHEMA = null, PREFS = { "progress.granularity": "day", "progress.mode": "rollup" };
 let AUTHED = false;
+let STREAK = null;                       // key -> [{date, done, missed}] 최근 14일
+let VIEW_DATE = null;                    // null = 오늘. 과거를 볼 때만 값이 찬다
+const DESKTOP = () => window.matchMedia("(min-width:1000px)").matches;
 
-/* ── 네트워크 ─────────────────────────────────────────────
-   단일 평면: console-api 하나. 실패를 옛 데이터로 덮지 않는다(무엇이 진실인지 흐려진다). */
+/* ── 네트워크 — 단일 평면: console-api 하나. 실패를 옛 데이터로 덮지 않는다 ── */
 async function api(path, opts) {
   const r = await fetch(API + path, Object.assign({ cache: "no-store", credentials: "include" }, opts || {}));
   if (r.status === 401) { AUTHED = false; renderLogin(); throw new Error("401"); }
@@ -446,7 +527,7 @@ function renderOffline() {
   const n = qLoad().length, el = $("offline");
   el.style.display = n ? "block" : "none";
   if (n) el.innerHTML = `전송 대기 중인 기록 ${n}건 — 연결되면 자동으로 보냅니다. ` +
-    `<button class="btn" style="margin-left:8px" onclick="qFlush()">지금 시도</button>`;
+    `<button class="btn sm" style="margin-left:8px" onclick="qFlush()">지금 시도</button>`;
 }
 window.addEventListener("online", qFlush);
 
@@ -461,93 +542,102 @@ function toast(msg, actLabel, actFn) {
   _toastT = setTimeout(() => $("toast").classList.remove("on"), actLabel ? 6000 : 2600);
 }
 
-/* ── 탭 ─────────────────────────────────────────────── */
-const TABS = ["today", "journal", "progress", "metrics", "decide", "status", "ops"];
+/* ── 탭 4개 (V2의 7개를 접는다: 일지·진행 → 기록, 결정·현황·운영 → 관리) ── */
+const TABS = ["today", "record", "metrics", "manage"];
+const TAB_ALIAS = { journal: "record", progress: "record", decide: "manage", status: "manage", ops: "manage" };
 function switchTab(name) {
+  name = TAB_ALIAS[name] || (TABS.includes(name) ? name : "today");
   TABS.forEach((t) => $("tab-" + t).classList.toggle("on", t === name));
-  document.querySelectorAll("nav button").forEach((b) => b.classList.toggle("on", b.dataset.tab === name));
+  document.querySelectorAll("[data-tab]").forEach((b) => b.classList.toggle("on", b.dataset.tab === name));
   try { localStorage.setItem("tab", name); } catch (e) {}
-  if (name === "journal") loadJournal();
-  if (name === "progress") loadProgress();
+  if (name === "record") loadRecord();
   if (name === "metrics") loadMetrics();
-  if (name === "decide") loadHitl();
-  if (name === "status") loadStatus();
-  if (name === "ops") loadSecrets();
+  if (name === "manage") loadManage();
+  window.scrollTo({ top: 0 });
 }
-document.querySelectorAll("nav button").forEach((b) => b.onclick = () => switchTab(b.dataset.tab));
+document.querySelectorAll("[data-tab]").forEach((b) => b.onclick = () => switchTab(b.dataset.tab));
+function setBadge(n) { document.querySelectorAll("[data-badge]").forEach((el) => el.textContent = n ? String(n) : ""); }
 
-/* ── 오늘 ───────────────────────────────────────────── */
-const CHECK = '<svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>';
+/* ── 그룹 색 — 스키마 순서대로 파랑·보라·청록·회색. 항목은 그룹 색을 물려받는다 ── */
+const gcol = (idx) => `var(--gc${(Math.max(0, idx) % 4) + 1})`;
+function groupIndex(gid) {
+  if (!SCHEMA) return 3;
+  const i = SCHEMA.groups.findIndex((g) => g.id === gid);
+  return i < 0 ? 3 : i;
+}
+const itemColor = (key) => { const it = SCHEMA && SCHEMA.items.find((i) => i.key === key); return gcol(it ? groupIndex(it.group_id) : 3); };
+
+/* ── 오늘 ── */
+const CHECK = '<svg viewBox="0 0 24 24"><path d="M5 12l4 4L19 7"/></svg>';
+const I_LINK = '<svg class="icon" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 13v6H5V6h6"/></svg>';
+const I_PLAY = '<svg class="icon fill" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
 const nextState = (s) => (s === null || s === undefined) ? true : (s === true ? false : null);
 const stateWord = (s) => s === true ? "수행" : s === false ? "미수행" : "미확인";
 
 function renderToday() {
   if (!SNAP || !SCHEMA) return;
-  const _memo = memoSnapshot();          // 재렌더 전 작성 중 코멘트 보존
   const _t = kstToday();
   const _past = SNAP.date !== _t;
-  $("dPick").value = SNAP.date;
-  $("dPick").max = _t;
+  $("dPick").value = SNAP.date; $("dPick").max = _t;
   $("dToday").style.display = _past ? "" : "none";
-  $("todayLabel").textContent = SNAP.date + " · D" + SNAP.day_n
-    + (_past ? " · 지난 기록" : "");
+  $("pastLabel").style.display = _past ? "" : "none";
+  $("todayLabel").textContent = `${mdLabel(SNAP.date)} ${dow(SNAP.date)}`;
+  $("remLabel").textContent = _past ? `D${SNAP.day_n}` : `${Math.max(0, HORIZON - SNAP.day_n)}일 남음`;
   document.body.classList.toggle("past-mode", _past);
-  $("dday").textContent = "D" + SNAP.day_n + " / 100";
+  $("dday").innerHTML = `D${SNAP.day_n} <span>/ ${HORIZON}</span>`;
   $("daybar").style.width = Math.min(100, SNAP.day_n) + "%";
+
   const byGroup = new Map();
-  SCHEMA.groups.forEach((g) => byGroup.set(g.id, { g, items: [] }));
-  byGroup.set(null, { g: { id: null, name: "미분류", is_system: false }, items: [] });
-  SCHEMA.items.forEach((i) => (byGroup.get(i.group_id) || byGroup.get(null)).items.push(i));
+  SCHEMA.groups.forEach((g, i) => byGroup.set(g.id, { g, i, items: [] }));
+  byGroup.set(null, { g: { id: null, name: "미분류", is_system: false }, i: 3, items: [] });
+  SCHEMA.items.forEach((it) => (byGroup.get(it.group_id) || byGroup.get(null)).items.push(it));
   const roll = new Map((SNAP.groups || []).map((r) => [r.id, r]));
 
   let html = "";
-  for (const { g, items } of byGroup.values()) {
+  for (const { g, i, items } of byGroup.values()) {
     if (!items.length) continue;
-    const r = roll.get(g.id) || { state: "unknown", done: 0, total: items.length, unknown: items.length, missed: 0 };
-    html += `<div class="card"><h2>${esc(g.name)}
-      <span class="pill ${r.state}">${r.done}/${r.total}${r.unknown ? ` · 미확인 ${r.unknown}` : ""}</span>
-      <span class="spacer"></span>
-      ${g.is_system ? '<span class="dday">제도</span>' : ""}</h2>`;
+    const r = roll.get(g.id) || {};
+    const done = items.filter((it) => SNAP.items[it.key] === true).length;
+    const unknown = items.filter((it) => SNAP.items[it.key] == null).length;
+    html += `<div class="card gcard" style="--g:${gcol(i)}"><h2>
+      <i class="sw"></i><span>${esc(g.name)}</span>
+      <span class="gseg">${items.map((it) => `<i class="${SNAP.items[it.key] === true ? "d" : ""}"></i>`).join("")}</span>
+      <span class="cnt">${done}/${items.length}</span>
+      ${g.is_system ? '<span class="sys">제도</span>' : ""}
+      <span class="unk">${unknown ? `미확인 ${unknown}` : (r.state === "done" ? "전부 수행" : "")}</span></h2>`;
     items.forEach((it, idx) => {
       const s = SNAP.items[it.key];
-      // 윗줄 = 체크·이름·힌트·스트릭·상태 / 아랫줄 = 코멘트와 링크. 두 줄이면 끝난다.
-      html += `<div class="item" data-key="${esc(it.key)}" data-done="${s === true ? 1 : 0}" draggable="false">
-        <div class="mark" data-s="${s === true ? "true" : s === false ? "false" : "null"}"
-             data-key="${esc(it.key)}" role="button" tabindex="0"
-             aria-label="${esc(it.label)} ${stateWord(s)}">${s === true ? CHECK : ""}</div>
-        <div class="iname"><b>${esc(it.label)}</b><small>${esc(noteFor(it) || it.hint || "")}</small></div>
-        <div class="imeta">${streakHtml(it.key)}</div>
-        <div class="memorow">
-          <input type="text" id="mi-${esc(it.key)}" placeholder="${esc(it.label)} 코멘트"
-                 autocomplete="off" data-memo="${esc(it.key)}">
-          <span class="chips">
-            ${it.link_url ? `<a class="mini" href="${esc(it.link_url)}">${esc(it.link_label || "가이드")}</a>` : ""}
-            ${it.audio_url ? `<button class="mini" data-play="${esc(it.key)}">재생</button>` : ""}
-            <button class="mini" data-notes="${esc(it.key)}" title="지난 코멘트 보기">이력</button>
-          </span>
-          <button class="btn" data-save="${esc(it.key)}">기록</button>
-        </div>
-        <span class="edit-only" style="gap:4px">
-          <button class="btn" data-mv="up" data-key="${esc(it.key)}" ${idx === 0 ? "disabled" : ""} aria-label="위로">▲</button>
-          <button class="btn" data-mv="down" data-key="${esc(it.key)}" ${idx === items.length - 1 ? "disabled" : ""} aria-label="아래로">▼</button>
+      const cm = noteFor(it);
+      const act = it.audio_url ? `<button class="ghost" data-play="${esc(it.key)}" title="가이드 재생" aria-label="재생">${I_PLAY}</button>`
+        : it.link_url ? `<a class="ghost" href="${esc(it.link_url)}" title="${esc(it.link_label || "가이드")}" aria-label="${esc(it.link_label || "가이드")}">${I_LINK}</a>`
+        : '<span class="gap"></span>';
+      html += `<div class="item" data-key="${esc(it.key)}">
+        <button class="mark" data-s="${s === true ? "true" : s === false ? "false" : "null"}" data-key="${esc(it.key)}"
+                aria-label="${esc(it.label)} ${stateWord(s)}"><i>${s === true ? CHECK : ""}</i></button>
+        <button class="name" data-pick="${esc(it.key)}" title="작성창을 이 항목으로">
+          <b>${esc(it.label)}</b><small class="${cm ? "cm" : ""}">${esc(cm || it.hint || "")}</small></button>
+        <div class="meta">${streakHtml(it.key)}${act}</div>
+        <span class="edit-only">
+          <button class="btn sm" data-mv="up" data-key="${esc(it.key)}" ${idx === 0 ? "disabled" : ""} aria-label="위로">위</button>
+          <button class="btn sm" data-mv="down" data-key="${esc(it.key)}" ${idx === items.length - 1 ? "disabled" : ""} aria-label="아래로">아래</button>
           <select data-grp="${esc(it.key)}" aria-label="그룹 이동">${groupOptions(it.group_id)}</select>
-          <button class="btn" data-ren="${esc(it.key)}">이름</button>
-          <button class="btn warn" data-arch="${esc(it.key)}">보관</button>
+          <button class="btn sm" data-ren="${esc(it.key)}">이름</button>
+          <button class="btn sm warn" data-arch="${esc(it.key)}">보관</button>
         </span>
-      </div>
-      ${it.audio_url ? `<div class="player" id="pl-${esc(it.key)}"></div>` : ""}`;
+        ${it.audio_url ? `<div class="player" id="pl-${esc(it.key)}"></div>` : ""}
+      </div>`;
     });
     html += "</div>";
   }
   $("groups").innerHTML = html || '<div class="card">항목이 없습니다. 편집에서 추가하세요.</div>';
   $("niGroup").innerHTML = SCHEMA.groups.map((g) => `<option value="${g.id}">${esc(g.name)}</option>`).join("");
-  $("grpList").innerHTML = SCHEMA.groups.map((g) => `<span class="pill unknown" style="gap:8px">
-    ${esc(g.name)}${g.is_system ? " (제도)" : ""}
-    <button class="btn" style="min-height:24px;padding:0 7px" data-gren="${g.id}">이름</button>
-    ${g.is_system ? "" : `<button class="btn warn" style="min-height:24px;padding:0 7px" data-gdel="${g.id}">삭제</button>`}
+  $("grpList").innerHTML = SCHEMA.groups.map((g, i) => `<span class="pill unknown" style="gap:8px;--g:${gcol(i)}">
+    <i class="sw"></i>${esc(g.name)}${g.is_system ? " (제도)" : ""}
+    <button class="btn sm" style="min-height:24px;padding:0 7px" data-gren="${g.id}">이름</button>
+    ${g.is_system ? "" : `<button class="btn sm warn" style="min-height:24px;padding:0 7px" data-gdel="${g.id}">삭제</button>`}
   </span>`).join("");
+  renderComposerItems();
   bindToday();
-  memoRestore(_memo);
   document.querySelectorAll("[data-gren]").forEach((b) => b.onclick = async () => {
     const g = SCHEMA.groups.find((x) => String(x.id) === b.dataset.gren);
     const v = prompt("그룹 이름", g ? g.name : ""); if (v === null || !v.trim()) return;
@@ -564,17 +654,9 @@ function noteFor(it) {
   const seg = n.split(" / ").find((s) => s.startsWith(it.label + ":"));
   return seg ? seg.slice(it.label.length + 1).trim() : "";
 }
-
 function bindToday() {
-  document.querySelectorAll(".mark").forEach((el) => {
-    el.addEventListener("click", (e) => { e.preventDefault(); tapItem(el.dataset.key); });
-    el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); tapItem(el.dataset.key); } });
-  });
-  document.querySelectorAll("[data-save]").forEach((b) => b.onclick = () => saveMemo(b.dataset.save));
-  document.querySelectorAll("[data-memo]").forEach((i) => i.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.isComposing) saveMemo(i.dataset.memo);   // 한글 IME 조합 중 Enter 무시
-  }));
-  document.querySelectorAll("[data-notes]").forEach((b) => b.onclick = () => openNotes(b.dataset.notes));
+  document.querySelectorAll(".mark").forEach((el) => el.onclick = (e) => { e.preventDefault(); tapItem(el.dataset.key); });
+  document.querySelectorAll("[data-pick]").forEach((b) => b.onclick = () => pickComposer(b.dataset.pick, true));
   document.querySelectorAll("[data-play]").forEach((b) => b.onclick = () => togglePlayer(b.dataset.play));
   document.querySelectorAll("[data-mv]").forEach((b) => b.onclick = () => moveItem(b.dataset.key, b.dataset.mv));
   document.querySelectorAll("[data-ren]").forEach((b) => b.onclick = () => renameItem(b.dataset.ren));
@@ -609,37 +691,45 @@ async function tapItem(key) {
   }
 }
 
-/* 코멘트 저장. 값이 있으면 수행(true)으로 함께 기록한다 — 구 콘솔과 동일(코멘트를 남긴다는 건
-   그 항목을 했다는 뜻). 상태만 따로 바꾸고 싶으면 왼쪽 체크를 탭한다. */
-async function saveMemo(key) {
-  const i = $("mi-" + key);
-  const v = (i?.value || "").trim();
-  if (!v) return toast("코멘트를 입력하세요");
+/* ── 작성창 하나 — 항목 칩으로 대상을 고른다. 값이 있으면 그 항목을 수행(true)으로 함께 기록한다(구 콘솔과 동일) ── */
+const CKEY = "composerKey";
+function renderComposerItems() {
+  const sel = $("cmpItem");
+  const cur = sel.value || (() => { try { return localStorage.getItem(CKEY) || ""; } catch (e) { return ""; } })();
+  sel.innerHTML = SCHEMA.items.map((i) => `<option value="${esc(i.key)}">${esc(i.label)}</option>`).join("");
+  if (cur && SCHEMA.items.some((i) => i.key === cur)) sel.value = cur;
+  styleComposerChip();
+}
+function styleComposerChip() {
+  const sel = $("cmpItem");
+  sel.style.background = "var(--accent-soft)";
+  sel.style.color = sel.value ? itemColor(sel.value) : "var(--accent)";
+}
+function pickComposer(key, focus) {
+  const sel = $("cmpItem");
+  sel.value = key; styleComposerChip();
+  try { localStorage.setItem(CKEY, key); } catch (e) {}
+  if (focus) { $("cmpInput").focus(); $("cmpInput").placeholder = `${SCHEMA.items.find((i) => i.key === key)?.label || ""} 한 줄`; }
+}
+$("cmpItem").onchange = () => pickComposer($("cmpItem").value, false);
+async function saveMemo() {
+  const key = $("cmpItem").value;
+  const i = $("cmpInput");
+  const v = (i.value || "").trim();
+  if (!key) return toast("항목을 고르세요");
+  if (!v) return toast("한 줄 남겨보세요");
   const body = { key, done: true, date: SNAP.date, note: v };
   i.value = "";
-  try { await api("/api/routine", jsonOpts("POST", body)); await loadStreak(); await refreshSnapshot(); toast("기록했습니다"); }
+  try { await api("/api/routine", jsonOpts("POST", body)); await loadStreak(); await refreshSnapshot(); loadNext(); toast("기록했습니다"); }
   catch (e) {
     if (String(e.message).startsWith("401")) { i.value = v; return; }
     qPush(body); toast("오프라인 — 기록을 보관했습니다");
   }
 }
-
-/* 재렌더가 입력을 삼키지 않게 — 30초 폴링·낙관적 갱신이 innerHTML을 갈아엎어도 작성 중인
-   코멘트(값·포커스·커서)는 유지한다. 구 콘솔이 IME 유실을 잡으려고 넣었던 방어를 이어받음. */
-function memoSnapshot() {
-  const s = { vals: {}, focus: null, caret: null };
-  document.querySelectorAll("[data-memo]").forEach((i) => { if (i.value) s.vals[i.dataset.memo] = i.value; });
-  const a = document.activeElement;
-  if (a && a.dataset && a.dataset.memo) { s.focus = a.dataset.memo; try { s.caret = a.selectionStart; } catch (e) {} }
-  return s;
-}
-function memoRestore(s) {
-  Object.keys(s.vals).forEach((k) => { const i = $("mi-" + k); if (i) i.value = s.vals[k]; });
-  if (s.focus) { const i = $("mi-" + s.focus); if (i) { i.focus();
-    if (s.caret != null) { try { i.setSelectionRange(s.caret, s.caret); } catch (e) {} } } }
-}
-const memoEditing = () => [...document.querySelectorAll("[data-memo]")].some(
-  (i) => i.value.trim() || document.activeElement === i);
+$("cmpSend").onclick = saveMemo;
+$("cmpInput").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.isComposing) saveMemo(); });   // 한글 IME 조합 중 Enter 무시
+$("cmpHist").onclick = () => openNotes($("cmpItem").value || null);
+const composerBusy = () => { const i = $("cmpInput"); return !!(i.value.trim() || document.activeElement === i); };
 
 /* 가이드 오디오 — 끝까지 들으면 자동 기록(구 콘솔 동작 유지). 화면을 꺼도 이어서 재생된다. */
 let _audio = null, _audioKey = null;
@@ -661,7 +751,7 @@ function togglePlayer(key) {
   box.innerHTML = "";
   box.appendChild(_audio);
   const hint = document.createElement("div");
-  hint.className = "st"; hint.style.marginTop = "4px";
+  hint.className = "hint"; hint.style.marginTop = "4px";
   hint.textContent = "화면을 꺼도 이어서 재생됩니다 · 끝나면 자동 기록";
   box.appendChild(hint);
   _audio.play().catch(() => {});
@@ -685,15 +775,14 @@ async function openNotes(item) {
     const d = await api("/api/notes" + (item ? "?item=" + encodeURIComponent(item) : ""));
     const labels = Object.fromEntries(SCHEMA.items.map((i) => [i.key, i.label]));
     $("npList").innerHTML = (d.notes || []).length
-      ? d.notes.map((n) => `<div class="item"><div class="iname"><b>${esc(n.text)}</b>
-          <small>${esc(n.date)}${n.item ? " · " + esc(labels[n.item] || n.item) : ""}</small></div></div>`).join("")
+      ? d.notes.map((n) => `<div class="note" style="--g:${n.item ? itemColor(n.item) : "var(--muted)"}">
+          <b>${esc(n.item ? (labels[n.item] || n.item) : n.date.slice(5))}</b><p>${esc(n.text)}<br><span class="mono" style="font-size:11px;color:var(--faint)">${esc(n.date)}</span></p></div>`).join("")
       : '<div class="loading">기록이 없습니다.</div>';
   } catch (e) { $("npList").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
 }
 $("npClose").onclick = () => $("notesPanel").classList.remove("on");
 
-/* 편집 — 항목 CRUD */
-// 날짜 이동 — 지난 날짜에도 기록한다(James 2026-09-02).
+/* 날짜 이동 — 지난 날짜에도 기록한다(James 2026-09-02). */
 function shiftDay(n) {
   const base = new Date((SNAP && SNAP.date ? SNAP.date : kstToday()) + "T00:00:00Z");
   base.setUTCDate(base.getUTCDate() + n);
@@ -702,11 +791,15 @@ function shiftDay(n) {
 $("dPrev").onclick = () => gotoDate(shiftDay(-1));
 $("dNext").onclick = () => gotoDate(shiftDay(1));
 $("dToday").onclick = () => gotoDate(kstToday());
+$("todayLabel").onclick = () => { const p = $("dPick"); try { p.showPicker ? p.showPicker() : p.click(); } catch (e) { p.click(); } };
 $("dPick").onchange = (e) => { if (e.target.value) gotoDate(e.target.value); };
 
+/* 편집 — 항목 CRUD */
 $("btnEdit").onclick = () => {
-  document.body.classList.toggle("editing");
-  $("btnEdit").textContent = document.body.classList.contains("editing") ? "편집 완료" : "항목 편집";
+  const on = document.body.classList.toggle("editing");
+  $("btnEdit").style.color = on ? "var(--accent)" : "";
+  $("btnEdit").style.borderColor = on ? "var(--accent)" : "";
+  toast(on ? "항목 편집 — 순서·그룹·이름·보관" : "편집 끝");
 };
 $("niAdd").onclick = async () => {
   const key = $("niKey").value.trim(), label = $("niLabel").value.trim();
@@ -750,36 +843,107 @@ async function moveItem(key, dir) {
   catch (e) { toast("실패: " + e.message); }
 }
 
-/* ── 진행 ───────────────────────────────────────────── */
-$("segGran").onclick = (e) => { const b = e.target.closest("button"); if (!b) return;
-  setPref("progress.granularity", b.dataset.g); loadProgress(); };
-$("segMode").onclick = (e) => { const b = e.target.closest("button"); if (!b) return;
-  setPref("progress.mode", b.dataset.m); loadProgress(); };
-function setPref(k, v) {
+/* ── 다음 한 수 ── */
+async function loadNext() {
+  try {
+    const n = await api("/api/next");
+    const m = n.meta || {};
+    const badge = n.kind === "commitment"
+      ? `<span class="pill ${m.d_day <= 1 ? "behind" : "partial"}">${
+          m.d_day === 0 ? "오늘 기한" : m.d_day > 0 ? `D-${m.d_day}` : `${-m.d_day}일 지남`}${m.due ? ` · ${esc(String(m.due).slice(5, 10))}` : ""}</span>`
+      : n.kind === "clear" ? '<span class="pill done">전부 확인</span>'
+      : `<span class="pill unknown">루틴</span>`;
+    const actions = n.kind === "routine" ? `<div class="acts">
+        <button class="btn sm pri" data-nextdone="${esc(m.key)}">했다 — 기록</button>
+        ${m.link_url ? `<a class="btn sm" href="${esc(m.link_url)}">${esc(m.link_label || "가이드")}</a>` : ""}
+        ${m.audio_url ? `<button class="btn sm" data-nextplay="${esc(m.key)}">재생</button>` : ""}
+      </div>` : "";
+    // broken_days = 마지막 수행 이후 흐른 날. 1은 "어제 했고 오늘 아직"이라 끊긴 게 아니다.
+    const rest = (n.rest || []).map((r) => `<span class="chip">${esc(r.label)}${r.broken_days > 1 ? ` <span class="mono">${r.broken_days}일</span> 안 함` : ""}</span>`).join("");
+    $("nextBox").innerHTML = `<div class="next">
+      <div class="hd"><span class="lab">다음 한 수</span><span class="spacer"></span>${badge}</div>
+      <div class="q">${esc(n.title)}</div>
+      <div class="why">${esc(n.why)}</div>
+      ${actions}
+      ${rest ? `<div class="rest"><span>끝내면 다음</span>${rest}</div>` : ""}
+      ${(n.done_today || []).length ? `<div class="rest"><span>오늘 한 것 · ${esc(n.done_today.join(" · "))}</span></div>` : ""}
+    </div>`;
+    document.querySelectorAll("[data-nextdone]").forEach((b) => b.onclick = async () => {
+      const key = b.dataset.nextdone;
+      const body = { key, done: true, date: SNAP.date };
+      try { await api("/api/routine", jsonOpts("POST", body)); await refreshSnapshot(); await loadNext(); toast("기록했습니다"); }
+      catch (e) { qPush(body); toast("오프라인 — 보관했습니다"); }
+    });
+    document.querySelectorAll("[data-nextplay]").forEach((b) => b.onclick = () => {
+      togglePlayer(b.dataset.nextplay);
+      document.querySelector(`.item[data-key="${CSS.escape(b.dataset.nextplay)}"]`)?.scrollIntoView({ block: "center" });
+    });
+  } catch (e) { $("nextBox").innerHTML = ""; }
+}
+
+/* ── 데스크톱 오른쪽 레일: 오늘 요약 · 면접 일정 · 결정 대기 ── */
+async function loadRail() {
+  if (!DESKTOP() || !AUTHED) return;
+  const rail = $("rail");
+  const [s, a, h] = await Promise.all([
+    api("/api/metrics/summary").catch(() => null),
+    api("/api/apply").catch(() => null),
+    api("/api/hitl").catch(() => null),
+  ]);
+  let html = "";
+  if (SNAP && SCHEMA) {
+    const done = SCHEMA.items.filter((i) => SNAP.items[i.key] === true).length;
+    const best = s ? Object.entries(s.streaks || {}).sort((x, y) => y[1].current - x[1].current)[0] : null;
+    const gap = s && s.pace ? s.pace.gap : null;
+    html += `<div class="card"><h2>오늘 요약</h2>
+      <div class="kv"><span>수행</span><b class="v">${done} / ${SCHEMA.items.length}</b></div>
+      <div class="kv"><span>페이스 갭</span><b class="v" style="color:${gap > 0 ? "var(--watch)" : "var(--good)"}">${gap == null ? "–" : (gap > 0 ? "+" : "") + gap + " /일"}</b></div>
+      <div class="kv"><span>기록률</span><b class="v">${s ? Math.round((s.coverage.coverage || 0) * 100) + "%" : "–"}</b></div>
+      <div class="kv"><span>최장 진행 중</span><b class="v">${best ? esc(best[1].label) + " " + best[1].current + "일" : "–"}</b></div></div>`;
+  }
+  const iv = a ? (a.active || []).filter((x) => x.status === "interview" || x.interview) : [];
+  html += `<div class="card"><h2>면접 일정</h2>${iv.length ? iv.slice(0, 4).map((x) => `<div class="kv" style="min-height:44px">
+      <span class="who"><b>${esc(x.company)}</b><small>${esc(x.position || "")}</small></span>${ivBadge(x.interview, x.status)}</div>`).join("")
+    : '<div class="loading">잡힌 면접이 없다.</div>'}</div>`;
+  const q = h ? (h.items || []) : [];
+  html += `<div class="card"><h2>결정 대기 <span class="mono" style="color:var(--behind)">${q.length || ""}</span></h2>${q.length ? q.slice(0, 2).map(qRow).join("")
+    : '<div class="loading">대기 중인 결정이 없다.</div>'}
+    ${q.length > 2 ? `<button class="more" data-tab="manage">${q.length - 2}건 더 — 관리 탭</button>` : ""}</div>`;
+  rail.innerHTML = html;
+  bindDecide(rail, loadRail);
+  rail.querySelectorAll("[data-tab]").forEach((b) => b.onclick = () => switchTab(b.dataset.tab));
+}
+
+/* ── 기록 탭 ── */
+$("segGran").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; setPref("progress.granularity", b.dataset.g); loadRecord(); };
+$("segMode").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; setPref("progress.mode", b.dataset.m); loadRecord(); };
+function setPref(k, v, silent) {
   PREFS[k] = v;
   const seg = k.endsWith("granularity") ? "segGran" : "segMode";
   $(seg).querySelectorAll("button").forEach((x) => x.classList.toggle("on", (x.dataset.g || x.dataset.m) === v));
-  api("/api/prefs", jsonOpts("PUT", { prefs: { [k]: v } })).catch(() => {});   // 설정은 서버 보관(기기 간 일관)
+  if (!silent) api("/api/prefs", jsonOpts("PUT", { prefs: { [k]: v } })).catch(() => {});   // 설정은 서버 보관(기기 간 일관)
 }
-async function loadProgress() {
+function renderLegend(mode) {
+  $("recLegend").innerHTML = mode === "rollup"
+    ? SCHEMA.groups.map((g, i) => `<span><i style="background:${gcol(i)}"></i>${esc(g.name)}</span>`).join("")
+    : '<span><i style="background:var(--good)"></i>수행</span><span><i style="background:transparent;border:1.5px solid var(--muted);width:6px;height:6px"></i>일부</span><span><i style="background:var(--behind)"></i>미수행</span>';
+}
+async function loadRecord() {
   const g = PREFS["progress.granularity"], m = PREFS["progress.mode"];
-  $("progressBox").innerHTML = '<div class="loading">불러오는 중…</div>';
+  renderLegend(m);
+  $("recordBox").innerHTML = '<div class="loading">불러오는 중…</div>';
   try {
+    if (g === "day") { await loadCalendar(m); return; }
     const d = await api(`/api/progress?granularity=${g}&mode=${m}`);
     const rows = new Map();
-    // 응답에 기대한 배열이 없어도 화면 전체가 죽지 않게(부분 실패 > 전면 오류)
     d.buckets.forEach((b) => ((m === "rollup" ? b.groups : b.items) || []).forEach((x) => {
       const k = m === "rollup" ? x.name : x.label;
       if (!rows.has(k)) rows.set(k, []);
       rows.get(k).push({ b, x });
     }));
-    if (g === "day") { renderCalendar(d, m); return; }        // 일 단위는 달력형으로
     const n = d.buckets.length;
-    // 라벨 열 + 버킷 n개가 폭을 나눠 갖는다 → 몇 개든 잘리지 않는다.
-    // 칸이 대략 22px 아래로 좁아지면 dense 모드(숫자 숨김, 색+툴팁만).
-    const labW = n > 20 ? 44 : 62;
-    const dense = n > 14;
-    let html = `<div class="pgrid${dense ? " dense" : ""}" style="grid-template-columns:${labW}px repeat(${n},minmax(0,1fr))">`;
+    const labW = n > 20 ? 44 : 62, dense = n > 14;
+    let html = `<div class="card"><div class="pgrid${dense ? " dense" : ""}" style="grid-template-columns:${labW}px repeat(${n},minmax(0,1fr))">`;
     html += `<div></div>` + d.buckets.map((b) => `<div class="hd">${esc(shortBucket(b.bucket, g))}</div>`).join("");
     for (const [name, cells] of rows) {
       html += `<div class="lab" title="${esc(name)}">${esc(name)}</div>`;
@@ -787,50 +951,90 @@ async function loadProgress() {
         const pct = x.pct === null ? null : Math.round(x.pct * 100);
         const thin = x.coverage < 0.5 ? " thin" : "";
         const tip = `${b.start}~${b.end} · 수행 ${x.done} / 미수행 ${x.missed} / 미확인 ${x.unknown}` +
-                    (pct === null ? " · 완료율 없음(기록 0)" : ` · 완료율 ${pct}%`) +
-                    ` · 기록률 ${Math.round(x.coverage * 100)}%`;
+                    (pct === null ? " · 완료율 없음(기록 0)" : ` · 완료율 ${pct}%`) + ` · 기록률 ${Math.round(x.coverage * 100)}%`;
         return `<div class="cell ${x.state}${thin}" title="${esc(tip)}">${pct === null ? "" : pct}</div>`;
       }).join("");
     }
-    $("progressBox").innerHTML = html + "</div>";
-  } catch (e) { $("progressBox").innerHTML = `<div class="err">불러오지 못했습니다 — ${esc(e.message)}</div>`; }
-}
-
-/* 일 단위 렌더 — 항목마다 7열 달력. 모든 날이 보이고, 칸이 손가락만 하다. */
-function renderCalendar(d, mode) {
-  const DOW = ["월", "화", "수", "목", "금", "토", "일"];
-  const rows = new Map();
-  d.buckets.forEach((b) => ((mode === "rollup" ? b.groups : b.items) || []).forEach((x) => {
-    const k = mode === "rollup" ? x.name : x.label;
-    if (!rows.has(k)) rows.set(k, []);
-    rows.get(k).push({ date: b.bucket, x });
-  }));
-  const head = DOW.map((w) => `<div class="dow">${w}</div>`).join("");
-  let html = "";
-  for (const [name, cells] of rows) {
-    const done = cells.filter((c) => c.x.done).length;
-    const rec = cells.filter((c) => c.x.done || c.x.missed).length;
-    // 첫 날의 요일만큼 빈칸을 채워 요일 열을 맞춘다(월요일 시작)
-    const lead = (new Date(cells[0].date + "T00:00:00+09:00").getDay() + 6) % 7;
-    html += `<div class="calitem"><h3>${esc(name)}
-        <span>${done}일 수행 · 기록 ${rec}/${cells.length}</span></h3>
-      <div class="cal">${head}${"<div class='pad'></div>".repeat(lead)}` +
-      cells.map(({ date, x }) => {
-        const st = x.done ? "done" : x.missed ? "behind" : "unknown";
-        const tip = `${date} · ${x.done ? "수행" : x.missed ? "미수행" : "미확인"}`;
-        return `<div class="cell ${st}" title="${esc(tip)}">${Number(date.slice(-2))}</div>`;
-      }).join("") + `</div></div>`;
-  }
-  $("progressBox").innerHTML = html || '<div class="loading">표시할 기간이 없습니다.</div>';
+    $("recordBox").innerHTML = html + "</div></div>";
+    $("recHint").textContent = "완료율은 미확인을 분모에서 뺀다. 기록률이 절반에 못 미치는 칸은 흐리게 그린다.";
+  } catch (e) { $("recordBox").innerHTML = `<div class="err">불러오지 못했습니다 — ${esc(e.message)}</div>`; }
 }
 function shortBucket(b, g) {
-  if (g === "day") return b.slice(5);
   if (g === "week") return b.replace(/^\d{4}-/, "");
   if (g === "month") return b.slice(2);
   return b;
 }
 
-/* ── 지표 ───────────────────────────────────────────── */
+/* 달력 — 스트라바식 달 격자. 날마다 그룹(또는 항목) 점, 오른쪽은 주 합계. 날을 누르면 그날의 코멘트가 아래에 뜬다. */
+let CAL = null;      // {byDate: Map(date -> entries[]), mode}
+let NOTES = null;    // 전 기간 코멘트 캐시 (기록 탭 진입 시 1회)
+let SEL_DAY = null;
+async function loadCalendar(mode) {
+  const [d, notes] = await Promise.all([api(`/api/progress?granularity=day&mode=${mode}`), api("/api/notes")]);
+  NOTES = notes.notes || [];
+  const byDate = new Map();
+  (d.buckets || []).forEach((b) => byDate.set(b.bucket, (mode === "rollup" ? b.groups : b.items) || []));
+  CAL = { byDate, mode };
+  const dates = [...byDate.keys()].sort();
+  if (!dates.length) { $("recordBox").innerHTML = '<div class="loading">표시할 기간이 없습니다.</div>'; return; }
+  const today = kstToday();
+  const months = [...new Set(dates.map((x) => x.slice(0, 7)))].sort().reverse();
+  const colorOf = (x) => mode === "rollup" ? gcol(groupIndex(x.id)) : itemColor(x.key);
+  const dot = (x) => {
+    if (x.unknown >= x.total || x.pct === null) return "";
+    const cls = x.pct >= 1 ? "" : x.pct > 0 ? "part" : "miss";
+    return `<i class="${cls}" style="--g:${colorOf(x)}" title="${esc(x.name || x.label)} ${x.done}/${x.total}"></i>`;
+  };
+  let html = "";
+  for (const ym of months) {
+    const [y, mo] = ym.split("-").map(Number);
+    const first = new Date(Date.UTC(y, mo - 1, 1));
+    const lead = (first.getUTCDay() + 6) % 7;                // 월요일 시작
+    const start = new Date(first); start.setUTCDate(1 - lead);
+    const daysIn = new Date(Date.UTC(y, mo, 0)).getUTCDate();
+    const weeks = Math.ceil((lead + daysIn) / 7);
+    let mDone = 0, mRec = 0;
+    dates.filter((x) => x.startsWith(ym)).forEach((x) => { const es = byDate.get(x); const dn = es.reduce((a, e) => a + e.done, 0); mDone += dn; if (es.some((e) => e.done + e.missed > 0)) mRec++; });
+    let cells = `<div class="h">월</div><div class="h">화</div><div class="h">수</div><div class="h">목</div><div class="h">금</div><div class="h we">토</div><div class="h we">일</div><div class="h">주</div>`;
+    for (let w = 0; w < weeks; w++) {
+      let wDone = 0, wHas = false;
+      for (let i = 0; i < 7; i++) {
+        const dt = new Date(start); dt.setUTCDate(start.getUTCDate() + w * 7 + i);
+        const ds = dt.toISOString().slice(0, 10);
+        const out = ds.slice(0, 7) !== ym, fut = ds > today, es = byDate.get(ds);
+        if (es) { wDone += es.reduce((a, e) => a + e.done, 0); wHas = true; }
+        const cls = ["day", out ? "out" : "", fut ? "fut" : "", ds === today ? "today" : "", ds === SEL_DAY ? "sel" : ""].filter(Boolean).join(" ");
+        cells += `<button class="${cls}" data-day="${ds}" ${fut || !es ? "disabled" : ""}><span class="n">${dt.getUTCDate()}</span><span class="ds">${es ? es.map(dot).join("") : ""}</span></button>`;
+      }
+      cells += `<div class="wk">${wHas && wDone ? wDone : ""}</div>`;
+    }
+    html += `<div class="card mcard"><div class="mh"><b>${y}년 ${mo}월</b><span class="mono">수행 ${mDone}건 · 기록한 날 ${mRec}</span></div><div class="cal">${cells}</div></div>`;
+  }
+  $("recordBox").innerHTML = `<div id="dayCard"></div>` + html;
+  $("recHint").textContent = "채운 점 = 그 그룹을 전부 수행 · 테두리만 = 일부 · 빨강 = 전부 미수행 · 점 없음 = 기록 없음. 오른쪽 숫자는 그 주의 수행 건수.";
+  document.querySelectorAll("[data-day]").forEach((b) => b.onclick = () => selectDay(b.dataset.day));
+  selectDay(SEL_DAY && byDate.has(SEL_DAY) ? SEL_DAY : (dates.filter((x) => x <= today).pop() || dates[dates.length - 1]));
+}
+function selectDay(ds) {
+  SEL_DAY = ds;
+  document.querySelectorAll("[data-day]").forEach((b) => b.classList.toggle("sel", b.dataset.day === ds));
+  const es = (CAL && CAL.byDate.get(ds)) || [];
+  const done = es.reduce((a, e) => a + e.done, 0), unk = es.reduce((a, e) => a + e.unknown, 0), miss = es.reduce((a, e) => a + e.missed, 0);
+  const labels = Object.fromEntries(SCHEMA.items.map((i) => [i.key, i.label]));
+  const all = (NOTES || []).filter((n) => n.date === ds);
+  const mine = all.filter((n) => n.item), sys = all.filter((n) => !n.item);   // 내 기록과 자동화 기록을 가른다
+  const card = $("dayCard"); if (!card) return;
+  card.innerHTML = `<div class="card dcard"><div class="dh"><b>${mdLabel(ds)} ${dow(ds)}</b>
+      <span class="mono">수행 ${done}${miss ? ` · 미수행 ${miss}` : ""}${unk ? ` · 미확인 ${unk}` : ""}</span><span class="spacer"></span>
+      <button class="ghost sm" data-editday="${ds}" title="이 날 기록하기" aria-label="이 날 기록하기"><svg class="icon" viewBox="0 0 24 24" style="width:18px;height:18px"><path d="M4 20h4l10-10-4-4L4 16z"/></svg></button></div>
+    ${mine.length ? mine.map((n) => `<div class="note" style="--g:${itemColor(n.item)}"><b>${esc(labels[n.item] || n.item)}</b><p>${esc(n.text)}</p></div>`).join("")
+      : `<div class="hint">${sys.length ? "" : "코멘트가 없다. "}체크만 있는 날이다.</div>`}
+    ${sys.length ? `<details class="sysn"><summary>시스템 기록 ${sys.length}건</summary>${sys.map((n) => `<div class="note" style="--g:var(--muted)"><b>·</b><p>${esc(n.text)}</p></div>`).join("")}</details>` : ""}
+  </div>`;
+  card.querySelector("[data-editday]").onclick = async () => { await gotoDate(ds); switchTab("today"); };
+}
+
+/* ── 지표 ── */
 async function loadMetrics() {
   try {
     const [s, c] = await Promise.all([api("/api/metrics/summary"), api("/api/metrics/curve")]);
@@ -838,20 +1042,17 @@ async function loadMetrics() {
   } catch (e) { $("tiles").innerHTML = `<div class="err">지표를 불러오지 못했습니다 — ${esc(e.message)}</div>`; }
 }
 function renderTiles(s) {
-  const best = Object.entries(s.streaks).sort((a, b) => b[1].current - a[1].current)[0];
+  const best = Object.entries(s.streaks || {}).sort((a, b) => b[1].current - a[1].current)[0];
   const cov = Math.round((s.coverage.coverage || 0) * 100);
   const gap = s.pace.gap;
+  const res = s.resilience || {};
   $("tiles").innerHTML = `
-    <div class="tile"><b>${best ? best[1].current : 0}일</b><small>최장 진행중 연속 · ${best ? esc(best[1].label) : "-"}</small></div>
-    <div class="tile"><b>${cov}%</b><small>기록률 — 낮으면 아래 수치의 근거가 얇다</small></div>
-    <div class="tile"><b>${gap === null ? "-" : (gap > 0 ? "+" : "") + gap}</b><small>페이스 갭 (필요 ${s.pace.required_per_day ?? "-"} / 최근7일 ${s.pace.recent7_per_day})</small></div>
-    <div class="tile"><b>${s.resilience.rate === null ? "-" : Math.round(s.resilience.rate * 100) + "%"}</b>
-      <small>회복력 — 전부 놓친 다음날 복귀 (${s.resilience.recovered}/${s.resilience.opportunities})</small></div>`;
+    <div class="tile"><b style="color:${gap > 0 ? "var(--watch)" : "var(--good)"}">${gap === null ? "–" : (gap > 0 ? "+" : "") + gap}</b><small>페이스 갭 /일<br>필요 ${s.pace.required_per_day ?? "–"} · 최근 7일 ${s.pace.recent7_per_day}</small></div>
+    <div class="tile"><b>${cov}%</b><small>기록률<br>낮으면 수치 근거가 얇다</small></div>
+    <div class="tile"><b>${best ? best[1].current : 0}일</b><small>최장 진행 중<br>${best ? esc(best[1].label) + " · 최장 " + best[1].best + "일" : "–"}</small></div>
+    <div class="tile"><b>${res.rate == null ? "–" : Math.round(res.rate * 100) + "%"}</b><small>회복력<br>전부 놓친 다음날 복귀 ${res.recovered ?? 0}/${res.opportunities ?? 0}</small></div>`;
 }
-
-/* PCHIP(Fritsch–Carlson) 단조 3차 보간 → SVG 베지어.
-   왜 일반 spline이 아닌가: 누적선은 단조증가인데 Catmull-Rom/자연 스플라인은 평평한 구간 뒤에서
-   오버슈트가 나 **곡선이 잠깐 감소**한다. 하지도 않은 날 실적이 줄어드는 거짓 그래프가 된다. */
+/* PCHIP(Fritsch–Carlson) 단조 3차 보간 → SVG 베지어. 누적선이 잠깐 감소하는 거짓 곡선을 막는다. */
 function pchipPath(pts) {
   const n = pts.length;
   if (n === 0) return "";
@@ -862,10 +1063,7 @@ function pchipPath(pts) {
   m[0] = d[0]; m[n - 1] = d[n - 2];
   for (let i = 1; i < n - 1; i++) {
     if (d[i - 1] * d[i] <= 0) { m[i] = 0; }
-    else {
-      const w1 = 2 * h[i] + h[i - 1], w2 = h[i] + 2 * h[i - 1];
-      m[i] = (w1 + w2) / (w1 / d[i - 1] + w2 / d[i]);
-    }
+    else { const w1 = 2 * h[i] + h[i - 1], w2 = h[i] + 2 * h[i - 1]; m[i] = (w1 + w2) / (w1 / d[i - 1] + w2 / d[i]); }
   }
   let p = `M${pts[0][0]},${pts[0][1]}`;
   for (let i = 0; i < n - 1; i++) {
@@ -875,246 +1073,131 @@ function pchipPath(pts) {
   return p;
 }
 function renderCurve(c) {
-  const W = 720, H = 210, PAD = 8;
-  const horizon = c.horizon || 100;
+  const W = 340, H = 190, L = 34, R = 10, T = 16, B = 30;
+  const horizon = c.horizon || HORIZON;
   const maxY = Math.max(c.target_total || 0, ...c.actual, ...(c.plan.filter((v) => v != null))) || 1;
-  const X = (day) => PAD + (day / horizon) * (W - PAD * 2);
-  const Y = (v) => H - PAD - (v / maxY) * (H - PAD * 2);
+  const X = (day) => L + ((day - 1) / (horizon - 1)) * (W - L - R);
+  const Y = (v) => H - B - (v / maxY) * (H - B - T);
   const actual = c.actual.map((v, i) => [X(i + 1), Y(v)]);
-  const plan = c.plan.every((v) => v == null) ? [] :
-    [[X(1), Y(c.plan[0])], [X(horizon), Y((c.target_daily || 0) * horizon)]];
-  let req = "";
-  if (c.required) {
-    const f = c.required.from, t = c.required.to;
-    req = `<line x1="${X(f.day)}" y1="${Y(f.value)}" x2="${X(t.day)}" y2="${Y(t.value)}"
-            stroke="var(--watch)" stroke-width="2" stroke-dasharray="5 4"/>`;
-  }
-  $("curve").innerHTML =
-    `<line x1="${PAD}" y1="${H - PAD}" x2="${W - PAD}" y2="${H - PAD}" stroke="var(--hairline)"/>` +
-    (plan.length ? `<line x1="${plan[0][0]}" y1="${plan[0][1]}" x2="${plan[1][0]}" y2="${plan[1][1]}"
-        stroke="var(--muted)" stroke-width="1.6" stroke-dasharray="3 4"/>` : "") + req +
-    `<path d="${pchipPath(actual)}" fill="none" stroke="var(--accent)" stroke-width="2.4"
-       stroke-linecap="round" vector-effect="non-scaling-stroke"/>`;
-  $("curveMeta").textContent = `D${c.elapsed} · 실적 ${c.actual[c.actual.length - 1]} / 목표 ${c.target_total ?? "-"}`;
+  const last = actual[actual.length - 1];
+  const plan = c.plan.every((v) => v == null) ? null : [[X(1), Y(c.plan[0])], [X(horizon), Y((c.target_daily || 0) * horizon)]];
   const r = c.required;
+  const el = c.elapsed || actual.length;
+  const t = (x, y, s, anchor) => `<text x="${x}" y="${y}" font-size="9.5" fill="var(--faint)" text-anchor="${anchor || "start"}">${esc(s)}</text>`;
+  $("curve").innerHTML =
+    `<line x1="${L}" y1="${Y(maxY)}" x2="${W - R}" y2="${Y(maxY)}" stroke="var(--rule)"/>` +
+    `<line x1="${L}" y1="${Y(maxY / 2)}" x2="${W - R}" y2="${Y(maxY / 2)}" stroke="var(--rule)"/>` +
+    `<line x1="${L}" y1="${Y(0)}" x2="${W - R}" y2="${Y(0)}" stroke="var(--unknown)"/>` +
+    t(L - 6, Y(maxY) + 4, String(Math.round(maxY)), "end") + t(L - 6, Y(maxY / 2) + 4, String(Math.round(maxY / 2)), "end") + t(L - 6, Y(0) + 4, "0", "end") +
+    t(X(1), H - 12, "D1") + t(X(Math.round(horizon / 2)), H - 12, "D" + Math.round(horizon / 2), "middle") + t(X(horizon), H - 12, "D" + horizon, "end") +
+    `<line x1="${X(el)}" y1="${Y(maxY)}" x2="${X(el)}" y2="${Y(0)}" stroke="var(--rule)" stroke-dasharray="2 3"/>` +
+    `<text x="${X(el)}" y="${T - 4}" font-size="9.5" fill="var(--muted)" text-anchor="middle">오늘 D${el}</text>` +
+    (plan ? `<line x1="${plan[0][0]}" y1="${plan[0][1]}" x2="${plan[1][0]}" y2="${plan[1][1]}" stroke="var(--faint)" stroke-width="1.4" stroke-dasharray="3 4"/>` : "") +
+    (r ? `<line x1="${X(r.from.day)}" y1="${Y(r.from.value)}" x2="${X(r.to.day)}" y2="${Y(r.to.value)}" stroke="var(--watch)" stroke-width="2" stroke-dasharray="5 4"/>` : "") +
+    `<path d="${pchipPath(actual)}" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round"/>` +
+    (last ? `<circle cx="${last[0]}" cy="${last[1]}" r="3.5" fill="var(--accent)"/>` : "");
+  $("curveMeta").textContent = `실적 ${c.actual[c.actual.length - 1] ?? 0} / 목표 ${c.target_total ?? "–"}`;
   $("curveWarn").innerHTML = (r && r.feasible === false)
-    ? `<div class="warnbox">현재 목표(${c.target_total})는 남은 ${c.remaining_days}일 안에 <b>도달할 수 없습니다</b> —
-       필요 ${r.per_day}/일인데 하루 최대가 ${c.max_per_day}입니다. 지금부터 매일 만점을 받아도
-       ${r.max_reachable}까지입니다. 목표 총량을 다시 정하는 편이 낫습니다.</div>` : "";
+    ? `<div class="notebox">목표 ${c.target_total}은 남은 ${c.remaining_days}일로 닿지 않는다. 필요 ${r.per_day}/일인데 하루 최대가 ${c.max_per_day}이다. 매일 만점이어도 ${r.max_reachable}이다. 목표 총량을 다시 정할 것.</div>` : "";
 }
 function renderWeekday(s) {
   const names = ["월", "화", "수", "목", "금", "토", "일"];
-  $("weekday").innerHTML = '<div class="row">' + names.map((nm, i) => {
-    const a = s.weekday[i] || s.weekday[String(i)] || { pct: null, coverage: 0 };
-    const pct = a.pct === null ? null : Math.round(a.pct * 100);
-    const st = pct === null ? "unknown" : pct === 100 ? "done" : pct > 0 ? "partial" : "behind";
-    return `<div style="text-align:center"><div class="cell ${st}${a.coverage < 0.5 ? " thin" : ""}"
-      title="기록률 ${Math.round(a.coverage * 100)}%">${pct === null ? "" : pct}</div>
-      <small style="color:var(--muted);font-size:11px">${nm}</small></div>`;
-  }).join("") + "</div>";
+  const rows = names.map((nm, i) => { const a = s.weekday[i] || s.weekday[String(i)] || { pct: null, coverage: 0 }; return { nm, pct: a.pct === null ? null : Math.round(a.pct * 100), cov: Math.round((a.coverage || 0) * 100) }; });
+  const low = rows.slice().sort((a, b) => a.cov - b.cov)[0];
+  $("weekday").innerHTML = `<div class="wdg">${rows.map((r) => `<div><span>${r.pct === null ? "–" : r.pct}</span><i class="${r.cov < 50 ? "low" : ""}" style="height:${Math.max(3, r.cov * 0.6)}%" title="기록률 ${r.cov}%"></i></div>`).join("")}</div>
+    <div class="wdl">${rows.map((r) => `<span${r === low ? ' style="color:var(--watch);font-weight:600"' : ""}>${r.nm}</span>`).join("")}</div>
+    <div class="hint" style="margin-top:6px">${low ? `${low.nm}요일 기록률 ${low.cov}%. ` : ""}기록이 없는 날은 수행률에 안 잡힌다.</div>`;
 }
 function renderStreaks(s) {
-  $("streaks").innerHTML = Object.entries(s.streaks).map(([k, v]) =>
-    `<div class="item"><div class="iname"><b>${esc(v.label)}</b></div>
-      <span class="st">현재 ${v.current}일 · 최장 ${v.best}일</span></div>`).join("");
+  const rows = Object.entries(s.streaks || {}).sort((a, b) => b[1].current - a[1].current || b[1].best - a[1].best);
+  $("streaks").innerHTML = rows.map(([k, v]) => `<div class="bar" style="--g:${itemColor(k)}"><span class="l">${esc(v.label)}</span>
+    <div class="t"><i style="width:${v.best ? Math.round(v.current / v.best * 100) : 0}%"></i></div><span class="n"><b>${v.current}</b> / ${v.best}</span></div>`).join("") || '<div class="loading">없음</div>';
 }
 function renderContrib(s) {
-  const d = new Map(s.weekly_delta.map((x) => [x.id, x]));
-  $("contrib").innerHTML = s.contribution.map((c) => {
-    const w = d.get(c.id) || {};
-    const dl = w.delta == null ? "-" : (w.delta > 0 ? "+" : "") + Math.round(w.delta * 100) + "%p";
-    return `<div class="item"><div class="iname"><b>${esc(c.name)}</b>
-      <small>완료 ${c.done}건${c.share == null ? "" : " · 비중 " + Math.round(c.share * 100) + "%"}</small></div>
-      <span class="st">주간 ${dl}</span></div>`;
-  }).join("");
+  const d = new Map((s.weekly_delta || []).map((x) => [x.id, x]));
+  const total = (s.contribution || []).reduce((a, c) => a + (c.done || 0), 0);
+  $("contribMeta").textContent = `수행 ${total}건 · 이번 주 변화`;
+  $("contrib").innerHTML = `<div class="stack">${(s.contribution || []).map((c) => `<i style="--g:${gcol(groupIndex(c.id))};width:${Math.round((c.share || 0) * 100)}%"></i>`).join("")}</div>
+    <div class="share">${(s.contribution || []).map((c) => {
+      const w = d.get(c.id) || {};
+      const dl = w.delta == null ? "–" : (w.delta > 0 ? "+" : "") + Math.round(w.delta * 100) + "%p";
+      return `<span style="--g:${gcol(groupIndex(c.id))}"><b>${esc(c.name)}</b> ${c.share == null ? "–" : Math.round(c.share * 100) + "%"} <span class="mono" style="color:${w.delta > 0 ? "var(--good)" : "var(--muted)"}">${dl}</span></span>`;
+    }).join("")}</div>`;
 }
 
-/* ── 결정 / 현황 (기존 유지) ─────────────────────────── */
+/* ── 관리 ── */
+async function loadManage() {
+  await Promise.all([loadHitl(), loadStatus(), loadSecrets()]);
+}
+const qRow = (q) => `<div class="q"><div class="t">${esc(q.title || q.summary || q.id)}</div>
+  ${q.note || q.detail ? `<div class="s">${esc(q.note || q.detail)}</div>` : ""}
+  <div class="a">${q.track ? `<span class="chip">${esc(q.track)}</span>` : ""}${q.due && q.due.date ? `<span class="chip mono">${esc(String(q.due.date).slice(5))}</span>` : ""}<span class="spacer"></span>
+    <button class="btn sm" data-dec="hold" data-id="${esc(q.id)}">보류</button><button class="btn sm pri" data-dec="approve" data-id="${esc(q.id)}">${esc(q.action || "승인")}</button></div></div>`;
+function bindDecide(root, after) {
+  root.querySelectorAll("[data-dec]").forEach((b) => b.onclick = async () => {
+    /* 필드명은 action — 서버 계약(DecideIn.action: approve|hold|skip). */
+    try { await api("/api/hitl/decide", jsonOpts("POST", { id: b.dataset.id, action: b.dataset.dec })); toast("처리했습니다"); after(); loadBadge(); }
+    catch (e) { toast("실패: " + e.message); }
+  });
+}
 async function loadHitl() {
   try {
     const d = await api("/api/hitl");
     const items = d.items || d.queue || [];
-    $("qcnt").textContent = items.length ? items.length + "건" : "";
-    $("queue").innerHTML = items.length ? items.map((q) => `<div class="item">
-      <div class="iname"><b>${esc(q.title || q.summary || q.id)}</b><small>${esc(q.detail || q.note || "")}</small></div>
-      <span class="row"><button class="btn pri" data-dec="approve" data-id="${esc(q.id)}">승인</button>
-      <button class="btn" data-dec="hold" data-id="${esc(q.id)}">보류</button></span></div>`).join("")
-      : '<div class="loading">대기 중인 결정이 없습니다.</div>';
-    document.querySelectorAll("[data-dec]").forEach((b) => b.onclick = async () => {
-      /* 필드명은 action — 서버 계약(DecideIn.action: approve|hold|skip).
-         2026-08-24까지 decision:"approve"|"reject"를 보내고 있어서 두 버튼 다 422로 떨어졌다.
-         큐가 눈에 보이는데 눌러도 아무 일이 없었던 이유다. */
-      try { await api("/api/hitl/decide", jsonOpts("POST", { id: b.dataset.id, action: b.dataset.dec }));
-            loadHitl(); toast("처리했습니다"); } catch (e) { toast("실패: " + e.message); }
-    });
+    $("qcnt").textContent = items.length ? String(items.length) : "";
+    setBadge(items.length);
+    $("queue").innerHTML = items.length ? items.map(qRow).join("") : '<div class="loading">대기 중인 결정이 없다.</div>';
+    bindDecide($("queue"), loadHitl);
   } catch (e) { $("queue").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
 }
-/* 응답 형태는 라이브 실측 기준(2026-08-19):
-   /api/apply  {total, by_status:{}, active:[{company,position,status,date}], recent:[…]}
-   /api/tracks {tracks:[{key,label,status,next,source}], upcoming:[{id,title,due?}], watch:{}} */
-/* ★날짜 표기 규칙(2026-08-19 James 지적으로 변경): 상태 옆의 날짜가 '지원일'이면 면접이
-   이미 지난 것처럼 읽힌다("면접 지난 줄 알고 깜짝 놀랐다"). 면접 일정이 있으면 **그것을
-   앞에 세우고 D-day를 붙이고**, 지원일은 작게 '지원 …'으로 구분해 적는다. */
+async function loadBadge() { try { const d = await api("/api/hitl"); setBadge((d.items || []).length); } catch (e) {} }
+/* 날짜 표기 규칙(2026-08-19): 면접 일정이 있으면 그것을 앞에 세우고 D-day를 붙인다. 지원일은 작게 '지원 …'. */
 function ivBadge(iv, status) {
-  // 면접 단계인데 일정이 없으면 그걸 그대로 말한다 — 빈칸은 "없다"가 아니라 "모른다"로 읽혀야 한다
-  if (!iv) return status === "interview"
-    ? '<span class="pill unknown">면접 일정 미확정</span>' : "";
+  if (!iv) return status === "interview" ? '<span class="pill unknown">면접 일정 미확정</span>' : "";
   const d = iv.d_day;
   const label = d === 0 ? "오늘" : d > 0 ? `D-${d}` : `${-d}일 지남`;
   const cls = iv.past ? "unknown" : (d <= 1 ? "behind" : d <= 3 ? "partial" : "done");
   return `<span class="pill ${cls}" title="${esc(iv.title)}">면접 ${esc(iv.due.slice(5))} · ${label}</span>`;
 }
-// 크레덴셜 상태 — 값이 아니라 상태만 그린다(2026-09-02 James 지시).
+const stPill = (st) => `<span class="pill ${st === "interview" || st === "offer" || st === "final" ? "done" : st === "not fit" || st === "rejected" ? "unknown" : "partial"}">${esc(st || "")}</span>`;
+const applyRow = (x) => `<div class="ap"><div><b>${esc(x.company || "-")}</b><small>${esc(x.position || "")}${x.applied_on ? " · 지원 " + esc(x.applied_on.slice(5)) : ""}</small></div>
+  <div class="pills">${ivBadge(x.interview, x.status)}${x.interview || x.status === "interview" ? "" : stPill(x.status)}</div></div>`;
+async function loadStatus() {
+  try {
+    const [a, t] = await Promise.all([api("/api/apply"), api("/api/tracks")]);
+    $("apcnt").textContent = a.total ?? "";
+    const bs = a.by_status || {};
+    $("apsum").innerHTML = Object.entries(bs).map(([k, v]) => `${esc(k)} <span class="mono" style="color:${k === "interview" ? "var(--good)" : "inherit"}">${v}</span>`).join(" · ");
+    const act = (a.active || []), rec = (a.recent || []);
+    $("applyBox").innerHTML =
+      (act.length ? `<h3 class="sub">진행 중</h3>` + act.map(applyRow).join("") : "") +
+      (rec.length ? `<h3 class="sub">최근</h3>` + rec.slice(0, 12).map(applyRow).join("") : "") ||
+      '<div class="loading">없음</div>';
+    $("trackBox").innerHTML = (t.tracks || []).map((x) => `<div class="ap"><div><b>${esc(x.label || x.key)}</b><small>${esc(x.next || "")}</small></div><span class="pill unknown">${esc(x.status || "")}</span></div>`).join("") +
+      ((t.upcoming || []).length ? `<h3 class="sub">임박</h3>` + t.upcoming.slice(0, 10).map((u) =>
+        `<div class="ap"><div><b>${esc(u.title || u.id)}</b></div><span class="pill partial">${esc(u.due || u.date || "")}</span></div>`).join("") : "") ||
+      '<div class="loading">없음</div>';
+  } catch (e) { $("applyBox").innerHTML = `<div class="err">${esc(e.message)}</div>`; $("trackBox").innerHTML = ""; }
+}
 async function loadSecrets() {
   try {
     const d = await api("/api/secrets");
     const c = d.counts || {};
-    $("secMeta").textContent = `${d.date || ""} · 총 ${c.total || 0} · 필수 ${c.required || 0}`
-      + ` · 설정 ${c.set || 0}` + (c.problem ? ` · 문제 ${c.problem}` : "");
+    $("secMeta").textContent = `${c.total || 0} · 필수 ${c.required || 0} · 설정 ${c.set || 0}${c.problem ? ` · 문제 ${c.problem}` : ""}`;
     $("secSet").href = d.set_at_url || "#";
     const rows = d.secrets || [];
-    const cls = (v) => v.startsWith("★") ? "behind" : (v === "정상" || v === "자동 주입" ? "good" : "watch");
-    $("secBox").innerHTML = rows.length ? rows.map((r) => `
-      <div class="item" data-key="${esc(r.name)}">
-        <div class="mark" data-s="${r.verdict === "정상" || r.verdict === "자동 주입" ? "true" : (r.verdict.startsWith("★") ? "false" : "null")}"
-             aria-hidden="true"></div>
-        <div class="iname"><b>${esc(r.name)}</b><small>${esc(r.purpose || "")}</small></div>
-        <div class="imeta"><span class="st" style="color:var(--${cls(r.verdict)})">${esc(r.verdict)}</span></div>
-        <div class="memorow"><small class="hint">
-          ${r.set ? "설정 " + esc(String(r.set_at).slice(0, 10)) : "미설정"}
-          · 참조 ${(r.referenced_by || []).length}건${(r.referenced_by || []).length ? " (" + (r.referenced_by || []).slice(0, 3).map(esc).join(", ") + ")" : ""}
-          ${r.box_needs ? " · 박스 필요" : ""}${r.note ? " — " + esc(r.note) : ""}
-        </small></div>
-      </div>`).join("") : '<div class="hint">상태 파일이 아직 없습니다. daily-ops 가 만듭니다.</div>';
+    const col = (v) => String(v).startsWith("★") ? "var(--behind)" : (v === "정상" || v === "자동 주입" ? "var(--good)" : "var(--watch)");
+    $("secBox").innerHTML = rows.length ? rows.map((r) => `<div class="sec"><i style="background:${col(r.verdict)}"></i>
+      <b>${esc(r.name)}<small>${esc(r.purpose || "")}${(r.referenced_by || []).length ? " · 참조 " + r.referenced_by.length + "건" : ""}${r.box_needs ? " · 박스 필요" : ""}</small></b>
+      <span style="color:${col(r.verdict)}">${esc(r.verdict)}${r.set && r.set_at ? " · " + esc(String(r.set_at).slice(5, 10)) : ""}</span></div>`).join("")
+      : '<div class="hint">상태 파일이 아직 없다. daily-ops가 만든다.</div>';
     if (d.gh_error) $("secBox").innerHTML += `<div class="err">${esc(d.gh_error)}</div>`;
   } catch (e) { $("secBox").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
 }
 
-const applyRow = (x) => `<div class="item">
-  <div class="iname"><b>${esc(x.company || "-")}</b><small>${esc(x.position || "")}</small></div>
-  <span class="row" style="gap:6px;justify-content:flex-end">
-    ${ivBadge(x.interview, x.status)}
-    <span class="st">${esc(x.status || "")}${x.applied_on ? " · 지원 " + esc(x.applied_on.slice(5)) : ""}</span>
-  </span></div>`;
-async function loadStatus() {
-  try {
-    const [a, t] = await Promise.all([api("/api/apply"), api("/api/tracks")]);
-    $("apcnt").textContent = (a.total ?? "") && a.total + "건";
-    const chips = Object.entries(a.by_status || {}).map(([k, v]) =>
-      `<span class="pill ${k === "interview" ? "done" : k === "applied" ? "partial" : "unknown"}">${esc(k)} ${v}</span>`).join(" ");
-    const act = (a.active || []), rec = (a.recent || []);
-    $("applyBox").innerHTML = `<div class="row" style="margin-bottom:8px">${chips}</div>` +
-      (act.length ? `<h2 style="margin:6px 0">진행 중</h2>` + act.map(applyRow).join("") : "") +
-      (rec.length ? `<h2 style="margin:10px 0 0">최근</h2>` + rec.slice(0, 12).map(applyRow).join("") : "") ||
-      '<div class="loading">없음</div>';
-    $("trackBox").innerHTML = (t.tracks || []).map((x) => `<div class="item">
-      <div class="iname"><b>${esc(x.label || x.key)}</b><small>${esc(x.next || "")}</small></div>
-      <span class="st">${esc(x.status || "")}</span></div>`).join("") +
-      ((t.upcoming || []).length ? `<h2 style="margin:12px 0 0">임박</h2>` + t.upcoming.slice(0, 10).map((u) =>
-        `<div class="item"><div class="iname"><b>${esc(u.title || u.id)}</b></div>
-         <span class="st">${esc(u.due || u.date || "")}</span></div>`).join("") : "") ||
-      '<div class="loading">없음</div>';
-  } catch (e) { $("applyBox").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
-}
-
-
-/* ── 다음 한 수 (시안 D) ─────────────────────────────── */
-async function loadNext() {
-  try {
-    const n = await api("/api/next");
-    const badge = n.kind === "commitment"
-      ? `<span class="pill ${n.meta.d_day <= 1 ? "behind" : "partial"}">${
-          n.meta.d_day === 0 ? "오늘 기한" : n.meta.d_day > 0 ? "D-" + n.meta.d_day : (-n.meta.d_day) + "일 지남"}</span>`
-      : n.kind === "clear" ? '<span class="pill done">전부 확인</span>'
-      : `<span class="pill unknown">다음</span>`;
-    const res = n.meta || {};
-    const actions = n.kind === "routine" ? `<div class="row" style="margin-top:4px">
-        <button class="btn pri" data-nextdone="${esc(res.key)}">했다 — 기록</button>
-        ${res.link_url ? `<a class="btn" href="${esc(res.link_url)}">${esc(res.link_label || "가이드")}</a>` : ""}
-        ${res.audio_url ? `<button class="btn" data-nextplay="${esc(res.key)}">재생</button>` : ""}
-      </div>` : "";
-    $("nextBox").innerHTML = `<div class="next">${badge}
-      <div class="q">${esc(n.title)}</div>
-      <div class="why">${esc(n.why)}</div>
-      ${actions}
-      ${n.rest.length ? `<div class="rest"><span>끝내면 다음 ·</span>${
-        // broken_days = 마지막 수행 이후 흐른 날. 1은 "어제 했고 오늘 아직"이라 끊긴 게 아니다.
-        // 그걸 "1일 끊김"이라 쓰는 바람에 13일 연속인 달리기가 같은 화면에서 끊긴 것처럼 보였다.
-        n.rest.map((r) => `<span>${esc(r.label)}${r.broken_days > 1 ? ` (${r.broken_days}일 안 함)` : ""}</span>`).join("")}</div>` : ""}
-      ${n.done_today.length ? `<div class="rest"><span>오늘 한 것 · ${esc(n.done_today.join(" · "))}</span></div>` : ""}
-    </div>`;
-    document.querySelectorAll("[data-nextdone]").forEach((b) => b.onclick = async () => {
-      const key = b.dataset.nextdone;
-      const body = { key, done: true, date: SNAP.date };
-      try { await api("/api/routine", jsonOpts("POST", body)); await refreshSnapshot(); await loadNext(); toast("기록했습니다"); }
-      catch (e) { qPush(body); toast("오프라인 — 보관했습니다"); }
-    });
-    document.querySelectorAll("[data-nextplay]").forEach((b) => b.onclick = () => {
-      switchTab("today"); togglePlayer(b.dataset.nextplay);
-      document.querySelector(`.item[data-key="${CSS.escape(b.dataset.nextplay)}"]`)?.scrollIntoView({ block: "center" });
-    });
-  } catch (e) { $("nextBox").innerHTML = ""; }
-}
-
-/* ── 일지 (시안 C) — 남는 자산은 체크가 아니라 기록이다 ── */
-async function loadJournal() {
-  $("jItem").innerHTML = '<option value="">항목 없음</option>' +
-    SCHEMA.items.map((i) => `<option value="${esc(i.key)}">${esc(i.label)}</option>`).join("");
-  $("journal").innerHTML = '<div class="loading">불러오는 중…</div>';
-  try {
-    const [notes, prog] = await Promise.all([
-      api("/api/notes"),
-      api("/api/progress?granularity=day&mode=detail"),
-    ]);
-    const marks = new Map();          // date → [{key,state}]
-    prog.buckets.forEach((b) => marks.set(b.bucket, b.items));
-    const byDate = new Map();
-    (notes.notes || []).forEach((n) => {
-      if (!byDate.has(n.date)) byDate.set(n.date, []);
-      byDate.get(n.date).push(n);
-    });
-    // 기록이 있는 날 ∪ 코멘트가 있는 날, 최신순
-    const days = [...new Set([...byDate.keys(), ...prog.buckets
-      .filter((b) => b.items.some((i) => i.done || i.missed)).map((b) => b.bucket)])]
-      .sort().reverse();
-    const labels = Object.fromEntries(SCHEMA.items.map((i) => [i.key, i.label]));
-    const W = ["일", "월", "화", "수", "목", "금", "토"];
-    $("journal").innerHTML = days.length ? days.map((d) => {
-      const all = byDate.get(d) || [];
-      // ★내 기록과 자동화 기록을 가른다 — 힐러·체크인 같은 시스템 노트가 James의 문장을
-      //   덮으면 일지가 아니라 로그가 된다(2026-08-19 렌더 검증에서 실제로 덮였다).
-      const mine = all.filter((n) => n.item);
-      const sys = all.filter((n) => !n.item);
-      const ms = marks.get(d) || [];
-      const dow = W[new Date(d + "T00:00:00+09:00").getDay()];
-      return `<div class="card" style="padding:12px 12px 10px"><div class="entry">
-        <div class="dt">${esc(d.slice(5))} · ${dow}</div>
-        ${mine.length ? `<div class="txt">${mine.map((n) =>
-            `<b>${esc(labels[n.item] || n.item)}</b> — ` + esc(n.text)).join("\n")}</div>`
-          : (sys.length ? "" : '<div class="txt" style="color:var(--muted)">기록만 있고 코멘트는 없다.</div>')}
-        <div class="marks">${ms.map((i) =>
-          `<i class="${i.done ? "g" : i.missed ? "b" : ""}" title="${esc(i.label)} ${
-            i.done ? "수행" : i.missed ? "미수행" : "미확인"}"></i>`).join("")}</div>
-        ${sys.length ? `<details style="margin-top:7px"><summary class="st" style="cursor:pointer">
-            시스템 기록 ${sys.length}건</summary>
-          <div class="txt" style="color:var(--muted);margin-top:5px">${sys.map((n) => esc(n.text)).join("\n")}</div>
-        </details>` : ""}
-      </div></div>`;
-    }).join("") : '<div class="card">아직 기록이 없습니다.</div>';
-  } catch (e) { $("journal").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
-}
-$("jSave").onclick = async () => {
-  const v = $("jInput").value.trim();
-  if (!v) return toast("한 줄 남겨보세요");
-  const key = $("jItem").value || (SCHEMA.items[0] && SCHEMA.items[0].key);
-  const body = { key, done: $("jItem").value ? true : SNAP.items[key], date: SNAP.date, note: v };
-  $("jInput").value = "";
-  try { await api("/api/routine", jsonOpts("POST", body)); await refreshSnapshot(); await loadJournal(); toast("남겼습니다"); }
-  catch (e) { qPush(body); toast("오프라인 — 보관했습니다"); }
-};
-
-/* ── 로그인 / 부트 ──────────────────────────────────── */
+/* ── 로그인 / 스트릭 / 부트 ── */
 function renderLogin() {
+  document.body.classList.add("noauth");
   $("groups").innerHTML = `<div class="card"><h2>로그인이 필요합니다</h2>
     <div class="row"><a class="btn pri" href="${API}/auth/login">구글로 로그인</a></div></div>`;
   $("avatar").textContent = "·";
@@ -1124,57 +1207,38 @@ async function loadMe() {
   try {
     const me = await api("/auth/me");
     AUTHED = !!(me && me.email);
-    if (AUTHED) { $("avatar").textContent = me.email.slice(0, 1).toUpperCase(); $("avatar").title = me.email; }
+    if (AUTHED) { $("avatar").textContent = me.email.slice(0, 1).toUpperCase(); $("avatar").title = me.email; document.body.classList.remove("noauth"); }
   } catch (e) { AUTHED = false; }
 }
-/* 항목별 최근 14일 상태. 오늘 탭에서 바로 보이게 한다. */
-let STREAK = null;
+/* 항목별 최근 14일 상태 — 오늘 탭의 점 7개와 연속 일수가 여기서 나온다. */
 async function loadStreak() {
   try {
-    // KST 기준 14일 창. +9h 를 빼먹으면 00:00~09:00 KST 사이에 하루 더 이른 날짜가 나와
-    // 창이 15일이 된다(서버 UTC 버그와 같은 계열 — app/services/metrics.py:_today).
+    // KST 기준 14일 창. +9h 를 빼먹으면 00:00~09:00 KST 사이에 하루 더 이른 날짜가 나와 창이 15일이 된다.
     const from = new Date(Date.now() + 9 * 36e5 - 13 * 864e5).toISOString().slice(0, 10);
     const d = await api(`/api/progress?granularity=day&mode=detail&from=${from}`);
-    const m = new Map();                       // key -> [{date, state}] (오래된 → 최신)
-    (d.buckets || []).forEach((b) => {
-      (b.items || []).forEach((x) => {
-        if (!m.has(x.key)) m.set(x.key, []);
-        m.get(x.key).push({ date: b.bucket, done: x.done > 0, missed: x.missed > 0 });
-      });
-    });
+    const m = new Map();
+    (d.buckets || []).forEach((b) => (b.items || []).forEach((x) => {
+      if (!m.has(x.key)) m.set(x.key, []);
+      m.get(x.key).push({ date: b.bucket, done: x.done > 0, missed: x.missed > 0 });
+    }));
     STREAK = m;
-  } catch (e) { STREAK = null; }               // 실패해도 오늘 탭은 그대로 뜬다
+  } catch (e) { STREAK = null; }
 }
 function streakHtml(key) {
-  if (!STREAK) return "";
-  const cells = STREAK.get(key) || [];
-  if (!cells.length) return "";
+  const cells = (STREAK && STREAK.get(key)) || [];
+  if (!cells.length) return '<span class="dots"></span><span class="cnt">–</span>';
   // 오늘 칸이 아직 안 찍힌 것은 '끊겼다'가 아니라 '아직'이다. 그 칸은 건너뛰고 어제부터 센다.
-  // 이걸 안 하면 아침마다 13일 연속이 "0"으로 보인다.
   let end = cells.length - 1;
   if (end >= 0 && !cells[end].done && !cells[end].missed) end--;
-  let run = 0;                                 // 최신부터 거슬러 연속 수행 일수
+  let run = 0;
   for (let i = end; i >= 0; i--) { if (cells[i].done) run++; else break; }
-  const dots = cells.map((c, i) => {
-    const cls = c.done ? "done" : c.missed ? "missed" : "";
-    const last = i === cells.length - 1 ? " today" : "";
-    const w = c.done ? "수행" : c.missed ? "미수행" : "미확인";
-    return `<span class="d ${cls}${last}" title="${c.date} ${w}"></span>`;
+  const show = cells.slice(-7);
+  const dots = show.map((c, i) => {
+    const cls = [c.done ? "d" : c.missed ? "m" : "", i === show.length - 1 ? "t" : ""].filter(Boolean).join(" ");
+    return `<i class="${cls}" title="${c.date} ${c.done ? "수행" : c.missed ? "미수행" : "미확인"}"></i>`;
   }).join("");
   const doneN = cells.filter((c) => c.done).length;
-  // 예전에는 "3일 연속 · 최근 14일 중 11일"을 항목마다 한 줄씩 깔았다. 여덟 항목이면 여덟 줄이다.
-  // 점이 이미 날짜별 이력을 다 보여주므로 글자는 숫자만 남기고, 풀이는 title로 넘긴다.
-  const full = `${run > 0 ? run + "일 연속 · " : ""}최근 ${cells.length}일 중 ${doneN}일 수행`;
-  // 숫자 칸은 연속 일수다. 14일 비율은 점 열네 개가 이미 그대로 보여주므로 겹쳐 쓰지 않는다.
-  // 연속 일수만은 점을 세지 않으면 알 수 없다 — 그래서 이 숫자가 자리값을 한다.
-  return `<span class="streak"><span class="dots">${dots}</span>
-    <span class="cnt" title="${full}">${run > 0 ? `<b>${run}</b>일` : "–"}</span></span>`;
-}
-
-let VIEW_DATE = null;                    // null = 오늘. 과거를 볼 때만 값이 찬다
-
-function kstToday() {
-  return new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);
+  return `<span class="dots">${dots}</span><span class="cnt" title="${run > 0 ? run + "일 연속 · " : ""}최근 ${cells.length}일 중 ${doneN}일 수행">${run > 0 ? `<b>${run}</b>일` : "–"}</span>`;
 }
 async function refreshSnapshot() {
   SNAP = await api("/api/routine" + (VIEW_DATE ? "?date=" + VIEW_DATE : ""));
@@ -1186,12 +1250,15 @@ async function gotoDate(d) {
   VIEW_DATE = (d === t) ? null : d;
   await refreshSnapshot();
   await loadStreak();
+  renderToday();
 }
 async function reloadAll() {
   SCHEMA = await api("/api/routine/schema");
-  await loadStreak();          // renderToday보다 먼저 — 첫 화면부터 스트릭이 보여야 한다
+  await loadStreak();          // renderToday보다 먼저 — 첫 화면부터 점이 보여야 한다
   await refreshSnapshot();
   await loadNext();
+  loadBadge();
+  loadRail().catch(() => {});
 }
 async function boot() {
   renderOffline();
@@ -1200,19 +1267,21 @@ async function boot() {
   try {
     const p = await api("/api/prefs");
     Object.assign(PREFS, p.prefs || {});
-    setPref("progress.granularity", PREFS["progress.granularity"] || "week");
-    setPref("progress.mode", PREFS["progress.mode"] || "rollup");
   } catch (e) {}
+  setPref("progress.granularity", PREFS["progress.granularity"] || "day", true);
+  setPref("progress.mode", PREFS["progress.mode"] || "rollup", true);
   await reloadAll();
   await qFlush();
   switchTab((() => { try { return localStorage.getItem("tab") || "today"; } catch (e) { return "today"; } })());
 }
 $("btnRefresh").onclick = () => { reloadAll().then(() => toast("갱신")).catch((e) => toast("실패: " + e.message)); };
 $("avatar").onclick = () => { if (!AUTHED) location.href = API + "/auth/login"; };
-// 폴링 재렌더가 입력을 방해하지 않게 — 코멘트 작성 중이면 이번 주기는 건너뛴다
+let _rsz = null;
+window.addEventListener("resize", () => { clearTimeout(_rsz); _rsz = setTimeout(() => { if (DESKTOP() && !$("rail").innerHTML) loadRail().catch(() => {}); }, 300); });
+// 폴링 재렌더가 입력을 방해하지 않게 — 작성 중이면 이번 주기는 건너뛴다
 let LAST_DAY = null;
 setInterval(async () => {
-  if (!AUTHED || !$("tab-today").classList.contains("on") || memoEditing()) return;
+  if (!AUTHED || !$("tab-today").classList.contains("on") || composerBusy()) return;
   try {
     await refreshSnapshot();
     if (SNAP && SNAP.date !== LAST_DAY) { LAST_DAY = SNAP.date; await loadStreak(); renderToday(); }
