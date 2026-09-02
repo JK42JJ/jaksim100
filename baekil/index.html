@@ -208,6 +208,11 @@ input,select{min-height:36px;padding:6px 9px;border:1px solid var(--hairline);bo
   text-decoration:underline;cursor:pointer}
 .loading{color:var(--muted);font-size:13px;padding:12px 0}
 .err{color:var(--behind);font-size:13px}
+/* 지난 날짜를 편집 중이면 화면 전체가 달라 보여야 한다. 모르고 어제 칸에 체크하는 사고를 막는다. */
+body.past-mode #tab-today{outline:2px solid var(--behind);outline-offset:6px;border-radius:12px}
+body.past-mode #todayLabel{color:var(--behind)}
+#dPick{height:30px;font:600 12px ui-monospace,Menlo,monospace;padding:0 6px;
+  background:var(--surface);color:var(--ink);border:1px solid var(--hairline);border-radius:8px}
 .edit-only{display:none}
 body.editing .edit-only{display:flex}
 body.editing .mark{pointer-events:none;opacity:.45}
@@ -265,7 +270,13 @@ svg.curve{width:100%;height:210px;display:block}
   <!-- ── 오늘 ─────────────────────────────────────────── -->
   <section id="tab-today" class="on">
     <div class="row" style="margin-bottom:10px">
+      <!-- 지난 날짜도 기록한다(James 2026-09-02). 서버는 처음부터 date 를 받았는데
+           화면이 늘 오늘만 보내서 소급 기록이 안 됐다. -->
+      <button class="btn" id="dPrev" aria-label="하루 전">‹</button>
+      <input type="date" id="dPick" aria-label="기록할 날짜">
+      <button class="btn" id="dNext" aria-label="하루 뒤">›</button>
       <span class="dday" id="todayLabel"></span>
+      <button class="btn" id="dToday" style="display:none">오늘로</button>
       <span class="spacer"></span>
       <button class="btn" id="btnEdit">항목 편집</button>
     </div>
@@ -444,7 +455,14 @@ const stateWord = (s) => s === true ? "수행" : s === false ? "미수행" : "�
 function renderToday() {
   if (!SNAP || !SCHEMA) return;
   const _memo = memoSnapshot();          // 재렌더 전 작성 중 코멘트 보존
-  $("todayLabel").textContent = SNAP.date + " · D" + SNAP.day_n;
+  const _t = kstToday();
+  const _past = SNAP.date !== _t;
+  $("dPick").value = SNAP.date;
+  $("dPick").max = _t;
+  $("dToday").style.display = _past ? "" : "none";
+  $("todayLabel").textContent = SNAP.date + " · D" + SNAP.day_n
+    + (_past ? " · 지난 기록" : "");
+  document.body.classList.toggle("past-mode", _past);
   $("dday").textContent = "D" + SNAP.day_n + " / 100";
   $("daybar").style.width = Math.min(100, SNAP.day_n) + "%";
   const byGroup = new Map();
@@ -646,6 +664,17 @@ async function openNotes(item) {
 $("npClose").onclick = () => $("notesPanel").classList.remove("on");
 
 /* 편집 — 항목 CRUD */
+// 날짜 이동 — 지난 날짜에도 기록한다(James 2026-09-02).
+function shiftDay(n) {
+  const base = new Date((SNAP && SNAP.date ? SNAP.date : kstToday()) + "T00:00:00Z");
+  base.setUTCDate(base.getUTCDate() + n);
+  return base.toISOString().slice(0, 10);
+}
+$("dPrev").onclick = () => gotoDate(shiftDay(-1));
+$("dNext").onclick = () => gotoDate(shiftDay(1));
+$("dToday").onclick = () => gotoDate(kstToday());
+$("dPick").onchange = (e) => { if (e.target.value) gotoDate(e.target.value); };
+
 $("btnEdit").onclick = () => {
   document.body.classList.toggle("editing");
   $("btnEdit").textContent = document.body.classList.contains("editing") ? "편집 완료" : "항목 편집";
@@ -1087,9 +1116,21 @@ function streakHtml(key) {
     <span class="cnt" title="${full}">${run > 0 ? `<b>${run}</b>일` : "–"}</span></span>`;
 }
 
+let VIEW_DATE = null;                    // null = 오늘. 과거를 볼 때만 값이 찬다
+
+function kstToday() {
+  return new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);
+}
 async function refreshSnapshot() {
-  SNAP = await api("/api/routine");
+  SNAP = await api("/api/routine" + (VIEW_DATE ? "?date=" + VIEW_DATE : ""));
   renderToday();
+}
+async function gotoDate(d) {
+  const t = kstToday();
+  if (d > t) d = t;                      // 미래는 기록할 것이 없다
+  VIEW_DATE = (d === t) ? null : d;
+  await refreshSnapshot();
+  await loadStreak();
 }
 async function reloadAll() {
   SCHEMA = await api("/api/routine/schema");
