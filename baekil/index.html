@@ -340,6 +340,9 @@ h3.sub{font-size:12.5px;color:var(--muted);margin:10px 0 2px;font-weight:600}
   .tiles{grid-template-columns:repeat(4,minmax(0,1fr))}
   #toast{bottom:22px}
 }
+#playerDock[hidden]{display:none!important}
+#playerDock audio{flex:1;min-width:0;height:36px}
+#tab-english .md h3{font-size:16px;margin:4px 0 8px}#tab-english .md h4{font-size:14px;margin:12px 0 4px}#tab-english .md p{margin:4px 0;line-height:1.55}#tab-english .md ul{margin:4px 0 4px 18px}#tab-english .md code{font-size:12px}
 </style>
 </head>
 <body>
@@ -352,6 +355,7 @@ h3.sub{font-size:12.5px;color:var(--muted);margin:10px 0 2px;font-weight:600}
       <button data-tab="record">기록</button>
       <button data-tab="metrics">지표</button>
       <button data-tab="manage">관리 <span class="badge" data-badge></span></button>
+      <button data-tab="english">영어</button>
     </nav>
     <span class="spacer"></span>
     <button class="ghost" id="btnRefresh" title="새로고침" aria-label="새로고침">
@@ -463,11 +467,36 @@ h3.sub{font-size:12.5px;color:var(--muted);margin:10px 0 2px;font-weight:600}
   </section>
 </div>
 
+
+  <!-- ── 영어 데일리 미션 (2026-09-05 추가 — 기존 페이지는 그대로) ── -->
+  <section id="tab-english">
+    <div class="card">
+      <h2><span>오늘 미션</span><span class="cnt" id="enDate"></span></h2>
+      <div id="enMission" class="md"><div class="loading">불러오는 중…</div></div>
+      <div class="hint">미션은 매일 아침 저장소에서 발행된다. 전체 설계와 피드백은 저장소 prep/english/ 에 있다.</div>
+    </div>
+    <div class="card">
+      <h2><span>녹음</span><span class="cnt" id="enTimer">0:00</span></h2>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button class="btn" id="enRec">녹음</button>
+        <button class="btn sm" id="enAgain" hidden>다시</button>
+        <button class="btn sm" id="enSave" hidden>저장</button>
+        <span class="hint" id="enMsg">90초 한 번. 대본을 읽지 않는다.</span>
+      </div>
+      <div id="enMine" hidden style="margin-top:8px"><audio id="enAudio" controls preload="none" style="width:100%"></audio></div>
+    </div>
+    <div class="card">
+      <h2><span>내 녹음</span><span class="cnt" id="enCount"></span></h2>
+      <div id="enList"><div class="loading">불러오는 중…</div></div>
+      <div class="hint">저녁에 전사와 지표가 생기고, 교정 3문장이 내일 미션 0번이 된다.</div>
+    </div>
+  </section>
 <nav class="tabbar" id="tabbar">
   <button data-tab="today" class="on"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg>오늘</button>
   <button data-tab="record"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>기록</button>
   <button data-tab="metrics"><svg class="icon" viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>지표</button>
   <button data-tab="manage"><svg class="icon" viewBox="0 0 24 24"><path d="M3 13h5l2 3h4l2-3h5"/><path d="M5 5h14l2 8v6H3v-6z"/></svg>관리<span class="badge" data-badge></span></button>
+  <button data-tab="english"><svg class="icon" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>영어</button>
 </nav>
 
 <div id="notesPanel">
@@ -476,6 +505,7 @@ h3.sub{font-size:12.5px;color:var(--muted);margin:10px 0 2px;font-weight:600}
   <div class="chips" id="npChips"></div>
   <div id="npList"></div>
 </div>
+<div id="playerDock" hidden style="position:fixed;left:0;right:0;bottom:0;z-index:60;display:flex;gap:10px;align-items:center;padding:8px 12px;background:var(--bg,#fff);border-top:1px solid var(--line,#ddd);box-shadow:0 -4px 14px rgba(0,0,0,.08)"></div>
 <div id="toast"><span id="toastMsg"></span><button id="toastAct" style="display:none"></button></div>
 
 <script>
@@ -543,7 +573,7 @@ function toast(msg, actLabel, actFn) {
 }
 
 /* ── 탭 4개 (V2의 7개를 접는다: 일지·진행 → 기록, 결정·현황·운영 → 관리) ── */
-const TABS = ["today", "record", "metrics", "manage"];
+const TABS = ["today", "record", "metrics", "manage", "english"];
 const TAB_ALIAS = { journal: "record", progress: "record", decide: "manage", status: "manage", ops: "manage" };
 function switchTab(name) {
   name = TAB_ALIAS[name] || (TABS.includes(name) ? name : "today");
@@ -553,6 +583,7 @@ function switchTab(name) {
   if (name === "record") loadRecord();
   if (name === "metrics") loadMetrics();
   if (name === "manage") loadManage();
+  if (name === "english") loadEnglish();
   window.scrollTo({ top: 0 });
 }
 document.querySelectorAll("[data-tab]").forEach((b) => b.onclick = () => switchTab(b.dataset.tab));
@@ -734,31 +765,39 @@ const composerBusy = () => { const i = $("cmpInput"); return !!(i.value.trim() |
 /* 가이드 오디오 — 끝까지 들으면 자동 기록(구 콘솔 동작 유지). 화면을 꺼도 이어서 재생된다. */
 let _audio = null, _audioKey = null;
 function togglePlayer(key) {
+  // 2026-09-04 버그: 오디오를 항목 카드 안(#pl-key)에 넣었더니 renderToday()가 #groups 를
+  // 통째로 다시 그릴 때마다(기록·완료·새로고침) 재생 중인 <audio>가 DOM에서 사라져 재생이
+  // "조금 되다가 튕기며" 끊겼다. 플레이어는 재렌더 밖의 고정 도크(#playerDock)에 둔다.
   const it = SCHEMA.items.find((i) => i.key === key);
-  const box = $("pl-" + key);
-  if (!it || !box) return;
+  if (!it) return;
   if (_audioKey === key) { closePlayer(); return; }
   closePlayer();
   _audioKey = key;
+  const dock = $("playerDock");
+  dock.innerHTML = "";
   _audio = document.createElement("audio");
-  _audio.src = it.audio_url; _audio.controls = true; _audio.setAttribute("playsinline", "");
+  _audio.src = it.audio_url; _audio.controls = true; _audio.preload = "auto"; _audio.setAttribute("playsinline", "");
   _audio.onended = async () => {
     const body = { key, done: true, date: SNAP.date, note: "가이드 오디오 완료 — 자동 기록" };
     try { await api("/api/routine", jsonOpts("POST", body)); await refreshSnapshot(); toast("완료 — 자동 기록"); }
     catch (e) { qPush(body); }
     closePlayer();
   };
-  box.innerHTML = "";
-  box.appendChild(_audio);
-  const hint = document.createElement("div");
-  hint.className = "hint"; hint.style.marginTop = "4px";
-  hint.textContent = "화면을 꺼도 이어서 재생됩니다 · 끝나면 자동 기록";
-  box.appendChild(hint);
+  _audio.onerror = () => {
+    const c = (_audio && _audio.error) ? _audio.error.code : "?";
+    toast(`재생 오류(code ${c}) — 주소: ${it.audio_url}`);
+  };
+  const lab = document.createElement("b"); lab.textContent = it.label;
+  const hint = document.createElement("small"); hint.className = "hint"; hint.textContent = "끝나면 자동 기록";
+  const x = document.createElement("button"); x.className = "btn sm"; x.textContent = "닫기"; x.onclick = closePlayer;
+  dock.append(lab, _audio, hint, x);
+  dock.hidden = false;
   _audio.play().catch(() => {});
 }
 function closePlayer() {
   if (_audio) { try { _audio.pause(); } catch (e) {} }
-  if (_audioKey && $("pl-" + _audioKey)) $("pl-" + _audioKey).innerHTML = "";
+  const dock = $("playerDock");
+  if (dock) { dock.innerHTML = ""; dock.hidden = true; }
   _audio = null; _audioKey = null;
 }
 
@@ -1274,6 +1313,98 @@ async function boot() {
   await qFlush();
   switchTab((() => { try { return localStorage.getItem("tab") || "today"; } catch (e) { return "today"; } })());
 }
+
+/* ── 영어 데일리 미션 탭 (2026-09-05) ── */
+const EN_MD = "./english/today.md";           // 같은 Pages 오리진에 발행된 오늘 미션
+function mdToHtml(md) {
+  const lines = md.split("\n"); let out = []; let inList = false;
+  const inline = (s) => esc(s)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+    .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+  for (const raw of lines) {
+    const l = raw.replace(/\s+$/, "");
+    if (/^- /.test(l)) { if (!inList) { out.push("<ul>"); inList = true; } out.push("<li>" + inline(l.slice(2)) + "</li>"); continue; }
+    if (inList) { out.push("</ul>"); inList = false; }
+    if (!l) continue;
+    if (/^# /.test(l)) { out.push("<h3>" + inline(l.slice(2)) + "</h3>"); continue; }
+    if (/^## /.test(l)) { out.push("<h4>" + inline(l.slice(3)) + "</h4>"); continue; }
+    out.push("<p>" + inline(l) + "</p>");
+  }
+  if (inList) out.push("</ul>");
+  return out.join("");
+}
+let _en = { rec: null, chunks: [], tick: null, t0: 0, blob: null, mime: "" };
+async function loadEnglish() {
+  $("enDate").textContent = kstToday();
+  try {
+    const r = await fetch(EN_MD + "?t=" + Date.now(), { cache: "no-store" });
+    if (!r.ok) throw new Error(r.status);
+    const md = await r.text();
+    $("enMission").innerHTML = mdToHtml(md);
+  } catch (e) {
+    $("enMission").innerHTML = '<div class="err">오늘 미션이 아직 발행되지 않았다. 저장소의 prep/english/missions/today.md 를 연다.</div>';
+  }
+  loadEnglishRecordings();
+}
+function enFmt(s) { s = Math.floor(s); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
+function enPickType() {
+  const c = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"];
+  for (const t of c) { try { if (window.MediaRecorder && MediaRecorder.isTypeSupported(t)) return t; } catch (e) {} }
+  return "";
+}
+$("enRec").onclick = async () => {
+  const btn = $("enRec");
+  if (_en.rec && _en.rec.state === "recording") { _en.rec.stop(); return; }
+  if (!navigator.mediaDevices || !window.MediaRecorder) { $("enMsg").textContent = "이 브라우저는 녹음을 지원하지 않는다"; return; }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    _en.mime = enPickType();
+    _en.rec = new MediaRecorder(stream, _en.mime ? { mimeType: _en.mime } : undefined);
+    _en.chunks = [];
+    _en.rec.ondataavailable = (e) => { if (e.data.size) _en.chunks.push(e.data); };
+    _en.rec.onstop = () => {
+      clearInterval(_en.tick); stream.getTracks().forEach((t) => t.stop());
+      _en.blob = new Blob(_en.chunks, { type: (_en.mime || "audio/webm").split(";")[0] });
+      $("enAudio").src = URL.createObjectURL(_en.blob);
+      $("enMine").hidden = false; $("enSave").hidden = false; $("enAgain").hidden = false;
+      btn.textContent = "녹음"; $("enMsg").textContent = "들어 보고 저장한다.";
+    };
+    _en.rec.start(); _en.t0 = Date.now(); btn.textContent = "정지"; $("enMsg").textContent = "녹음 중";
+    $("enMine").hidden = true; $("enSave").hidden = true; $("enAgain").hidden = true;
+    _en.tick = setInterval(() => { $("enTimer").textContent = enFmt((Date.now() - _en.t0) / 1000); }, 250);
+  } catch (e) { $("enMsg").textContent = "마이크 권한이 필요하다 (" + e.name + ")"; }
+};
+$("enAgain").onclick = () => { _en.blob = null; $("enMine").hidden = true; $("enSave").hidden = true; $("enAgain").hidden = true; $("enTimer").textContent = "0:00"; $("enMsg").textContent = "다시 녹음한다."; };
+$("enSave").onclick = async () => {
+  if (!_en.blob) return;
+  $("enSave").disabled = true; $("enMsg").textContent = "저장 중…";
+  const ts = new Date().toISOString().replace(/[^0-9]/g, "").slice(0, 14);
+  try {
+    const j = await api("/api/media/recording?block=mission&ts=" + ts, { method: "POST", headers: { "Content-Type": _en.blob.type }, body: _en.blob });
+    $("enMsg").textContent = "저장됨 · " + Math.round(j.bytes / 1024) + "KB";
+    toast("녹음 저장");
+    loadEnglishRecordings();
+  } catch (e) { $("enMsg").textContent = "저장 실패 — " + e.message; }
+  $("enSave").disabled = false;
+};
+async function loadEnglishRecordings() {
+  try {
+    const j = await api("/api/media/recordings");
+    const mine = (j.recordings || []).filter((x) => x.block === "mission").slice(0, 7);
+    $("enCount").textContent = mine.length ? mine.length + "건" : "";
+    $("enList").innerHTML = mine.length ? mine.map((x) => `<div class="item"><b style="font-size:12px">${esc(x.name)}</b> <button class="btn sm" data-play="${esc(x.name)}">듣기</button><span class="hint">${esc(String(Math.round((x.bytes || 0) / 1024)))}KB</span></div>`).join("")
+      : '<div class="hint">아직 미션 녹음이 없다.</div>';
+    $("enList").querySelectorAll("[data-play]").forEach((b) => b.onclick = async () => {
+      try {
+        const r = await fetch(API + "/api/media/recordings/" + encodeURIComponent(b.dataset.play), { credentials: "include" });
+        if (!r.ok) throw new Error(r.status);
+        const blob = await r.blob(); const a = new Audio(URL.createObjectURL(blob)); a.play();
+      } catch (e) { toast("재생 실패 " + e.message); }
+    });
+  } catch (e) { $("enList").innerHTML = '<div class="hint">로그인하면 내 녹음이 보인다.</div>'; }
+}
+
 $("btnRefresh").onclick = () => { reloadAll().then(() => toast("갱신")).catch((e) => toast("실패: " + e.message)); };
 $("avatar").onclick = () => { if (!AUTHED) location.href = API + "/auth/login"; };
 let _rsz = null;
