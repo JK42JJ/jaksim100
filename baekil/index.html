@@ -471,7 +471,10 @@ h3.sub{font-size:12.5px;color:var(--muted);margin:10px 0 2px;font-weight:600}
   <!-- ── 영어 데일리 미션 (2026-09-05 추가 — 기존 페이지는 그대로) ── -->
   <section id="tab-english">
     <div class="card">
-      <h2><span>오늘 미션</span><span class="cnt" id="enDate"></span></h2>
+      <h2><span>영어</span><span class="cnt" id="enDate"></span></h2>
+      <div class="seg" id="enDocs" style="margin-bottom:8px">
+        <button data-endoc="today" class="on">오늘 미션</button><button data-endoc="curriculum">12주 커리큘럼</button><button data-endoc="program">설계</button>
+      </div>
       <div id="enMission" class="md"><div class="loading">불러오는 중…</div></div>
       <div class="hint">미션은 매일 아침 저장소에서 발행된다. 전체 설계와 피드백은 저장소 prep/english/ 에 있다.</div>
     </div>
@@ -1315,7 +1318,8 @@ async function boot() {
 }
 
 /* ── 영어 데일리 미션 탭 (2026-09-05) ── */
-const EN_MD = "./english/today.md";           // 같은 Pages 오리진에 발행된 오늘 미션
+const EN_DOCS = { today: "./english/today.md", curriculum: "./english/curriculum.md", program: "./english/program.md" };  // 같은 Pages 오리진에 발행
+let _enDoc = "today";
 function mdToHtml(md) {
   const lines = md.split("\n"); let out = []; let inList = false;
   const inline = (s) => esc(s)
@@ -1337,16 +1341,21 @@ function mdToHtml(md) {
 let _en = { rec: null, chunks: [], tick: null, t0: 0, blob: null, mime: "" };
 async function loadEnglish() {
   $("enDate").textContent = kstToday();
-  try {
-    const r = await fetch(EN_MD + "?t=" + Date.now(), { cache: "no-store" });
-    if (!r.ok) throw new Error(r.status);
-    const md = await r.text();
-    $("enMission").innerHTML = mdToHtml(md);
-  } catch (e) {
-    $("enMission").innerHTML = '<div class="err">오늘 미션이 아직 발행되지 않았다. 저장소의 prep/english/missions/today.md 를 연다.</div>';
-  }
+  await loadEnglishDoc(_enDoc);
   loadEnglishRecordings();
 }
+async function loadEnglishDoc(kind) {
+  _enDoc = kind;
+  document.querySelectorAll("[data-endoc]").forEach((b) => b.classList.toggle("on", b.dataset.endoc === kind));
+  try {
+    const r = await fetch(EN_DOCS[kind] + "?t=" + Date.now(), { cache: "no-store" });
+    if (!r.ok) throw new Error(r.status);
+    $("enMission").innerHTML = mdToHtml(await r.text());
+  } catch (e) {
+    $("enMission").innerHTML = '<div class="err">아직 발행되지 않았다. 저장소 prep/english/ 에서 연다.</div>';
+  }
+}
+document.querySelectorAll("[data-endoc]").forEach((b) => b.onclick = () => loadEnglishDoc(b.dataset.endoc));
 function enFmt(s) { s = Math.floor(s); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
 function enPickType() {
   const c = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"];
