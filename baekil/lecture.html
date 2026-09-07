@@ -26,8 +26,25 @@
   .pill.ok { color:var(--ok); border-color:var(--ok); }
   .muted { color:var(--ink3); font-size:13px; }
   table { width:100%; border-collapse:collapse; font-size:14px; }
+  @media (min-width: 601px) { tr { display:flex; align-items:flex-start; } td.d { flex:0 0 56px; } td.c { flex:1 1 auto; order:1; } td.dd { flex:0 0 72px; order:2; } thead tr th:nth-child(2) { flex:1 1 auto; } }
   th, td { text-align:left; padding:8px 6px; border-bottom:1px solid var(--line); vertical-align:top; }
-  th { color:var(--ink2); font-weight:600; font-size:12px; }
+  th { color:var(--ink2); font-weight:600; font-size:12px; white-space:nowrap; }
+  td { word-break:keep-all; }
+  td.d, th.d { white-space:nowrap; width:52px; color:var(--ink2); font-variant-numeric:tabular-nums; }
+  td.dd, th.dd { white-space:nowrap; width:64px; text-align:right; }
+  .pill { white-space:nowrap; }
+  @media (max-width: 600px) {
+    .wrap { padding:14px 12px 48px; }
+    h1 { font-size:19px; }
+    table, thead, tbody, tr, td, th { display:block; }
+    thead { display:none; }
+    tr { padding:10px 0; border-bottom:1px solid var(--line); }
+    td { border:0; padding:0; }
+    td.d, td.dd { display:inline-block; width:auto; }
+    td.dd { float:right; }
+    td.c { display:block; margin-top:4px; clear:both; }
+    .weeks { gap:3px; }
+  }
   .weeks { display:grid; grid-template-columns:repeat(15, 1fr); gap:4px; margin-top:8px; }
   .wk { height:10px; border-radius:3px; background:var(--surface2); border:1px solid var(--line); }
   .wk.past { background:var(--ink3); }
@@ -51,7 +68,7 @@
   <div id="courses"></div>
 
   <h2>시험·신청 일정 (D-day)</h2>
-  <div class="card"><table><thead><tr><th>날짜</th><th>내용</th><th>D-day</th></tr></thead><tbody id="sched"></tbody></table>
+  <div class="card"><table><thead><tr><th class="d">날짜</th><th>내용</th><th class="dd">D-day</th></tr></thead><tbody id="sched"></tbody></table>
     <div class="muted" style="margin-top:8px">원문은 education/cuk-2026-2-schedule.md 다. 과제·리포트 마감은 강의계획서에서 뽑아 여기에 추가한다(09-10까지).</div>
   </div>
 
@@ -115,7 +132,7 @@ document.getElementById("courses").innerHTML = COURSES.map(c => {
 document.getElementById("sched").innerHTML = SCHED.map(([d, t]) => {
   const left = Math.round((new Date(d + "T00:00:00+09:00") - new Date(ymd(now) + "T00:00:00+09:00")) / dayMs);
   const cls = left < 0 ? "" : (left <= 7 ? "bad" : (left <= 21 ? "warn" : "ok"));
-  return `<tr><td>${d.slice(5)}</td><td>${t}</td><td><span class="pill ${cls}">${left < 0 ? "지남" : "D-" + left}</span></td></tr>`;
+  return `<tr><td class="d">${d.slice(5)}</td><td class="dd"><span class="pill ${cls}">${left < 0 ? "지남" : "D-" + left}</span></td><td class="c">${t}</td></tr>`;
 }).join("");
 </script>
 </body>
