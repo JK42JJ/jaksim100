@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>파이썬 — 오늘의 30분</title>
+<style>
+  :root { --bg:#f3f1ec; --surface:#ffffff; --surface2:#f8f7f3; --ink:#22262f; --ink2:#6a7080; --ink3:#9ba1ac; --line:#e7e4dc; --acc:#3b6fd6; --ok:#2f8f5b; --bad:#c14545; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0f1117; --surface:#181b23; --surface2:#1e222d; --ink:#e8e9ee; --ink2:#9aa1b3; --ink3:#666d7e; --line:#272b36; --acc:#6d95ea; } }
+  body { margin:0; background:var(--bg); color:var(--ink); line-height:1.5; font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard",sans-serif; }
+  .wrap { max-width:880px; margin:0 auto; padding:14px 12px 60px; }
+  header { display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  h1 { font-size:20px; margin:0; } h2 { font-size:14px; margin:18px 0 6px; color:var(--ink2); }
+  .back { color:var(--acc); text-decoration:none; font-size:14px; }
+  .muted { color:var(--ink3); font-size:13px; }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:12px 14px; margin:8px 0; }
+  .pill { font-size:12px; padding:3px 9px; border-radius:999px; background:var(--surface2); border:1px solid var(--line); color:var(--ink2); white-space:nowrap; display:inline-block; }
+  pre, textarea, .out { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:13px; }
+  pre { background:var(--surface2); border:1px solid var(--line); border-radius:10px; padding:10px; overflow-x:auto; white-space:pre-wrap; word-break:break-all; margin:6px 0; }
+  textarea { width:100%; box-sizing:border-box; min-height:220px; background:var(--surface2); color:var(--ink); border:1px solid var(--line); border-radius:10px; padding:10px; line-height:1.45; -webkit-text-size-adjust:100%; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; margin:8px 0; align-items:center; }
+  button { padding:9px 14px; border-radius:10px; border:1px solid var(--line); background:var(--surface2); color:var(--ink); font-size:14px; font-weight:600; }
+  button.p { background:var(--acc); color:#fff; border-color:var(--acc); }
+  .out { background:#0b0d12; color:#d6e2f0; border-radius:10px; padding:10px; min-height:44px; white-space:pre-wrap; word-break:break-all; }
+  .ok { color:var(--ok); } .bad { color:var(--bad); }
+  details summary { cursor:pointer; color:var(--acc); }
+  #timer { font-variant-numeric:tabular-nums; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><h1>파이썬 — 오늘의 30분</h1><a class="back" href="./index.html">← 콘솔로</a></header>
+  <div class="muted" id="hdr"></div>
+
+  <div class="card" id="prob"></div>
+
+  <div class="card">
+    <div class="row"><span class="pill">내 코드</span><span class="muted">폰에서 바로 쓴다. 답을 미리 보지 않는다.</span><span id="timer" class="pill">30:00</span></div>
+    <textarea id="code" spellcheck="false" autocapitalize="off" autocorrect="off"></textarea>
+    <div class="row">
+      <button class="p" id="run">실행</button>
+      <button id="test">테스트</button>
+      <button id="next">다른 문제</button>
+      <button id="reset">템플릿으로</button>
+    </div>
+    <div class="out" id="out">실행 결과가 여기 나온다. 처음 실행은 파이썬 엔진(약 10MB)을 받느라 10초쯤 걸린다.</div>
+    <div class="row muted" style="margin-top:8px"><details><summary>정답 보기 (테스트를 먼저 통과해 보고 연다)</summary><pre id="sol"></pre></details></div>
+  </div>
+
+  <h2>규칙</h2>
+  <div class="card muted">
+    하루 한 문제, 30분. 못 풀면 정답을 읽고 <b>닫은 뒤 다시 쓴다</b>. 그게 라이브코딩 훈련이다.
+    끝나면 콘솔 오늘 탭에서 <b>파이썬</b>을 체크하고 한 줄에 "T1 두 수 합, 12분, 테스트 통과"처럼 적는다.
+    데스크톱이면 <a href="https://drive.google.com/drive/folders/1d_231dV4BJ" target="_blank" rel="noopener">Colab 노트북</a>에서 같은 문제를 푼다. 코드는 폰 브라우저에만 남는다(자동 저장, 기기별).
+  </div>
+</div>
+<script>
+// 문제 은행 — prep/coding-drills/PATTERNS.md 의 태그(T1~T6, S1~S6, P)와 같은 어휘. 하루 한 문제가 날짜로 돈다.
+const P = [
+ {tag:"T1", name:"두 수 합 — 집합·딕셔너리 세기", q:"정수 리스트 nums 와 정수 target 이 주어진다. 더해서 target 이 되는 두 원소의 인덱스를 [i, j] (i<j) 로 돌려준다. 없으면 []. O(n) 으로.", ex:"solve([2,7,11,15], 9) -> [0,1]",
+  tpl:"def solve(nums, target):\n    seen = {}\n    for i, x in enumerate(nums):\n        # 여기를 채운다\n        pass\n    return []\n",
+  sol:"def solve(nums, target):\n    seen = {}\n    for i, x in enumerate(nums):\n        if target - x in seen:\n            return [seen[target - x], i]\n        seen[x] = i\n    return []\n",
+  tests:"assert solve([2,7,11,15], 9) == [0,1]\nassert solve([3,2,4], 6) == [1,2]\nassert solve([1,2], 5) == []"},
+ {tag:"T2", name:"구간 병합 — 정렬", q:"[시작, 끝] 구간 리스트가 주어진다. 겹치는 구간을 합쳐 시작 순으로 돌려준다.", ex:"solve([[1,3],[2,6],[8,10],[15,18]]) -> [[1,6],[8,10],[15,18]]",
+  tpl:"def solve(intervals):\n    intervals.sort()\n    out = []\n    for s, e in intervals:\n        # 마지막 구간과 겹치면 늘리고, 아니면 새로 넣는다\n        pass\n    return out\n",
+  sol:"def solve(intervals):\n    intervals.sort()\n    out = []\n    for s, e in intervals:\n        if out and s <= out[-1][1]:\n            out[-1][1] = max(out[-1][1], e)\n        else:\n            out.append([s, e])\n    return out\n",
+  tests:"assert solve([[1,3],[2,6],[8,10],[15,18]]) == [[1,6],[8,10],[15,18]]\nassert solve([[1,4],[4,5]]) == [[1,5]]\nassert solve([]) == []"},
+ {tag:"T3", name:"괄호 검사 — 스택", q:"'()[]{}' 로만 된 문자열이 올바른 괄호열인지 True/False.", ex:"solve('([]{})') -> True, solve('(]') -> False",
+  tpl:"def solve(s):\n    pair = {')': '(', ']': '[', '}': '{'}\n    st = []\n    for ch in s:\n        pass\n    return not st\n",
+  sol:"def solve(s):\n    pair = {')': '(', ']': '[', '}': '{'}\n    st = []\n    for ch in s:\n        if ch in pair:\n            if not st or st.pop() != pair[ch]:\n                return False\n        else:\n            st.append(ch)\n    return not st\n",
+  tests:"assert solve('([]{})') is True\nassert solve('(]') is False\nassert solve('((') is False\nassert solve('') is True"},
+ {tag:"T4", name:"최근 K개 이동 평균 — 데크", q:"클래스 대신 함수: 정수 스트림 xs 와 k 가 주어질 때, 각 시점의 최근 k개 평균(소수)을 리스트로 돌려준다. 처음 k-1 개 시점은 그때까지의 평균.", ex:"solve([1,2,3,4], 2) -> [1.0,1.5,2.5,3.5]",
+  tpl:"from collections import deque\n\ndef solve(xs, k):\n    dq, s, out = deque(), 0, []\n    for x in xs:\n        pass\n    return out\n",
+  sol:"from collections import deque\n\ndef solve(xs, k):\n    dq, s, out = deque(), 0, []\n    for x in xs:\n        dq.append(x); s += x\n        if len(dq) > k:\n            s -= dq.popleft()\n        out.append(s / len(dq))\n    return out\n",
+  tests:"assert solve([1,2,3,4], 2) == [1.0,1.5,2.5,3.5]\nassert solve([5], 3) == [5.0]"},
+ {tag:"T5", name:"순위표 — 정렬 키 설계", q:"(이름, 점수, 제출시각) 튜플 리스트. 점수 내림차순, 같으면 제출시각 오름차순, 같으면 이름 오름차순으로 이름만 나열.", ex:"solve([('b',90,3),('a',90,1),('c',95,9)]) -> ['c','a','b']",
+  tpl:"def solve(rows):\n    return [r[0] for r in sorted(rows, key=lambda r: (0,))]\n",
+  sol:"def solve(rows):\n    return [r[0] for r in sorted(rows, key=lambda r: (-r[1], r[2], r[0]))]\n",
+  tests:"assert solve([('b',90,3),('a',90,1),('c',95,9)]) == ['c','a','b']\nassert solve([('x',1,1),('y',1,1)]) == ['x','y']"},
+ {tag:"T6", name:"애너그램 묶기 — 문자열", q:"단어 리스트를 애너그램끼리 묶어 리스트의 리스트로. 각 묶음은 입력 순서, 묶음 순서도 첫 등장 순서.", ex:"solve(['eat','tea','tan','ate','nat','bat']) -> [['eat','tea','ate'],['tan','nat'],['bat']]",
+  tpl:"def solve(words):\n    groups = {}\n    for w in words:\n        pass\n    return list(groups.values())\n",
+  sol:"def solve(words):\n    groups = {}\n    for w in words:\n        groups.setdefault(''.join(sorted(w)), []).append(w)\n    return list(groups.values())\n",
+  tests:"assert solve(['eat','tea','tan','ate','nat','bat']) == [['eat','tea','ate'],['tan','nat'],['bat']]\nassert solve([]) == []"},
+ {tag:"S1", name:"최대 부분합 — 단일 패스 누적", q:"정수 리스트에서 연속 부분 배열 합의 최댓값(카데인).", ex:"solve([-2,1,-3,4,-1,2,1,-5,4]) -> 6",
+  tpl:"def solve(nums):\n    best = cur = nums[0]\n    for x in nums[1:]:\n        pass\n    return best\n",
+  sol:"def solve(nums):\n    best = cur = nums[0]\n    for x in nums[1:]:\n        cur = max(x, cur + x)\n        best = max(best, cur)\n    return best\n",
+  tests:"assert solve([-2,1,-3,4,-1,2,1,-5,4]) == 6\nassert solve([-3,-1,-2]) == -1\nassert solve([5]) == 5"},
+ {tag:"S2", name:"구간 합 질의 — 접두사 합", q:"nums 와 질의 [(l, r), ...] (0-based, 양끝 포함) 가 주어진다. 각 질의의 합을 리스트로. 질의마다 다시 더하지 않는다.", ex:"solve([1,2,3,4], [(0,1),(1,3)]) -> [3,9]",
+  tpl:"def solve(nums, queries):\n    pre = [0]\n    for x in nums:\n        pre.append(pre[-1] + x)\n    return [0 for l, r in queries]\n",
+  sol:"def solve(nums, queries):\n    pre = [0]\n    for x in nums:\n        pre.append(pre[-1] + x)\n    return [pre[r+1] - pre[l] for l, r in queries]\n",
+  tests:"assert solve([1,2,3,4], [(0,1),(1,3)]) == [3,9]\nassert solve([5], [(0,0)]) == [5]"},
+ {tag:"S3", name:"정렬된 배열 두 수 합 — 투 포인터", q:"오름차순 정렬된 nums 에서 합이 target 인 두 값을 [a, b] 로. 없으면 []. 추가 메모리 없이.", ex:"solve([1,2,4,7,11], 9) -> [2,7]",
+  tpl:"def solve(nums, target):\n    i, j = 0, len(nums) - 1\n    while i < j:\n        pass\n    return []\n",
+  sol:"def solve(nums, target):\n    i, j = 0, len(nums) - 1\n    while i < j:\n        s = nums[i] + nums[j]\n        if s == target:\n            return [nums[i], nums[j]]\n        if s < target:\n            i += 1\n        else:\n            j -= 1\n    return []\n",
+  tests:"assert solve([1,2,4,7,11], 9) == [2,7]\nassert solve([1,2,3], 7) == []"},
+ {tag:"S4", name:"길이 k 최대 합 — 슬라이딩 윈도우", q:"길이 k 인 연속 구간의 합 중 최댓값.", ex:"solve([2,1,5,1,3,2], 3) -> 9",
+  tpl:"def solve(nums, k):\n    s = sum(nums[:k]); best = s\n    for i in range(k, len(nums)):\n        pass\n    return best\n",
+  sol:"def solve(nums, k):\n    s = sum(nums[:k]); best = s\n    for i in range(k, len(nums)):\n        s += nums[i] - nums[i-k]\n        best = max(best, s)\n    return best\n",
+  tests:"assert solve([2,1,5,1,3,2], 3) == 9\nassert solve([1,1,1], 3) == 3"},
+ {tag:"S5", name:"최대 동시 회의 수 — 이벤트 스윕", q:"[시작, 끝) 회의 리스트에서 동시에 열리는 회의의 최대 개수.", ex:"solve([[0,30],[5,10],[15,20]]) -> 2",
+  tpl:"def solve(meetings):\n    ev = []\n    for s, e in meetings:\n        ev.append((s, 1)); ev.append((e, -1))\n    ev.sort()\n    cur = best = 0\n    for t, d in ev:\n        pass\n    return best\n",
+  sol:"def solve(meetings):\n    ev = []\n    for s, e in meetings:\n        ev.append((s, 1)); ev.append((e, -1))\n    ev.sort()\n    cur = best = 0\n    for t, d in ev:\n        cur += d\n        best = max(best, cur)\n    return best\n",
+  tests:"assert solve([[0,30],[5,10],[15,20]]) == 2\nassert solve([[1,5],[5,9]]) == 1\nassert solve([]) == 0"},
+ {tag:"S6", name:"회의 최대 선택 — 그리디", q:"[시작, 끝) 회의 중 겹치지 않게 최대 몇 개를 고를 수 있나. 끝나는 시각 기준 정렬.", ex:"solve([[1,4],[3,5],[0,6],[5,7],[8,9]]) -> 3",
+  tpl:"def solve(meetings):\n    cnt, last = 0, float('-inf')\n    for s, e in sorted(meetings, key=lambda m: m[1]):\n        pass\n    return cnt\n",
+  sol:"def solve(meetings):\n    cnt, last = 0, float('-inf')\n    for s, e in sorted(meetings, key=lambda m: m[1]):\n        if s >= last:\n            cnt += 1; last = e\n    return cnt\n",
+  tests:"assert solve([[1,4],[3,5],[0,6],[5,7],[8,9]]) == 3\nassert solve([[1,2]]) == 1"},
+ {tag:"P1", name:"로그 상위 K — 세기 + 정렬 키", q:"로그 줄 리스트에서 'ERROR' 로 시작하는 줄의 서비스명(두 번째 토큰) 빈도 상위 k개를 (이름, 횟수) 로. 횟수 내림차순, 같으면 이름 오름차순.", ex:"solve(['ERROR api t','ERROR db t','ERROR api t','INFO api t'], 1) -> [('api',2)]",
+  tpl:"from collections import Counter\n\ndef solve(lines, k):\n    c = Counter()\n    for ln in lines:\n        pass\n    return []\n",
+  sol:"from collections import Counter\n\ndef solve(lines, k):\n    c = Counter()\n    for ln in lines:\n        parts = ln.split()\n        if parts and parts[0] == 'ERROR' and len(parts) > 1:\n            c[parts[1]] += 1\n    return sorted(c.items(), key=lambda kv: (-kv[1], kv[0]))[:k]\n",
+  tests:"assert solve(['ERROR api t','ERROR db t','ERROR api t','INFO api t'], 1) == [('api',2)]\nassert solve(['ERROR a','ERROR b'], 5) == [('a',1),('b',1)]"},
+ {tag:"P2", name:"중복 없는 최장 부분 문자열 — 윈도우 + 집합", q:"문자열에서 같은 문자가 없는 가장 긴 연속 부분 문자열의 길이.", ex:"solve('abcabcbb') -> 3",
+  tpl:"def solve(s):\n    last, start, best = {}, 0, 0\n    for i, ch in enumerate(s):\n        pass\n    return best\n",
+  sol:"def solve(s):\n    last, start, best = {}, 0, 0\n    for i, ch in enumerate(s):\n        if ch in last and last[ch] >= start:\n            start = last[ch] + 1\n        last[ch] = i\n        best = max(best, i - start + 1)\n    return best\n",
+  tests:"assert solve('abcabcbb') == 3\nassert solve('bbbb') == 1\nassert solve('') == 0"},
+];
+const kst = () => new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
+const now = kst(); const doy = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
+let idx = doy % P.length;
+const $ = (id) => document.getElementById(id);
+document.getElementById("hdr").textContent = `${now.getMonth()+1}월 ${now.getDate()}일 · 문제 은행 ${P.length}개 · 오늘 ${idx+1}번`;
+function show() {
+  const p = P[idx];
+  $("prob").innerHTML = `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="pill">${p.tag}</span><b>${p.name}</b></div><div style="margin-top:6px">${p.q}</div><pre>${p.ex}</pre>`;
+  $("sol").textContent = p.sol;
+  const saved = (() => { try { return localStorage.getItem("py:" + p.tag); } catch (e) { return null; } })();
+  $("code").value = saved || p.tpl;
+}
+$("code").addEventListener("input", () => { try { localStorage.setItem("py:" + P[idx].tag, $("code").value); } catch (e) {} });
+$("next").onclick = () => { idx = (idx + 1) % P.length; show(); };
+$("reset").onclick = () => { $("code").value = P[idx].tpl; try { localStorage.removeItem("py:" + P[idx].tag); } catch (e) {} };
+let py = null;
+async function engine() {
+  if (py) return py;
+  $("out").textContent = "파이썬 엔진을 받는 중…";
+  if (!window.loadPyodide) {
+    await new Promise((res, rej) => { const s = document.createElement("script"); s.src = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+  }
+  py = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/" });
+  return py;
+}
+async function runCode(extra, label) {
+  try {
+    const p = await engine();
+    let buf = "";
+    p.setStdout({ batched: (s) => { buf += s + "\n"; } });
+    p.setStderr({ batched: (s) => { buf += s + "\n"; } });
+    await p.runPythonAsync($("code").value + "\n" + (extra || ""));
+    $("out").innerHTML = `<span class="ok">${label || "실행 완료"}</span>\n` + (buf || "(출력 없음)").replace(/</g, "&lt;");
+  } catch (e) {
+    const msg = String(e.message || e).split("\n").slice(-3).join("\n");
+    $("out").innerHTML = `<span class="bad">오류</span>\n` + msg.replace(/</g, "&lt;");
+  }
+}
+$("run").onclick = () => runCode("", "실행 완료");
+$("test").onclick = () => runCode(P[idx].tests + "\nprint('테스트 " + P[idx].tests.split("\\n").length + "개 통과')", "테스트 통과");
+let left = 30 * 60; setInterval(() => { left = Math.max(0, left - 1); $("timer").textContent = String(Math.floor(left/60)).padStart(2,"0") + ":" + String(left%60).padStart(2,"0"); }, 1000);
+show();
+</script>
+</body>
+</html>

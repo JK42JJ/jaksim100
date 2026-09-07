@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>식단 — 달리는 주간 메뉴</title>
+<style>
+  :root { --bg:#f3f1ec; --surface:#ffffff; --surface2:#f8f7f3; --ink:#22262f; --ink2:#6a7080; --ink3:#9ba1ac; --line:#e7e4dc; --acc:#2f8f5b; --warn:#c8791a; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0f1117; --surface:#181b23; --surface2:#1e222d; --ink:#e8e9ee; --ink2:#9aa1b3; --ink3:#666d7e; --line:#272b36; --acc:#4fb37a; } }
+  body { margin:0; background:var(--bg); color:var(--ink); line-height:1.55; font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard",sans-serif; }
+  .wrap { max-width:880px; margin:0 auto; padding:16px 12px 60px; }
+  header { display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  h1 { font-size:20px; margin:0; } h2 { font-size:14px; margin:22px 0 8px; color:var(--ink2); letter-spacing:.02em; }
+  .back { color:var(--acc); text-decoration:none; font-size:14px; }
+  .muted { color:var(--ink3); font-size:13px; }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:12px 14px; margin:8px 0; }
+  .today { border-left:4px solid var(--acc); }
+  .tabs { display:flex; gap:6px; overflow-x:auto; padding:6px 0; }
+  .tab { flex:0 0 auto; padding:7px 12px; border-radius:999px; border:1px solid var(--line); background:var(--surface2); color:var(--ink2); font-size:13px; cursor:pointer; white-space:nowrap; }
+  .tab.on { background:var(--acc); color:#fff; border-color:var(--acc); }
+  .meal { display:grid; grid-template-columns:44px minmax(0,1fr) auto; column-gap:8px; padding:8px 0; border-bottom:1px solid var(--line); font-size:14px; align-items:start; }
+  .meal:last-child { border-bottom:0; }
+  .meal .k { color:var(--ink2); white-space:nowrap; font-size:13px; }
+  .meal .kcal { white-space:nowrap; justify-self:end; color:var(--ink2); font-variant-numeric:tabular-nums; }
+  .meal .m { min-width:0; word-break:keep-all; overflow-wrap:anywhere; }
+  .total { display:flex; justify-content:space-between; font-weight:600; padding-top:8px; }
+  .pill { font-size:12px; padding:3px 9px; border-radius:999px; background:var(--surface2); border:1px solid var(--line); color:var(--ink2); white-space:nowrap; display:inline-block; }
+  ul { padding-left:18px; margin:6px 0; } li { margin:3px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><h1>식단 — 달리는 주간 메뉴</h1><a class="back" href="./index.html">← 콘솔로</a></header>
+  <div class="muted" id="hdr"></div>
+  <div class="card today" id="todayCard"></div>
+  <div class="tabs" id="tabs"></div>
+  <div id="day"></div>
+
+  <h2>기준</h2>
+  <div class="card">
+    <ul>
+      <li>하루 약 2,000kcal, 단백질 140~150g. 체중 95kg 기준(08-19 실측)이고 매일 달리기가 짧아 큰 감량 식단이 아니라 300~500kcal 적자 식단이다. 한 달에 1.5~2kg 목표.</li>
+      <li>토요일 산행은 300kcal 더 먹는다. 일요일 아침에 체중을 재서 콘솔 체크인에 적는다.</li>
+      <li>달리기 30분 전 바나나 반 개와 물 한 컵, 달리기 뒤 30분 안에 단백질 20g(우유·달걀·프로틴).</li>
+      <li>저녁 탄수는 고구마나 밥 100~150g까지. 술을 마신 날은 저녁 탄수를 뺀다. 면·빵·튀김은 주 1회.</li>
+      <li>물 2L. 커피는 블랙으로 하루 2잔까지, 오후 3시 이후는 안 마신다(수면이 달리기 회복이다).</li>
+      <li>끝나면 콘솔 오늘 탭에서 <b>식단</b>을 체크한다. 이 페이지는 기록하지 않는다.</li>
+    </ul>
+  </div>
+
+  <h2>장보기 (주 1회)</h2>
+  <div class="card muted">닭가슴살 1kg · 달걀 20개 · 두부 4모 · 연어 2토막 · 고등어 2토막 · 소고기 우둔 300g · 돼지 안심 300g · 오트밀 500g · 현미·잡곡 · 고구마 1kg · 바나나 7개 · 사과 5개 · 그릭요거트 5개 · 우유 2L · 견과 200g · 브로콜리·상추·양배추·토마토 · 김 · 프로틴 파우더</div>
+</div>
+<script>
+const M = {
+  bA: ["오트밀 50g + 우유 200ml + 바나나 1개 + 삶은 달걀 2개", 570],
+  bB: ["현미밥 150g + 달걀프라이 2개 + 두부 100g + 김치 50g", 505],
+  bC: ["(달리기 전) 바나나 1개 + 그릭요거트 150g + 견과 20g, (달리기 뒤) 우유 200ml", 495],
+  lA: ["닭가슴살 150g + 현미밥 200g + 쌈채소·샐러드 150g + 된장국", 585],
+  lB: ["고등어구이 150g + 잡곡밥 150g + 나물 2가지 + 김치", 625],
+  lC: ["소고기 우둔 120g + 잡곡밥 150g + 미역국 + 샐러드", 550],
+  lD: ["(외식) 비빔밥, 고추장 절반·밥 그대로", 560],
+  lE: ["(하산 후 외식) 김치찌개 정식, 밥 2/3", 650],
+  dA: ["연어 150g + 고구마 150g + 브로콜리 150g", 490],
+  dB: ["두부 200g + 달걀 2개 + 채소볶음 + 김", 425],
+  dC: ["닭가슴살 샐러드(닭 150g·채소 200g·올리브오일 1큰술) + 고구마 100g", 435],
+  dD: ["돼지 안심 120g + 잡곡밥 100g + 상추쌈·쌈장", 380],
+  sY: ["그릭요거트 150g", 150], sN: ["견과 20g", 120], sA: ["사과 1개", 95], sP: ["프로틴 셰이크(우유 200ml + 파우더 30g)", 240], sE: ["삶은 달걀 1개", 78], sMk: ["우유 200ml", 120], sBn: ["바나나 1개", 105], sH: ["산행 중 견과 40g + 에너지바 1개", 440],
+};
+const WEEK = [
+  { d:"월", tag:"달리기 5분+", p:145, meals:[["아침","bA"],["점심","lA"],["간식","sA"],["간식","sE"],["저녁","dB"],["저녁 후","sP"]] },
+  { d:"화", tag:"달리기 5분+", p:140, meals:[["아침","bB"],["점심","lB"],["간식","sY"],["저녁","dC"],["간식","sN"],["저녁 후","sMk"]] },
+  { d:"수", tag:"달리기 5분+", p:150, meals:[["아침","bC"],["점심","lC"],["간식","sP"],["저녁","dA"],["간식","sA"],["간식","sN"]] },
+  { d:"목", tag:"달리기 5분+ · 외식 가능", p:135, meals:[["아침","bA"],["점심","lD"],["간식","sY"],["저녁","dD"],["저녁 후","sE"],["간식","sN"],["간식","sMk"]] },
+  { d:"금", tag:"달리기 5분+", p:150, meals:[["아침","bB"],["점심","lA"],["간식","sA"],["간식","sP"],["저녁","dC"],["간식","sN"]] },
+  { d:"토", tag:"산행 · +300kcal", p:140, meals:[["아침","bA"],["아침","sBn"],["산행","sH"],["점심","lE"],["저녁","dA"]] },
+  { d:"일", tag:"인텐시브 · 아침 체중", p:150, meals:[["아침","bC"],["점심","lB"],["간식","sY"],["간식","sA"],["저녁","dB"],["저녁 후","sP"]] },
+];
+const kst = () => new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
+const now = kst(); const idx = (now.getDay() + 6) % 7;   // 월=0
+document.getElementById("hdr").textContent = `${now.getMonth()+1}월 ${now.getDate()}일 · 달리기 연속 기록 중 · 하루 약 2,000kcal`;
+function render(i) {
+  const w = WEEK[i]; const total = w.meals.reduce((s, [, k]) => s + M[k][1], 0);
+  document.getElementById("tabs").innerHTML = WEEK.map((x, j) => `<button class="tab ${j===i?"on":""}" data-i="${j}">${x.d}</button>`).join("");
+  document.querySelectorAll(".tab").forEach(b => b.onclick = () => render(Number(b.dataset.i)));
+  document.getElementById("day").innerHTML = `<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><b>${w.d}요일</b><span class="pill">${w.tag}</span></div>` +
+    w.meals.map(([k, m]) => `<div class="meal"><div class="k">${k}</div><div class="m">${M[m][0]}</div><div class="kcal">${M[m][1]}</div></div>`).join("") +
+    `<div class="total"><span>합계</span><span>${total.toLocaleString()} kcal · 단백질 약 ${w.p}g</span></div></div>`;
+}
+const t = WEEK[idx]; const tt = t.meals.reduce((s, [, k]) => s + M[k][1], 0);
+document.getElementById("todayCard").innerHTML = `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="pill">오늘</span><b>${t.d}요일 ${tt.toLocaleString()} kcal</b><span class="muted">${t.tag}</span></div><div class="muted" style="margin-top:4px">${t.meals.map(([k,m]) => k + " " + M[m][0].split(" + ")[0]).join(" · ")}</div>`;
+render(idx);
+</script>
+</body>
+</html>

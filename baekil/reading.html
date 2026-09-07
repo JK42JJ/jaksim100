@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>독서 — 책과 내 코멘트</title>
+<style>
+  :root { --bg:#f3f1ec; --surface:#ffffff; --surface2:#f8f7f3; --ink:#22262f; --ink2:#6a7080; --ink3:#9ba1ac; --line:#e7e4dc; --acc:#8a5a2b; --ok:#2f8f5b; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0f1117; --surface:#181b23; --surface2:#1e222d; --ink:#e8e9ee; --ink2:#9aa1b3; --ink3:#666d7e; --line:#272b36; --acc:#d3a06a; } }
+  body { margin:0; background:var(--bg); color:var(--ink); line-height:1.55; font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard",sans-serif; }
+  .wrap { max-width:880px; margin:0 auto; padding:14px 12px 60px; }
+  header { display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  h1 { font-size:20px; margin:0; } .back { color:var(--acc); text-decoration:none; font-size:14px; }
+  .muted { color:var(--ink3); font-size:13px; }
+  .book { background:var(--surface); border:1px solid var(--line); border-radius:14px; margin:8px 0; overflow:hidden; }
+  .book > button { all:unset; display:block; width:100%; box-sizing:border-box; padding:12px 14px; cursor:pointer; }
+  .t { font-weight:700; font-size:15px; word-break:keep-all; }
+  .meta { color:var(--ink2); font-size:13px; margin-top:3px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .pill { font-size:12px; padding:2px 8px; border-radius:999px; background:var(--surface2); border:1px solid var(--line); color:var(--ink2); white-space:nowrap; }
+  .pill.done { color:var(--ok); border-color:var(--ok); } .pill.now { color:var(--acc); border-color:var(--acc); }
+  .cm { display:none; border-top:1px solid var(--line); padding:6px 14px 10px; }
+  .book.open .cm { display:block; }
+  .c { display:grid; grid-template-columns:44px minmax(0,1fr); column-gap:10px; padding:8px 0; border-bottom:1px solid var(--line); font-size:14px; }
+  .c:last-child { border-bottom:0; }
+  .c .d { color:var(--ink2); font-size:12px; white-space:nowrap; line-height:1.4; }
+  .c .x { min-width:0; word-break:keep-all; overflow-wrap:anywhere; }
+  .c .p { color:var(--ink3); font-size:12px; margin-left:6px; white-space:nowrap; }
+  .c .raw { color:var(--ink3); font-size:12px; margin-top:2px; }
+  .sum { display:flex; gap:10px; flex-wrap:wrap; margin:8px 0 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><h1>독서 — 책과 내 코멘트</h1><a class="back" href="./index.html">← 콘솔로</a></header>
+  <div class="muted">책을 누르면 그 책에 쓴 코멘트가 날짜순으로 모인다. 오타는 고쳐 적었고 원문은 작게 남겼다. 새 코멘트는 콘솔 오늘 탭 독서 줄에 쓰면 저녁에 여기로 옮긴다.</div>
+  <div class="sum" id="sum"></div>
+  <div id="list">불러오는 중…</div>
+</div>
+<script>
+const $ = (id) => document.getElementById(id);
+fetch("./reading.json?t=" + Date.now(), { cache: "no-store" }).then(r => r.json()).then(d => {
+  const books = d.books.slice().sort((a, b) => (b.started || "").localeCompare(a.started || ""));
+  const done = books.filter(b => b.status === "완독").length, now = books.filter(b => b.status === "읽는 중").length;
+  const cms = books.reduce((s, b) => s + b.comments.length, 0);
+  $("sum").innerHTML = `<span class="pill">책 ${books.length}권</span><span class="pill done">완독 ${done}</span><span class="pill now">읽는 중 ${now}</span><span class="pill">코멘트 ${cms}개</span><span class="pill">갱신 ${d.synced_through}</span>`;
+  $("list").innerHTML = books.map(b => {
+    const cls = b.status === "완독" ? "done" : (b.status === "읽는 중" ? "now" : "");
+    const span = (b.started || "") + (b.finished ? " ~ " + b.finished : (b.status === "읽는 중" ? " ~" : ""));
+    const last = b.comments.filter(c => c.page).slice(-1)[0];
+    const prog = last && b.pages ? ` · ${last.page}/${b.pages}쪽` : (last ? ` · ${last.page}쪽까지` : "");
+    return `<div class="book" id="b-${b.id}"><button data-id="${b.id}"><div class="t">${b.title}</div><div class="meta"><span class="pill ${cls}">${b.status}</span><span>${b.author}</span><span>${span}${prog}</span><span>코멘트 ${b.comments.length}</span>${b.kind === "techbook" ? '<span class="pill">기술서적</span>' : ""}</div></button>
+      <div class="cm">${b.comments.map(c => `<div class="c"><div class="d">${c.date.slice(5)}</div><div class="x">${c.text}${c.page ? `<span class="p">~${c.page}쪽</span>` : ""}${c.raw && c.raw !== c.text ? `<div class="raw">원문: ${c.raw}</div>` : ""}</div></div>`).join("") || '<div class="muted">코멘트 없음</div>'}</div></div>`;
+  }).join("");
+  document.querySelectorAll(".book > button").forEach(btn => btn.onclick = () => btn.parentElement.classList.toggle("open"));
+  const first = books.find(b => b.status === "읽는 중"); if (first) document.getElementById("b-" + first.id).classList.add("open");
+}).catch(e => { $("list").textContent = "목록을 못 읽었다: " + e; });
+</script>
+</body>
+</html>

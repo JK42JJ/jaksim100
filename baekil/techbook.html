@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>기술서적 — 코어 쿠버네티스 읽고 실습하기</title>
+<style>
+  :root { --bg:#f3f1ec; --surface:#ffffff; --surface2:#f8f7f3; --ink:#22262f; --ink2:#6a7080; --ink3:#9ba1ac; --line:#e7e4dc; --acc:#326ce5; --ok:#2f8f5b; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0f1117; --surface:#181b23; --surface2:#1e222d; --ink:#e8e9ee; --ink2:#9aa1b3; --ink3:#666d7e; --line:#272b36; --acc:#6d95ea; } }
+  body { margin:0; background:var(--bg); color:var(--ink); line-height:1.55; font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard",sans-serif; }
+  .wrap { max-width:880px; margin:0 auto; padding:14px 12px 60px; }
+  header { display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  h1 { font-size:20px; margin:0; } h2 { font-size:14px; margin:20px 0 8px; color:var(--ink2); }
+  .back { color:var(--acc); text-decoration:none; font-size:14px; } a { color:var(--acc); }
+  .muted { color:var(--ink3); font-size:13px; }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:12px 14px; margin:8px 0; }
+  .today { border-left:4px solid var(--acc); }
+  .ch { display:grid; grid-template-columns:34px minmax(0,1fr); column-gap:10px; padding:8px 0; border-bottom:1px solid var(--line); font-size:14px; }
+  .ch:last-child { border-bottom:0; }
+  .ch .n { color:var(--ink2); white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .ch .x { min-width:0; word-break:keep-all; overflow-wrap:anywhere; }
+  .ch.done .x { color:var(--ink3); } .ch.now { background:var(--surface2); border-radius:8px; padding:8px 6px; }
+  .lab { color:var(--ink2); font-size:13px; margin-top:2px; }
+  pre { font-family:ui-monospace,Menlo,monospace; font-size:12px; background:var(--surface2); border:1px solid var(--line); border-radius:8px; padding:8px; overflow-x:auto; margin:6px 0; white-space:pre-wrap; word-break:break-all; }
+  .pill { font-size:12px; padding:2px 8px; border-radius:999px; background:var(--surface2); border:1px solid var(--line); color:var(--ink2); white-space:nowrap; display:inline-block; }
+  .pill.ok { color:var(--ok); border-color:var(--ok); }
+  ul { padding-left:18px; margin:6px 0; } li { margin:4px 0; word-break:keep-all; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><h1>기술서적 — 코어 쿠버네티스</h1><a class="back" href="./index.html">← 콘솔로</a></header>
+  <div class="muted">제이 바이어스·크리스 러브, 김영기 옮김(위키북스). 08-27 시작, 4장 cgroups까지 읽었다. 남은 11장을 주 1장이면 11월 말에 끝난다.</div>
+
+  <div class="card today" id="today"></div>
+
+  <h2>읽는 법 — 하루 30분</h2>
+  <div class="card">
+    <ul>
+      <li><b>읽기 15분, 손 15분.</b> 한 절을 읽고 바로 그 절의 명령을 친다. 다 읽고 나서 실습하지 않는다. 4장을 "힘겹게 읽고 개념만 잡은" 이유는 손이 없었기 때문이다.</li>
+      <li><b>장마다 질문 하나를 먼저 적는다.</b> "이 장이 끝나면 내가 뭘 설명할 수 있어야 하나." 예: 4장이면 "파드의 CPU 제한이 cgroup 어디에 어떻게 적히나."</li>
+      <li><b>실습 환경은 kind 하나.</b> 맥북에서 <code>kind create cluster --name core</code>. 노드 안은 <code>docker exec -it core-control-plane bash</code>로 들어간다. 책의 /sys/fs/cgroup, containerd, kubelet 실습이 다 여기서 된다.</li>
+      <li><b>끝나면 한 줄.</b> 콘솔 오늘 탭 기술서적에 "4장 cgroups, kind 노드에서 cpu.max 확인"처럼 장·주제·실습을 적는다. 이 줄이 독서 페이지에 코멘트로 쌓인다.</li>
+      <li><b>면접에 바로 쓴다.</b> 장마다 면접 답 한 문장을 만든다. 4장이면 "파드 CPU 제한은 cgroup v2 cpu.max 로 걸리고 스로틀은 cpu.stat 에서 봅니다." 이런 문장이 무신사·카카오 기술 면접의 재료다.</li>
+    </ul>
+  </div>
+
+  <h2>장별 계획과 실습</h2>
+  <div class="card" id="chapters"></div>
+
+  <h2>다음에 읽을 책 (순서대로)</h2>
+  <div class="card">
+    <ul>
+      <li><b>쿠버네티스 인 액션 2판</b>(마르코 룩샤) — 코어 쿠버네티스가 '왜'라면 이 책은 '어떻게'다. 한 권으로 실무 전체를 덮는다.</li>
+      <li><b>Kubernetes Patterns 2판</b>(빌긴 이브리암·롤란트 후스) — 파드·컨트롤러·설정 패턴 30여 개. 설계 면접에서 이름 붙여 말할 수 있게 된다.</li>
+      <li><b>Production Kubernetes</b>(조시 로소 외, O'Reilly) — 멀티테넌시·네트워크·관측·보안을 운영자 시각으로. 카카오페이증권 같은 SRE 면접의 질문 은행이다.</li>
+      <li><b>Site Reliability Engineering</b>과 <b>The Site Reliability Workbook</b>(구글) — SLO·에러 예산·온콜·포스트모템. 무신사에서 무너진 "재발 방지" 답이 여기 있다.</li>
+      <li><b>Designing Data-Intensive Applications</b>(마틴 클레프만) — 분산 시스템의 근본. 고려사이버대 분산·병렬 컴퓨팅 수업과 겹친다.</li>
+    </ul>
+  </div>
+
+  <h2>같이 보는 블로그·문서</h2>
+  <div class="card">
+    <ul>
+      <li><a href="https://kubernetes.io/docs/concepts/" target="_blank" rel="noopener">kubernetes.io 공식 문서 Concepts</a> — 책에서 막히면 같은 주제의 공식 문서를 먼저 연다. 1차 출처다.</li>
+      <li><a href="https://learnk8s.io/blog" target="_blank" rel="noopener">Learnk8s 블로그</a> — 그림으로 설명하는 네트워킹·스케줄링·오토스케일링. 6장 네트워크 장과 짝이다.</li>
+      <li><a href="https://karpenter.sh/docs/" target="_blank" rel="noopener">Karpenter 문서</a> — 무신사 준비 때 본 NodePool·consolidation. 9장 kubelet과 노드를 읽을 때 같이 본다.</li>
+      <li><a href="https://tech.kakaopay.com/" target="_blank" rel="noopener">카카오페이 기술 블로그</a>, <a href="https://techblog.woowahan.com/" target="_blank" rel="noopener">우아한형제들 기술 블로그</a> — 국내 회사가 쿠버네티스를 실제로 어떻게 굴리는지. 면접 상대의 언어다.</li>
+      <li><a href="https://blog.container-solutions.com/" target="_blank" rel="noopener">Container Solutions 블로그</a>, <a href="https://www.cncf.io/blog/" target="_blank" rel="noopener">CNCF 블로그</a> — 새 도구가 나오면 먼저 나오는 곳.</li>
+      <li><a href="https://github.com/kelseyhightower/kubernetes-the-hard-way" target="_blank" rel="noopener">Kubernetes The Hard Way</a> — 11~12장(컨트롤 플레인·etcd)을 읽은 뒤 주말 하루에 한 번 따라 한다. 책의 내용이 손에 붙는다.</li>
+    </ul>
+  </div>
+</div>
+<script>
+// 장 목록은 원서(Core Kubernetes, Manning) 목차 기준. 진행은 콘솔 노트로 갱신한다(4장까지 읽음, 2026-09-02).
+const CH = [
+  [1,"왜 쿠버네티스인가","kind 설치, 클러스터 하나 만들기: kind create cluster --name core"],
+  [2,"왜 파드인가","nginx 파드 하나 띄우고 kubectl describe pod 로 컨테이너·볼륨·네트워크 네임스페이스 확인"],
+  [3,"파드 만들기","노드에 들어가 crictl ps, ctr 로 컨테이너 런타임에서 파드 컨테이너를 직접 본다"],
+  [4,"파드 안 프로세스에 cgroups 쓰기","resources.limits 를 건 파드를 띄우고 /sys/fs/cgroup 에서 cpu.max·memory.max 를 찾는다. stress 로 스로틀을 cpu.stat 에서 본다"],
+  [5,"CNI와 파드 네트워크","kind 의 kindnet 을 보고, 파드 IP·veth·라우팅 테이블을 ip addr / ip route 로 추적한다"],
+  [6,"대규모 네트워크 장애 트러블슈팅","서비스 하나에 파드 셋을 붙이고 kube-proxy iptables 규칙(iptables-save | grep KUBE-SVC)을 읽는다"],
+  [7,"파드 스토리지와 CSI","emptyDir·hostPath·PVC 를 각각 붙이고 노드에서 마운트 지점을 찾는다"],
+  [8,"스토리지 구현과 모델링","StorageClass 와 동적 프로비저닝, kind 의 local-path 프로비저너를 뜯어본다"],
+  [9,"kubelet 동작 방식","kubelet 로그(journalctl -u kubelet)로 파드 생성 순서를 따라가고 liveness 실패를 일부러 낸다"],
+  [10,"쿠버네티스 DNS","CoreDNS 설정을 열고 nslookup 으로 서비스·파드 DNS 이름을 풀어 본다"],
+  [11,"컨트롤 플레인의 핵심","kube-apiserver 에 curl 로 직접 요청, 컨트롤러 매니저와 스케줄러 로그를 읽는다"],
+  [12,"etcd와 컨트롤 플레인","etcdctl 로 파드 객체를 직접 읽고, 스냅샷을 떠서 복구해 본다"],
+  [13,"컨테이너와 파드 보안","securityContext(runAsNonRoot, capabilities drop)와 PodSecurity admission 을 적용해 본다"],
+  [14,"노드와 쿠버네티스 보안","RBAC 로 읽기 전용 계정을 만들고 kubectl auth can-i 로 검증. 피아스페이스 JD 의 RBAC·OIDC 와 잇는다"],
+  [15,"애플리케이션 설치","Helm 차트 하나를 설치하고 values 를 바꿔 업그레이드·롤백을 한다"],
+];
+const READ_THROUGH = 4;   // 콘솔 노트 기준 (09-02: 4장 개념)
+const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
+const cur = CH[READ_THROUGH] || CH[CH.length - 1];
+document.getElementById("today").innerHTML = `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="pill">이번 주</span><b>${cur[0]}장 ${cur[1]}</b><span class="pill ok">읽음 ${READ_THROUGH}/15</span></div><div class="lab">실습: ${cur[2]}</div><div class="muted" style="margin-top:4px">4장은 개념만 잡았다고 적었다. 이번 주는 4장 실습(cpu.max·cpu.stat)을 먼저 손으로 하고 5장으로 간다.</div>`;
+document.getElementById("chapters").innerHTML = CH.map(([n, t, lab]) => `<div class="ch ${n <= READ_THROUGH ? "done" : (n === READ_THROUGH + 1 ? "now" : "")}"><div class="n">${n}장</div><div class="x">${t}<div class="lab">${lab}</div></div></div>`).join("");
+</script>
+</body>
+</html>
