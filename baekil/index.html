@@ -358,6 +358,14 @@ h3.sub{font-size:12.5px;color:var(--muted);margin:10px 0 2px;font-weight:600}
       <button data-tab="english">영어</button>
     </nav>
     <span class="spacer"></span>
+    <details class="chatmenu" id="chatmenu" style="position:relative">
+      <summary class="ghost" style="list-style:none;cursor:pointer;padding:6px 10px;border-radius:10px;font-size:13px" title="Claude와 대화">대화</summary>
+      <div style="position:absolute;right:0;top:36px;z-index:50;min-width:230px;background:var(--surface,#181b23);border:1px solid var(--line,#272b36);border-radius:12px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.35);display:grid;gap:6px;font-size:13px">
+        <a href="https://claude.ai/new?q=%EB%82%B4%20%EC%98%A4%EB%8A%98%20%EC%83%81%ED%83%9C%20%EC%8B%9C%ED%8A%B8(%EC%A7%80%EC%9B%90%20%ED%8A%B8%EB%9E%98%EC%BB%A4%20%E2%80%98%EC%98%A4%EB%8A%98%EC%83%81%ED%83%9C%E2%80%99%20%ED%83%AD)%EB%A5%BC%20%EB%A8%BC%EC%A0%80%20%EC%9D%BD%EA%B3%A0%20%EB%8C%80%ED%99%94%ED%95%98%EC%9E%90." target="_blank" rel="noopener" style="display:block;padding:8px 10px;border-radius:8px;background:var(--surface2,#1e222d);text-decoration:none;color:inherit">Claude 앱·웹 — 내 상태 읽고 대화(음성 가능)</a>
+        <a href="https://claude.ai/code" target="_blank" rel="noopener" style="display:block;padding:8px 10px;border-radius:8px;background:var(--surface2,#1e222d);text-decoration:none;color:inherit">Claude Code — 세션 목록(저장소 전체 참조)</a>
+        <a href="https://t.me/james_secretary_bot" target="_blank" rel="noopener" style="display:block;padding:8px 10px;border-radius:8px;background:var(--surface2,#1e222d);text-decoration:none;color:inherit">텔레그램 비서봇(맥미니, 켜져 있을 때)</a>
+      </div>
+    </details>
     <button class="ghost" id="btnRefresh" title="새로고침" aria-label="새로고침">
       <svg class="icon" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
     </button>
