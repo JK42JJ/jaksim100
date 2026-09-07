@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>수업 — 고려사이버대 2026-2학기</title>
+<style>
+  :root { --bg:#f3f1ec; --surface:#ffffff; --surface2:#f8f7f3; --ink:#22262f; --ink2:#6a7080; --ink3:#9ba1ac; --line:#e7e4dc;
+    --acc:#3b6fd6; --warn:#c8791a; --bad:#c14545; --ok:#2f8f5b; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0f1117; --surface:#181b23; --surface2:#1e222d; --ink:#e8e9ee; --ink2:#9aa1b3; --ink3:#666d7e; --line:#272b36; --acc:#6d95ea; }
+  }
+  body { margin:0; background:var(--bg); color:var(--ink); line-height:1.55;
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard",sans-serif; }
+  .wrap { max-width:880px; margin:0 auto; padding:20px 16px 60px; }
+  header { display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  h1 { font-size:22px; margin:0; }
+  h2 { font-size:15px; margin:26px 0 10px; color:var(--ink2); letter-spacing:.02em; text-transform:uppercase; }
+  .back { color:var(--acc); text-decoration:none; font-size:14px; }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin:10px 0; }
+  .today { border-left:4px solid var(--acc); }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .pill { font-size:12px; padding:3px 9px; border-radius:999px; background:var(--surface2); border:1px solid var(--line); color:var(--ink2); }
+  .pill.warn { color:var(--warn); border-color:var(--warn); }
+  .pill.bad { color:var(--bad); border-color:var(--bad); }
+  .pill.ok { color:var(--ok); border-color:var(--ok); }
+  .muted { color:var(--ink3); font-size:13px; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:8px 6px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--ink2); font-weight:600; font-size:12px; }
+  .weeks { display:grid; grid-template-columns:repeat(15, 1fr); gap:4px; margin-top:8px; }
+  .wk { height:10px; border-radius:3px; background:var(--surface2); border:1px solid var(--line); }
+  .wk.past { background:var(--ink3); }
+  .wk.now { background:var(--acc); }
+  .btn { display:inline-block; padding:9px 14px; border-radius:10px; background:var(--acc); color:#fff; text-decoration:none; font-weight:600; font-size:14px; }
+  ol, ul { padding-left:20px; margin:8px 0; }
+  li { margin:4px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>수업 — 고려사이버대 2026-2학기</h1>
+    <a class="back" href="./index.html">← 콘솔로</a>
+  </header>
+  <div class="muted" id="hdr"></div>
+
+  <div class="card today" id="todayCard"></div>
+
+  <h2>과목 5개 · 15학점</h2>
+  <div id="courses"></div>
+
+  <h2>시험·신청 일정 (D-day)</h2>
+  <div class="card"><table><thead><tr><th>날짜</th><th>내용</th><th>D-day</th></tr></thead><tbody id="sched"></tbody></table>
+    <div class="muted" style="margin-top:8px">원문은 education/cuk-2026-2-schedule.md 다. 과제·리포트 마감은 강의계획서에서 뽑아 여기에 추가한다(09-10까지).</div>
+  </div>
+
+  <h2>한 시간을 쓰는 법</h2>
+  <div class="card">
+    <ol>
+      <li>포털 강의실에서 오늘 과목의 이번 주차 강의를 튼다(45분). 1.25배속까지 된다.</li>
+      <li>남은 15분은 노트 한 쪽. 정의 3개, 예시 1개, 시험에 나올 질문 1개를 적는다.</li>
+      <li>끝나면 콘솔 오늘 탭에서 <b>수업</b>을 체크한다. 이 페이지는 기록하지 않는다. 기록은 콘솔 한 곳이다.</li>
+      <li>토요일은 밀린 주차, 일요일 인텐시브에는 리포트 과목(클라우드 컴퓨팅·개인정보보호)을 앞당긴다.</li>
+    </ol>
+    <a class="btn" href="https://www.cuk.edu" target="_blank" rel="noopener">포털 열기 (강의실 입장)</a>
+    <span class="muted"> 학번 202620204 · 강의실 직접 링크는 로그인 뒤에만 열려 포털로 간다.</span>
+  </div>
+</div>
+<script>
+// 사실 원문: education/cuk-2026-2-schedule.md (2026-08-31 판독). 여기 날짜를 고치면 그 파일도 같이 고친다.
+const START = new Date("2026-08-31T00:00:00+09:00");   // 개강
+const WEEKS = 15;
+const COURSES = [
+  { code:"PA0180", name:"개인정보보호", prof:"박대하", yr:4, note:"중간은 리포트" },
+  { code:"DF0025", name:"생성형 인공지능", prof:"이규정", yr:4, note:"중간 10-25 11:00 · 기말 12-06 09:00" },
+  { code:"CE0105", name:"분산 및 병렬 컴퓨팅", prof:"이용섭", yr:3, note:"중간 10-25 21:00 · 기말 12-05 18:00" },
+  { code:"CE0107", name:"컴퓨터 알고리즘", prof:"마채원", yr:2, note:"중간 10-18 10:00 · 기말 12-13 11:00" },
+  { code:"IT0162", name:"클라우드 컴퓨팅", prof:"이찬우", yr:3, note:"중간은 리포트 · 기말 12-05 16:00" },
+];
+// 요일별 한 시간 배정 (월~금 한 과목씩, 토 밀린 주차, 일 리포트)
+const PLAN = { 1:"PA0180", 2:"DF0025", 3:"CE0105", 4:"CE0107", 5:"IT0162", 6:"catchup", 0:"report" };
+const SCHED = [
+  ["2026-09-27","[D-7] 교우·고려중앙교우 장학금 신청 완료 (마감 10-04)"],
+  ["2026-10-10","[D-7] 중간고사 준비 착수"],
+  ["2026-10-17","중간고사 기간 시작 (10-17~10-25)"],
+  ["2026-10-18","중간 · 컴퓨터 알고리즘 10:00"],
+  ["2026-10-25","중간 · 생성형 인공지능 11:00 / 분산 및 병렬 컴퓨팅 21:00"],
+  ["2026-11-01","[D-7] 가족장학금 신청 완료 (마감 11-08)"],
+  ["2026-11-28","[D-7] 기말고사 준비 착수"],
+  ["2026-12-05","기말 · 개인정보보호 11:00 / 클라우드 컴퓨팅 16:00 / 분산 및 병렬 컴퓨팅 18:00"],
+  ["2026-12-06","기말 · 생성형 인공지능 09:00"],
+  ["2026-12-13","기말 · 컴퓨터 알고리즘 11:00"],
+  ["2026-12-14","[D-7] 겨울계절학기 수강 여부 결정 (신청 12-14~12-21)"],
+];
+const kst = () => new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
+const now = kst();
+const dayMs = 86400000;
+const week = Math.min(WEEKS, Math.max(1, Math.floor((now - START) / (7 * dayMs)) + 1));
+const dow = now.getDay();
+const ymd = (d) => d.toISOString().slice(0,10);
+document.getElementById("hdr").textContent = `${now.getMonth()+1}월 ${now.getDate()}일 · ${week}주차 / ${WEEKS}주 · 하루 1시간`;
+const key = PLAN[dow];
+let todayHtml = "";
+if (key === "catchup") todayHtml = `<div class="row"><span class="pill">토요일</span><b>밀린 주차 따라잡기</b></div><div class="muted">이번 주 안 들은 과목의 ${week}주차 강의를 튼다.</div>`;
+else if (key === "report") todayHtml = `<div class="row"><span class="pill">일요일</span><b>리포트 과목 앞당기기</b></div><div class="muted">클라우드 컴퓨팅·개인정보보호 리포트를 30분씩 진행한다.</div>`;
+else { const c = COURSES.find(x => x.code === key); todayHtml = `<div class="row"><span class="pill">오늘 과목</span><b>${c.name}</b><span class="muted">${c.code} · ${c.prof} 교수</span></div><div class="muted">${week}주차 강의 45분 + 노트 15분. ${c.note}.</div>`; }
+document.getElementById("todayCard").innerHTML = todayHtml;
+document.getElementById("courses").innerHTML = COURSES.map(c => {
+  const cells = Array.from({ length: WEEKS }, (_, i) => `<div class="wk ${i + 1 < week ? "past" : (i + 1 === week ? "now" : "")}" title="${i + 1}주차"></div>`).join("");
+  const day = Object.entries(PLAN).find(([d, k]) => k === c.code);
+  const dn = ["일","월","화","수","목","금","토"][Number(day[0])];
+  return `<div class="card"><div class="row"><b>${c.name}</b><span class="pill">${c.code}</span><span class="pill">${c.yr}학년 · 3학점</span><span class="pill">${dn}요일</span><span class="muted">${c.prof} 교수</span></div><div class="weeks">${cells}</div><div class="muted" style="margin-top:6px">${c.note}</div></div>`;
+}).join("");
+document.getElementById("sched").innerHTML = SCHED.map(([d, t]) => {
+  const left = Math.round((new Date(d + "T00:00:00+09:00") - new Date(ymd(now) + "T00:00:00+09:00")) / dayMs);
+  const cls = left < 0 ? "" : (left <= 7 ? "bad" : (left <= 21 ? "warn" : "ok"));
+  return `<tr><td>${d.slice(5)}</td><td>${t}</td><td><span class="pill ${cls}">${left < 0 ? "지남" : "D-" + left}</span></td></tr>`;
+}).join("");
+</script>
+</body>
+</html>
