@@ -1222,7 +1222,7 @@ async function loadStatus() {
     $("apsum").innerHTML = Object.entries(bs).map(([k, v]) => `${esc(k)} <span class="mono" style="color:${k === "interview" ? "var(--good)" : "inherit"}">${v}</span>`).join(" · ");
     // 트래커 바로 열기 + 원장·시트 최신성(2026-09-08 James "콘솔에서 직접 트래커를 열 수 있게, 원장의 최신성이 반영되어야")
     const L = a.links || {}; const lu = a.ledger_updated || ""; const sp = a.sheet_pushed_at || "";
-    const stale = lu && sp && sp < lu;
+    const stale = a.sheet_stale === true;   // 내용 해시 비교(서버). null 이면 미러 기록이 아직 없다
     const fmt = (s) => s ? s.replace("T", " ").slice(5) : "-";
     $("aplinks").innerHTML = [
       L.job_sheet ? `<a class="lnk" href="${L.job_sheet}" target="_blank" rel="noopener">취업 트래커(시트)</a>` : "",
@@ -1230,7 +1230,7 @@ async function loadStatus() {
       L.startup_md ? `<a class="lnk" href="${L.startup_md}" target="_blank" rel="noopener">창업·공모 트래커</a>` : "",
       L.ledger ? `<a class="lnk" href="${L.ledger}" target="_blank" rel="noopener">원장 JSON</a>` : "",
       `<span class="pill done" title="이 콘솔이 읽는 원장 사본의 갱신 시각(박스가 5분마다 당겨온다)">원장 ${fmt(lu)}</span>`,
-      `<span class="pill ${sp ? (stale ? "behind" : "done") : "unknown"}" title="구글시트 미러 시각(daily-ops 09:10 + 상태 변경 시)">시트 ${sp ? fmt(sp) : "미러 기록 없음"}${stale ? " · 원장보다 오래됨" : ""}</span>`,
+      `<span class="pill ${sp ? (stale ? "behind" : "done") : "unknown"}" title="구글시트 미러 시각(daily-ops 09:10). 원장 내용이 미러 시점과 다르면 경고">시트 ${sp ? fmt(sp) : "미러 기록 없음"}${stale ? " · 원장과 다름(다음 미러 대기)" : ""}</span>`,
     ].join("");
     const act = (a.active || []), rec = (a.recent || []);
     $("applyBox").innerHTML =
