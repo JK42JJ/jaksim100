@@ -343,6 +343,8 @@ h3.sub{font-size:12.5px;color:var(--muted);margin:10px 0 2px;font-weight:600}
 #playerDock[hidden]{display:none!important}
 #playerDock audio{flex:1;min-width:0;height:36px}
 #tab-english .md h3{font-size:16px;margin:4px 0 8px}#tab-english .md h4{font-size:14px;margin:12px 0 4px}#tab-english .md p{margin:4px 0;line-height:1.55}#tab-english .md ul{margin:4px 0 4px 18px}#tab-english .md code{font-size:12px}
+  .aplinks { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:2px 0 10px; }
+  .aplinks .lnk { font-size:13px; padding:5px 10px; border-radius:8px; border:1px solid var(--line, #333); text-decoration:none; color:var(--acc, #6d95ea); background:transparent; white-space:nowrap; }
 </style>
 </head>
 <body>
@@ -465,7 +467,7 @@ h3.sub{font-size:12.5px;color:var(--muted);margin:10px 0 2px;font-weight:600}
   <section id="tab-manage">
     <div class="card"><h2>결정 대기 <span class="mono" id="qcnt" style="color:var(--behind)"></span></h2>
       <div id="queue"><div class="loading">불러오는 중…</div></div></div>
-    <div class="card"><h2>지원 <span class="mono" id="apcnt"></span><span class="r" id="apsum"></span></h2><div id="applyBox"><div class="loading">불러오는 중…</div></div></div>
+    <div class="card"><h2>지원 <span class="mono" id="apcnt"></span><span class="r" id="apsum"></span></h2><div id="aplinks" class="aplinks"></div><div id="applyBox"><div class="loading">불러오는 중…</div></div></div>
     <div class="card"><h2>트랙</h2><div id="trackBox"><div class="loading">불러오는 중…</div></div></div>
     <!-- 크레덴셜 — 값은 GitHub Secrets 에만 있고 여기 오지 않는다. 목록과 상태만 본다(2026-09-02 James). -->
     <div class="card"><h2>크레덴셜 <span class="mono r" id="secMeta"></span></h2>
@@ -1218,6 +1220,18 @@ async function loadStatus() {
     $("apcnt").textContent = a.total ?? "";
     const bs = a.by_status || {};
     $("apsum").innerHTML = Object.entries(bs).map(([k, v]) => `${esc(k)} <span class="mono" style="color:${k === "interview" ? "var(--good)" : "inherit"}">${v}</span>`).join(" · ");
+    // 트래커 바로 열기 + 원장·시트 최신성(2026-09-08 James "콘솔에서 직접 트래커를 열 수 있게, 원장의 최신성이 반영되어야")
+    const L = a.links || {}; const lu = a.ledger_updated || ""; const sp = a.sheet_pushed_at || "";
+    const stale = lu && sp && sp < lu;
+    const fmt = (s) => s ? s.replace("T", " ").slice(5) : "-";
+    $("aplinks").innerHTML = [
+      L.job_sheet ? `<a class="lnk" href="${L.job_sheet}" target="_blank" rel="noopener">취업 트래커(시트)</a>` : "",
+      L.job_md ? `<a class="lnk" href="${L.job_md}" target="_blank" rel="noopener">tracker.md</a>` : "",
+      L.startup_md ? `<a class="lnk" href="${L.startup_md}" target="_blank" rel="noopener">창업·공모 트래커</a>` : "",
+      L.ledger ? `<a class="lnk" href="${L.ledger}" target="_blank" rel="noopener">원장 JSON</a>` : "",
+      `<span class="pill done" title="이 콘솔이 읽는 원장 사본의 갱신 시각(박스가 5분마다 당겨온다)">원장 ${fmt(lu)}</span>`,
+      `<span class="pill ${sp ? (stale ? "behind" : "done") : "unknown"}" title="구글시트 미러 시각(daily-ops 09:10 + 상태 변경 시)">시트 ${sp ? fmt(sp) : "미러 기록 없음"}${stale ? " · 원장보다 오래됨" : ""}</span>`,
+    ].join("");
     const act = (a.active || []), rec = (a.recent || []);
     $("applyBox").innerHTML =
       (act.length ? `<h3 class="sub">진행 중</h3>` + act.map(applyRow).join("") : "") +
