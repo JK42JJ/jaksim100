@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>면접 훈련</title>
+<style>
+  :root { --bg:#f3f1ec; --surface:#ffffff; --surface2:#f8f7f3; --ink:#22262f; --ink2:#6a7080; --ink3:#9ba1ac; --line:#e7e4dc;
+    --acc:#3b6fd6; --warn:#c8791a; --bad:#c14545; --ok:#2f8f5b; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0f1117; --surface:#181b23; --surface2:#1e222d; --ink:#e8e9ee; --ink2:#9aa1b3; --ink3:#666d7e; --line:#272b36; --acc:#6d95ea; }
+  }
+  body { margin:0; background:var(--bg); color:var(--ink); line-height:1.55; font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard",sans-serif; }
+  .wrap { max-width:880px; margin:0 auto; padding:20px 16px 70px; }
+  header { display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  h1 { font-size:22px; margin:0; } h2 { font-size:14px; margin:22px 0 8px; color:var(--ink2); letter-spacing:.03em; text-transform:uppercase; }
+  .back { color:var(--acc); text-decoration:none; font-size:14px; }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin:10px 0; }
+  .focus { border-left:4px solid var(--acc); }
+  .muted { color:var(--ink3); font-size:13px; }
+  .pill { display:inline-block; white-space:nowrap; font-size:12px; padding:3px 9px; border-radius:999px; background:var(--surface2); border:1px solid var(--line); color:var(--ink2); margin-right:4px; }
+  .pill.ok { color:var(--ok); border-color:var(--ok); } .pill.warn { color:var(--warn); border-color:var(--warn); } .pill.bad { color:var(--bad); border-color:var(--bad); }
+  .tabs { display:flex; gap:6px; margin:14px 0 4px; flex-wrap:wrap; }
+  .tab { padding:8px 14px; border-radius:10px; border:1px solid var(--line); background:var(--surface); cursor:pointer; font-size:14px; color:var(--ink2); }
+  .tab.on { background:var(--acc); color:#fff; border-color:var(--acc); }
+  .btn { display:inline-block; padding:10px 16px; border-radius:10px; background:var(--acc); color:#fff; border:0; font-weight:600; font-size:15px; cursor:pointer; }
+  .btn.sec { background:var(--surface2); color:var(--ink); border:1px solid var(--line); } .btn.bad { background:var(--bad); }
+  .btn:disabled { opacity:.5; cursor:default; }
+  .q { font-size:17px; font-weight:600; margin:4px 0 8px; word-break:keep-all; }
+  .ans { background:var(--surface2); border-radius:10px; padding:12px; margin:8px 0; word-break:keep-all; white-space:pre-wrap; }
+  .fail { color:var(--bad); font-size:13px; margin:6px 0; word-break:keep-all; }
+  .timer { font-variant-numeric:tabular-nums; font-size:28px; font-weight:700; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:8px 0; }
+  video { width:100%; max-width:360px; border-radius:10px; background:#000; aspect-ratio:4/3; }
+  .chk label { display:block; margin:5px 0; font-size:14px; }
+  .bar { height:8px; background:var(--surface2); border-radius:4px; overflow:hidden; border:1px solid var(--line); }
+  .bar > i { display:block; height:100%; background:var(--acc); }
+  details summary { cursor:pointer; font-weight:600; margin:6px 0; word-break:keep-all; }
+  ul { padding-left:18px; margin:6px 0; } li { margin:3px 0; word-break:keep-all; }
+  .hide { display:none; }
+  @media (max-width:600px) { .wrap { padding:14px 12px 60px; } h1 { font-size:19px; } .q { font-size:16px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><h1>면접 훈련</h1><a class="back" href="./index.html">← 콘솔로</a></header>
+  <div class="muted" id="hdr">불러오는 중</div>
+
+  <div class="card focus" id="weekCard"></div>
+  <div class="card" id="corrCard"></div>
+
+  <div class="tabs">
+    <div class="tab on" data-t="drill">오늘 드릴</div>
+    <div class="tab" data-t="mock">모의면접</div>
+    <div class="tab" data-t="bank">답안 은행</div>
+    <div class="tab" data-t="log">기록</div>
+  </div>
+
+  <section id="drill"></section>
+  <section id="mock" class="hide"></section>
+  <section id="bank" class="hide"></section>
+  <section id="log" class="hide"></section>
+</div>
+
+<script>
+const API = (() => { try { const v = localStorage.getItem("apiBase"); if (v) return v; } catch (e) {} return "https://console-api.insighta.one"; })();
+const KST = () => new Date(Date.now() + 9 * 3600 * 1000);
+const today = KST().toISOString().slice(0, 10);
+let BANK = null, PROG = null, ITEMS = {};
+const $ = s => document.querySelector(s);
+const esc = s => String(s || "").replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+
+async function load() {
+  const [b, p] = await Promise.all([
+    fetch("./drills.json?ts=" + Date.now(), { cache: "no-store" }).then(r => r.json()),
+    fetch("./interview-program.json?ts=" + Date.now(), { cache: "no-store" }).then(r => r.json()).catch(() => ({}))
+  ]);
+  BANK = b; PROG = p; b.items.forEach(i => ITEMS[i.id] = i);
+  render();
+}
+
+function curWeek() {
+  const ws = (PROG.weeks || []); return ws.find(w => w.start <= today && today <= w.end) || ws[ws.length - 1] || null;
+}
+function focusTrack() { const w = curWeek(); return w ? w.track : (PROG.focus_track || null); }
+function dayIndex() { return Math.floor((Date.parse(today) - Date.parse(PROG.started || "2026-09-08")) / 86400000); }
+
+// 오늘 3문항: 이월(7점 미만) 우선 → 집중 트랙 회전. 집중 트랙이 없으면 리더 1 + 실무 2.
+function todaysItems() {
+  const w = curWeek(); const carry = (w && w.carry_in || []).map(x => x.item).filter(id => ITEMS[id]);
+  const tr = focusTrack(); const d = dayIndex();
+  const pool = t => BANK.items.filter(i => i.track === t);
+  let picks = [];
+  if (tr) { const p = pool(tr); for (let k = 0; k < 3; k++) picks.push(p[(d * 3 + k) % p.length]); }
+  else { const L = pool("leader"), I = pool("ic"); picks = [L[d % L.length], I[(d * 2) % I.length], I[(d * 2 + 1) % I.length]]; }
+  const ids = []; carry.forEach(id => { if (ids.length < 3 && !ids.includes(id)) ids.push(id); });
+  picks.forEach(i => { if (ids.length < 3 && !ids.includes(i.id)) ids.push(i.id); });
+  return ids.map(id => ITEMS[id]);
+}
+
+function render() {
+  const w = curWeek();
+  $("#hdr").textContent = today + " · 문항 " + BANK.items.length + "개 · 집중 트랙 " + ({ ic: "실무", leader: "리더" }[focusTrack()] || "없음");
+  if (w) {
+    const fb = (PROG.feedback || []).filter(f => f.start <= f.date && f.date <= w.end || (f.date >= w.start && f.date <= w.end));
+    const avg = fb.length ? (fb.reduce((a, f) => a + f.score, 0) / fb.length).toFixed(1) : "-";
+    const done = lsGet("iv-days", {}); const days = Object.keys(done).filter(d => d >= w.start && d <= w.end).length;
+    $("#weekCard").innerHTML = '<div class="row"><span class="pill">주 ' + w.n + '</span><span class="pill">' + w.start.slice(5) + '~' + w.end.slice(5) + '</span><span class="pill ' + (w.track === "ic" ? "ok" : "warn") + '">' + (w.track === "ic" ? "실무" : "리더") + ' 트랙</span></div>'
+      + '<div class="q">' + esc(w.goal) + '</div>'
+      + '<ul><li><b>과제</b>: ' + w.tasks.map(esc).join(" · ") + '</li><li><b>훈련</b>: ' + esc(w.drill) + '</li><li><b>모의면접</b>: ' + esc(w.mock) + '</li><li><b>이번 주 실험</b>: ' + esc(w.experiment) + '</li><li><b>관문</b>: ' + esc(w.gate) + '</li></ul>'
+      + '<div class="row"><span class="pill">드릴 ' + days + '/7일</span><span class="pill">모의 녹화 ' + fb.length + '건</span><span class="pill">평균 ' + avg + '점</span>' + (w.carry_in && w.carry_in.length ? '<span class="pill warn">이월 ' + w.carry_in.map(x => x.item).join(",") + '</span>' : '') + '</div>';
+  } else $("#weekCard").innerHTML = '<div class="muted">주간 블록이 아직 없습니다(daily-ops 가 월요일에 만듭니다).</div>';
+  const c = PROG.corrections || [];
+  $("#corrCard").innerHTML = '<b>0번 · 어제 교정 3문장</b>' + (c.length ? '<ul>' + c.map(x => '<li>' + esc(x) + '</li>').join("") + '</ul>' : '<div class="muted">아직 없음 — 모의면접 녹화가 있으면 저녁 사전평가 뒤에 채워집니다.</div>');
+  renderDrill(); renderMock(); renderBank(); renderLog();
+}
+
+// ---------- 오늘 드릴(인출 연습: 답한 뒤에 모범답안) ----------
+function renderDrill() {
+  const items = todaysItems(); const st = lsGet("iv-drill-" + today, {});
+  $("#drill").innerHTML = '<div class="muted">답을 먼저 소리 내어 60~90초. 녹음은 저녁 사전평가로 갑니다. 모범답안은 답한 뒤에 엽니다.</div>' + items.map((i, n) => {
+    const s = st[i.id] || {}; const opened = !!s.opened;
+    return '<div class="card" id="d-' + i.id + '"><div class="row"><span class="pill">' + (n + 1) + '/3 · ' + i.id + '</span><span class="pill">' + (i.track === "ic" ? "실무" : "리더") + '</span>' + (s.uploaded ? '<span class="pill ok">녹음 저장됨</span>' : '') + '</div>'
+      + '<div class="q">' + esc(i.q) + '</div>'
+      + '<div class="row"><span class="timer" id="t-' + i.id + '">01:30</span><button class="btn" id="rec-' + i.id + '">답하기(녹음)</button><button class="btn sec" id="open-' + i.id + '">' + (opened ? "모범답안 다시 보기" : "답한 뒤 모범답안 열기") + '</button></div>'
+      + '<div id="rs-' + i.id + '" class="muted"></div>'
+      + '<div id="a-' + i.id + '" class="' + (opened ? "" : "hide") + '"><div class="fail">실패했던 답: ' + esc(i.failed) + '</div><div class="ans">' + esc(i.answer) + '</div>'
+      + '<div class="chk">' + i.check.map((c, k) => '<label><input type="checkbox" data-id="' + i.id + '" data-k="' + k + '" ' + ((s.checks || [])[k] ? "checked" : "") + '> ' + esc(c) + '</label>').join("") + '</div>'
+      + '<div class="muted">사실 출처: ' + esc(i.facts) + '</div></div></div>';
+  }).join("");
+  items.forEach(i => {
+    $("#open-" + i.id).onclick = () => { const s = lsGet("iv-drill-" + today, {}); s[i.id] = Object.assign(s[i.id] || {}, { opened: true }); lsSet("iv-drill-" + today, s); markDay(); $("#a-" + i.id).classList.remove("hide"); $("#open-" + i.id).textContent = "모범답안 다시 보기"; };
+    $("#rec-" + i.id).onclick = () => recordOne(i, false, $("#rec-" + i.id), $("#t-" + i.id), $("#rs-" + i.id));
+  });
+  document.querySelectorAll('#drill input[type=checkbox]').forEach(cb => cb.onchange = () => {
+    const s = lsGet("iv-drill-" + today, {}); const it = s[cb.dataset.id] = s[cb.dataset.id] || {}; it.checks = it.checks || [false, false, false]; it.checks[+cb.dataset.k] = cb.checked; lsSet("iv-drill-" + today, s);
+  });
+}
+function markDay() { const d = lsGet("iv-days", {}); d[today] = true; lsSet("iv-days", d); }
+
+// ---------- 녹음/녹화 공통 ----------
+let cur = null;
+function pickMime(video) {
+  const c = video ? ["video/webm;codecs=vp8,opus", "video/webm", "video/mp4"] : ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"];
+  return c.find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m)) || "";
+}
+async function recordOne(item, video, btn, timerEl, statusEl, previewEl, maxSec) {
+  maxSec = maxSec || 90;
+  if (cur) { cur.stop(); return; }
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: video ? { width: 640, height: 480, facingMode: "user" } : false }); }
+  catch (e) { statusEl.textContent = "마이크/카메라 권한이 없습니다: " + e.message; return; }
+  if (previewEl) { previewEl.srcObject = stream; previewEl.muted = true; previewEl.play().catch(() => {}); }
+  const mime = pickMime(video); const rec = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 600000, audioBitsPerSecond: 64000 } : {});
+  const chunks = []; rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+  const t0 = Date.now(); let left = maxSec;
+  const tick = setInterval(() => { left = Math.max(0, maxSec - Math.floor((Date.now() - t0) / 1000)); timerEl.textContent = String(Math.floor(left / 60)).padStart(2, "0") + ":" + String(left % 60).padStart(2, "0"); if (left <= 0) stopIt(); }, 250);
+  btn.textContent = "끝(저장)"; btn.classList.add("bad"); statusEl.textContent = (video ? "녹화 중" : "녹음 중") + " — 결론부터, 사례 하나, 숫자 하나";
+  let stopped = false;
+  function stopIt() { if (stopped) return; stopped = true; clearInterval(tick); try { rec.stop(); } catch (e) {} }
+  cur = { stop: stopIt };
+  return new Promise(resolve => {
+    rec.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop()); cur = null; btn.textContent = "답하기(녹음)"; btn.classList.remove("bad");
+      const blob = new Blob(chunks, { type: (mime || (video ? "video/webm" : "audio/webm")).split(";")[0] });
+      const secs = Math.round((Date.now() - t0) / 1000);
+      statusEl.textContent = "저장 중 (" + (blob.size / 1048576).toFixed(1) + "MB, " + secs + "초)";
+      const ts = new Date().toISOString().slice(0, 19);
+      try {
+        const r = await fetch(API + "/api/media/recording?block=iv-" + item.id.toLowerCase() + "&ts=" + ts, { method: "POST", credentials: "include", headers: { "Content-Type": blob.type }, body: blob });
+        if (r.status === 401) { statusEl.textContent = "콘솔 로그인이 필요합니다 — 콘솔 첫 화면에서 로그인 뒤 다시."; resolve(null); return; }
+        const j = await r.json();
+        statusEl.textContent = j.ok ? "저장됨 " + j.name + " — 21:00 사전평가" : "저장 실패 " + JSON.stringify(j);
+        if (j.ok) { const s = lsGet("iv-drill-" + today, {}); s[item.id] = Object.assign(s[item.id] || {}, { uploaded: j.name, secs }); lsSet("iv-drill-" + today, s); markDay(); const lg = lsGet("iv-log", []); lg.unshift({ date: today, item: item.id, name: j.name, secs, video }); lsSet("iv-log", lg.slice(0, 200)); }
+        resolve(j.ok ? j.name : null);
+      } catch (e) { statusEl.textContent = "업로드 오류: " + e.message; resolve(null); }
+    };
+    rec.start(1000);
+  });
+}
+
+// ---------- 모의면접(6문항 연속, 영상) ----------
+function mockSet(track) {
+  const p = BANK.items.filter(i => i.track === track); const d = dayIndex(); const out = [];
+  for (let k = 0; k < 6; k++) out.push(p[(d * 2 + k * 3) % p.length]);
+  return Array.from(new Set(out)).slice(0, 6);
+}
+function renderMock() {
+  const tr = focusTrack() || "ic";
+  $("#mock").innerHTML = '<div class="card"><div class="q">모의면접 — 6문항 연속, 문항당 90초, 영상 녹화</div>'
+    + '<div class="muted">질문을 읽어 주고 5초 뒤 녹화가 시작됩니다. 끝나면 문항별 영상이 저장되고 21:00 사전평가가 옵니다. 화·금·일이 정규 회차입니다.</div>'
+    + '<div class="row"><label><input type="radio" name="tr" value="ic" ' + (tr === "ic" ? "checked" : "") + '> 실무</label><label><input type="radio" name="tr" value="leader" ' + (tr === "leader" ? "checked" : "") + '> 리더</label><label><input type="checkbox" id="mvideo" checked> 카메라 켜기</label></div>'
+    + '<div class="row"><button class="btn" id="mstart">시작</button></div></div><div id="mstage"></div>';
+  $("#mstart").onclick = () => runMock(document.querySelector('input[name=tr]:checked').value, $("#mvideo").checked);
+}
+async function runMock(track, video) {
+  const set = mockSet(track); const stage = $("#mstage"); const results = [];
+  for (let n = 0; n < set.length; n++) {
+    const i = set[n];
+    stage.innerHTML = '<div class="card"><div class="bar"><i style="width:' + Math.round(n / set.length * 100) + '%"></i></div><div class="row"><span class="pill">' + (n + 1) + '/' + set.length + ' · ' + i.id + '</span></div>'
+      + '<div class="q">' + esc(i.q) + '</div><video id="mv" playsinline></video><div class="row"><span class="timer" id="mt">준비 5</span><button class="btn" id="mbtn" disabled>답하는 중</button></div><div class="muted" id="ms"></div></div>';
+    if (window.speechSynthesis) { try { const u = new SpeechSynthesisUtterance(i.q); u.lang = /^\(영어\)/.test(i.q) ? "en-US" : "ko-KR"; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) {} }
+    for (let s = 5; s > 0; s--) { $("#mt").textContent = "준비 " + s; await new Promise(r => setTimeout(r, 1000)); }
+    $("#mbtn").disabled = false;
+    const btn = $("#mbtn"); btn.onclick = () => { if (cur) cur.stop(); };
+    const name = await recordOne(i, video, btn, $("#mt"), $("#ms"), $("#mv"), 90);
+    results.push({ id: i.id, name });
+    await new Promise(r => setTimeout(r, 1200));
+  }
+  const ok = results.filter(r => r.name).length;
+  stage.innerHTML = '<div class="card"><div class="q">끝 — ' + ok + '/' + set.length + ' 저장</div><ul>' + results.map(r => '<li>' + r.id + ' ' + (r.name ? '저장됨' : '<span class="fail">저장 안 됨</span>') + '</li>').join("") + '</ul>'
+    + '<div class="muted">21:00 사전평가(전사·점수·교정 후보)가 텔레그램으로 옵니다. 영상은 콘솔 로그인 뒤 열립니다. 답안 은행에서 방금 문항의 모범답안을 바로 확인하세요.</div></div>';
+  const lg = lsGet("iv-mock", []); lg.unshift({ date: today, track, ok, n: set.length }); lsSet("iv-mock", lg.slice(0, 100));
+}
+
+// ---------- 답안 은행 ----------
+function renderBank() {
+  const sec = t => '<h2>' + esc(BANK.tracks[t]) + '</h2>' + BANK.items.filter(i => i.track === t).map(i => '<details class="card"><summary>' + i.id + '. ' + esc(i.q) + '</summary><div class="fail">실패했던 답: ' + esc(i.failed) + '</div><div class="ans">' + esc(i.answer) + '</div><ul>' + i.check.map(c => '<li>' + esc(c) + '</li>').join("") + '</ul><div class="muted">' + esc(i.facts) + '</div></details>').join("");
+  $("#bank").innerHTML = '<div class="card"><b>규칙</b><ul>' + BANK.rules.map(r => '<li>' + esc(r) + '</li>').join("") + '</ul></div>' + sec("leader") + sec("ic");
+}
+
+// ---------- 기록 ----------
+function renderLog() {
+  const fb = (PROG.feedback || []).slice().reverse().slice(0, 40); const lg = lsGet("iv-log", []).slice(0, 30); const ws = (PROG.weeks || []).slice().reverse();
+  $("#log").innerHTML = '<h2>주간</h2>' + (ws.length ? ws.map(w => '<div class="card"><div class="row"><span class="pill">주 ' + w.n + '</span><span class="pill">' + w.start.slice(5) + '~' + w.end.slice(5) + '</span><span class="pill">' + (w.track === "ic" ? "실무" : "리더") + '</span><span class="pill ' + (w.status === "closed" ? "" : "ok") + '">' + (w.status === "closed" ? "마감" : "진행") + '</span>' + (w.avg != null ? '<span class="pill">평균 ' + w.avg + '</span>' : '') + '</div><div>' + esc(w.goal) + '</div>' + (w.carry && w.carry.length ? '<div class="muted">이월: ' + w.carry.map(c => c.item + ' ' + c.score).join(", ") + '</div>' : '') + '</div>').join("") : '<div class="muted">없음</div>')
+    + '<h2>사전평가</h2>' + (fb.length ? fb.map(f => '<div class="card"><div class="row"><span class="pill">' + f.date + '</span><span class="pill">' + f.item + '</span><span class="pill ' + (f.score >= 7 ? "ok" : "warn") + '">' + f.score + '점</span><span class="pill">' + f.seconds + '초</span>' + (f.self_diminish && f.self_diminish.length ? '<span class="pill bad">깎는 말 ' + f.self_diminish.length + '</span>' : '') + '</div>' + (f.must_miss && f.must_miss.length ? '<div class="muted">빠진 키워드: ' + esc(f.must_miss.join(", ")) + '</div>' : '') + '</div>').join("") : '<div class="muted">아직 없음</div>')
+    + '<h2>이 기기의 녹음</h2>' + (lg.length ? '<ul>' + lg.map(l => '<li>' + l.date + ' ' + l.item + ' ' + l.secs + '초 ' + (l.video ? '영상' : '음성') + '</li>').join("") + '</ul>' : '<div class="muted">없음</div>');
+}
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => { document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t)); ["drill", "mock", "bank", "log"].forEach(s => $("#" + s).classList.toggle("hide", s !== t.dataset.t)); });
+load().catch(e => { $("#hdr").textContent = "불러오기 실패: " + e.message; });
+</script>
+</body>
+</html>
