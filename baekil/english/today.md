@@ -1,9 +1,9 @@
-# 영어 미션 D2 — 2026-09-08 (사이클 1 · 1주차 2일 · 영어식 사고와 틀 — 짧게라도 끝까지 말하기)
+# 영어 미션 D3 — 2026-09-09 (사이클 1 · 1주차 3일 · 영어식 사고와 틀 — 짧게라도 끝까지 말하기)
 
 20분이다. 순서대로 하고 마지막에 한 번만 녹음한다. 대본을 읽지 않는다.
 
-## 1. 보기 (약 9:49) — 한국인들이 영어를 못하는 이유
-https://www.youtube.com/watch?v=z7dv9WB32s8
+## 1. 보기 (약 11:33) — 2026년 영어공부의 절대 기준 2가지
+https://www.youtube.com/watch?v=PgGZLhP44t8
 보면서 오늘 패턴 하나와 예문 다섯 개를 적는다. 1.25배속까지는 된다.
 
 ## 2. 따라 말하기 (3분)
@@ -13,11 +13,11 @@ https://www.youtube.com/watch?v=z7dv9WB32s8
 오늘 패턴으로 내 이야기 세 문장을 만든다. 삼성, Insighta, 오늘 한 일 중에서 고른다.
 
 ## 4. 프롬프트 (45초)
-Walk me through the hardest incident you handled. Start with the result.
+Why did you leave your last company, and why this role now?
 
 ## 녹음 (90초, 한 번)
 순서: 0의 교정 문장 → 예문 둘 → 내 문장 셋 → 프롬프트 답. 끊기면 그대로 이어서 말한다.
-콘솔 연습 페이지 https://console-api.insighta.one/practice/english 에 녹음하거나, 음성메모로 `~/Downloads/eng-2026-09-08.m4a` 로 저장한다.
+콘솔 연습 페이지 https://console-api.insighta.one/practice/english 에 녹음하거나, 음성메모로 `~/Downloads/eng-2026-09-09.m4a` 로 저장한다.
 
 ## 기준
 필러(um, uh, like) 5회 이하. 한국어 0. 문장을 끝까지. 멈춤 1.5초 넘는 곳 3곳 이하.
