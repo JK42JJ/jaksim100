@@ -1206,20 +1206,24 @@ async function loadBadge() { try { const d = await api("/api/hitl"); setBadge((d
 /* 날짜 표기 규칙(2026-08-19): 면접 일정이 있으면 그것을 앞에 세우고 D-day를 붙인다. 지원일은 작게 '지원 …'. */
 function ivBadge(iv, status) {
   if (!iv) return status === "interview" ? '<span class="pill unknown">면접 일정 미확정</span>' : "";
+  // 2026-09-16: 끝난 면접(원장 interview.done)은 '완료 · 결과 대기'로 — '미확정'은 정보가 정말 없을 때만
+  if (iv.done) return `<span class="pill done" title="${esc(iv.title || "")}">${esc(iv.round || "")} 면접 ${esc(String(iv.due).slice(5))} 완료 · 결과 대기</span>`;
   const d = iv.d_day;
   const label = d === 0 ? "오늘" : d > 0 ? `D-${d}` : `${-d}일 지남`;
   const cls = iv.past ? "unknown" : (d <= 1 ? "behind" : d <= 3 ? "partial" : "done");
   return `<span class="pill ${cls}" title="${esc(iv.title)}">면접 ${esc(iv.due.slice(5))} · ${label}</span>`;
 }
-const stPill = (st) => `<span class="pill ${st === "interview" || st === "offer" || st === "final" ? "done" : st === "not fit" || st === "rejected" ? "unknown" : "partial"}">${esc(st || "")}</span>`;
+// 표기 규칙(2026-08-26 James): 결과는 'not fit(단계)'. 데이터 값 rejected 는 탐지·집계용이라 그대로 두고 화면에서만 바꾼다.
+const stLabel = (st, stage) => st === "rejected" ? `not fit${stage ? "(" + stage + ")" : ""}` : st === "withdrawn" ? "철회" : st === "closed_no_response" ? "무응답 종결" : (st || "");
+const stPill = (st, stage) => `<span class="pill ${st === "interview" || st === "offer" || st === "final" ? "done" : st === "not fit" || st === "rejected" ? "unknown" : "partial"}">${esc(stLabel(st, stage))}</span>`;
 const applyRow = (x) => `<div class="ap"><div><b>${esc(x.company || "-")}</b><small>${esc(x.position || "")}${x.applied_on ? " · 지원 " + esc(x.applied_on.slice(5)) : ""}</small></div>
-  <div class="pills">${ivBadge(x.interview, x.status)}${x.interview || x.status === "interview" ? "" : stPill(x.status)}</div></div>`;
+  <div class="pills">${ivBadge(x.interview, x.status)}${x.interview || x.status === "interview" ? "" : stPill(x.status, x.reject_stage)}</div></div>`;
 async function loadStatus() {
   try {
     const [a, t] = await Promise.all([api("/api/apply"), api("/api/tracks")]);
     $("apcnt").textContent = a.total ?? "";
     const bs = a.by_status || {};
-    $("apsum").innerHTML = Object.entries(bs).map(([k, v]) => `${esc(k)} <span class="mono" style="color:${k === "interview" ? "var(--good)" : "inherit"}">${v}</span>`).join(" · ");
+    $("apsum").innerHTML = Object.entries(bs).map(([k, v]) => `${esc(stLabel(k))} <span class="mono" style="color:${k === "interview" ? "var(--good)" : "inherit"}">${v}</span>`).join(" · ");
     // 트래커 바로 열기 + 원장·시트 최신성(2026-09-08 James "콘솔에서 직접 트래커를 열 수 있게, 원장의 최신성이 반영되어야")
     const L = a.links || {}; const lu = a.ledger_updated || ""; const sp = a.sheet_pushed_at || "";
     const stale = a.sheet_stale === true;   // 내용 해시 비교(서버). null 이면 미러 기록이 아직 없다
