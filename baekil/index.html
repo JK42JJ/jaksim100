@@ -289,6 +289,13 @@ svg.curve{width:100%;height:190px;display:block;font-family:var(--mono)}
 .q:first-of-type{border-top:0;padding-top:4px}
 .q .t{font-size:14.5px;font-weight:600;line-height:1.35;text-wrap:pretty}
 .q .s{font-size:12.5px;color:var(--muted)}
+/* 결정판(2026-09-17): 약속 정리·지원 큐 체크 */
+.dqbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px 0 8px}
+.dqbar select{font-size:12.5px;min-height:32px;border-radius:8px}
+.jd .h{font-size:11.5px;color:var(--muted);margin-top:4px}
+.jd ul{margin:2px 0 0 18px;padding:0}
+.jd li{font-size:13px;line-height:1.45}
+.pend{color:var(--accent);font-weight:600;font-size:12px;white-space:nowrap}
 .q .a{display:flex;gap:8px;align-items:center}
 .ap{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;min-height:52px;padding:6px 0;border-top:1px solid var(--rule)}
 .ap:first-of-type{border-top:0}
@@ -465,6 +472,16 @@ h3.sub{font-size:12.5px;color:var(--muted);margin:10px 0 2px;font-weight:600}
 
   <!-- ── 관리 = 결정 + 지원·트랙 + 크레덴셜 ── -->
   <section id="tab-manage">
+    <div class="card"><h2>약속 정리 <span class="mono" id="dcCnt" style="color:var(--behind)"></span><span class="r">누른 결정은 다음 새벽 원장에 반영된다</span></h2>
+      <div id="dcBox"><div class="loading">불러오는 중…</div></div></div>
+    <div class="card"><h2>지원 큐 <span class="mono" id="dqCnt"></span><span class="r" id="dqMeta"></span></h2>
+      <div class="dqbar">
+        <label><input type="checkbox" id="dqAll"> 전체 선택</label>
+        <select id="dqReason"><option value="">스킵 사유</option><option>직무가 안 맞음</option><option>연차가 안 맞음</option><option>회사</option><option>지역</option><option>마감</option></select>
+        <span class="spacer"></span>
+        <button class="btn sm" data-bulk="hold">체크한 것 보류</button><button class="btn sm" data-bulk="skip">체크한 것 스킵</button><button class="btn sm pri" data-bulk="apply">체크한 것 지원</button>
+      </div>
+      <div id="dqBox"><div class="loading">불러오는 중…</div></div></div>
     <div class="card"><h2>결정 대기 <span class="mono" id="qcnt" style="color:var(--behind)"></span></h2>
       <div id="queue"><div class="loading">불러오는 중…</div></div></div>
     <div class="card"><h2>지원 <span class="mono" id="apcnt"></span><span class="r" id="apsum"></span></h2><div id="aplinks" class="aplinks"></div><div id="applyBox"><div class="loading">불러오는 중…</div></div></div>
@@ -1179,7 +1196,63 @@ function renderContrib(s) {
 
 /* ── 관리 ── */
 async function loadManage() {
-  await Promise.all([loadHitl(), loadStatus(), loadSecrets()]);
+  bindBulk();
+  await Promise.all([loadDecisions(), loadHitl(), loadStatus(), loadSecrets()]);
+}
+/* ── 결정판(2026-09-17 James "체크박스에 key in 가능하도록", "jd 내용을 핵심 요약") ──
+   서버 /api/decisions. 누른 결정은 events 에 쌓이고, daily-ops 가 원장 스크립트로 반영한다. 반영 전에는 '반영 대기'로 보인다. */
+const DC_LABEL = { done: "끝남", bump7: "일주일 미룸", cancel: "접기", apply: "지원", skip: "스킵", hold: "보류" };
+let DEC = null;
+async function loadDecisions() {
+  try { DEC = await api("/api/decisions"); renderDc(); renderDq(); }
+  catch (e) { $("dcBox").innerHTML = $("dqBox").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+const pendChip = (key) => DEC.pending[key] ? `<span class="pend">반영 대기 · ${DC_LABEL[DEC.pending[key]]}</span>` : "";
+const decBtn = (kind, id, act, pri) => `<button class="btn sm${pri ? " pri" : ""}" data-dk="${kind}" data-did="${esc(id)}" data-da="${act}">${DC_LABEL[act]}</button>`;
+function renderDc() {
+  const L = DEC.commitments || [];
+  $("dcCnt").textContent = L.length ? String(L.length) : "";
+  $("dcBox").innerHTML = L.length ? L.map((c) => `<div class="q"><div class="t">${esc(c.label)}</div>
+    <div class="a"><span class="chip mono">${c.days_over > 0 ? c.days_over + "일 지남" : "오늘"}</span>${pendChip("commitment:" + c.id)}<span class="spacer"></span>
+    ${decBtn("commitment", c.id, "cancel")}${decBtn("commitment", c.id, "bump7")}${decBtn("commitment", c.id, "done", true)}</div></div>`).join("")
+    : '<div class="loading">정리할 약속이 없다.</div>';
+  bindDec($("dcBox"));
+}
+const lis = (arr) => (arr || []).map((x) => `<li>${esc(x)}</li>`).join("");
+const jdPart = (h, arr) => arr && arr.length ? `<div class="h">${h}</div><ul>${lis(arr)}</ul>` : "";
+function renderDq() {
+  const L = DEC.queue || [];
+  $("dqCnt").textContent = L.length ? String(L.length) : "";
+  $("dqMeta").textContent = DEC.jd_updated_at ? `요약 ${String(DEC.jd_updated_at).slice(5, 16).replace("T", " ")}` : "";
+  $("dqBox").innerHTML = L.length ? L.map((q) => { const j = q.jd || {}; return `<div class="q">
+    <div class="a" style="align-items:flex-start"><input type="checkbox" class="dqsel" value="${esc(q.id)}" style="margin-top:4px"><div class="t" style="flex:1">${esc(q.company)} · ${esc(q.title)}</div></div>
+    <div class="a"><span class="chip">${esc(q.source)}</span>${j.years ? `<span class="chip">${esc(j.years)}</span>` : ""}<span class="chip mono">${j.closed ? "마감 지남" : "마감 " + esc(j.deadline || "상시")}</span>${j.location ? `<span class="chip">${esc(j.location)}</span>` : ""}${pendChip("queue:" + q.id)}</div>
+    ${j.ok ? `<div class="jd">${jdPart("주요 업무", j.duties)}${jdPart("필수 자격", j.musts)}${jdPart("우대", j.prefs)}</div>` : `<div class="s">${esc(j.note || "요약 없음")}</div>`}
+    <div class="a">${q.url ? `<a class="more" href="${esc(q.url)}" target="_blank" rel="noopener">원문</a>` : ""}<span class="spacer"></span>
+    ${decBtn("queue", q.id, "hold")}${decBtn("queue", q.id, "skip")}${decBtn("queue", q.id, "apply", true)}</div></div>`; }).join("")
+    : '<div class="loading">결정할 공고가 없다.</div>';
+  bindDec($("dqBox"));
+}
+async function sendDec(kind, id, action) {
+  const note = kind === "queue" && action === "skip" ? ($("dqReason").value || "") : "";
+  await api("/api/decisions", jsonOpts("POST", { kind, id, action, note }));
+  DEC.pending[kind + ":" + id] = action;
+}
+function bindDec(root) {
+  root.querySelectorAll("[data-da]").forEach((b) => b.onclick = async () => {
+    try { await sendDec(b.dataset.dk, b.dataset.did, b.dataset.da); toast(DC_LABEL[b.dataset.da] + " — 다음 새벽 원장에 반영"); renderDc(); renderDq(); }
+    catch (e) { toast("실패: " + e.message); }
+  });
+}
+function bindBulk() {
+  $("dqAll").onchange = (e) => document.querySelectorAll(".dqsel").forEach((c) => { c.checked = e.target.checked; });
+  document.querySelectorAll("[data-bulk]").forEach((b) => b.onclick = async () => {
+    const ids = [...document.querySelectorAll(".dqsel:checked")].map((c) => c.value);
+    if (!ids.length) { toast("공고를 먼저 체크한다"); return; }
+    let n = 0;
+    for (const id of ids) { try { await sendDec("queue", id, b.dataset.bulk); n++; } catch (e) { /* 실패 건은 남는다 */ } }
+    toast(`${n}/${ids.length}건 ${DC_LABEL[b.dataset.bulk]} — 다음 새벽 원장에 반영`); $("dqAll").checked = false; renderDq();
+  });
 }
 const qRow = (q) => `<div class="q"><div class="t">${esc(q.title || q.summary || q.id)}</div>
   ${q.note || q.detail ? `<div class="s">${esc(q.note || q.detail)}</div>` : ""}
