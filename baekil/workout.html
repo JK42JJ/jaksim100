@@ -61,7 +61,7 @@
 <body>
 <div class="wrap">
   <a class="back" href="index.html">← 콘솔로</a>
-  <h1>🏋️ 데쓰런 서킷</h1>
+  <h1>데쓰런 서킷</h1>
   <div class="sub">정식 <b>10회 × 4세트</b> · 세트 간 30~60초 — 단 <b>1세트만 해도 그날 수행 인정</b>. 시작 전 손목·무릎 1분, 끝나고 스트레칭 1분.</div>
   <div class="today" id="today"></div>
 
@@ -70,7 +70,7 @@
     <div class="sess" data-s="A"><div class="t">A 푸시+하체 <span style="color:var(--ink3)">월·목</span></div><div class="d">푸쉬업 → 스쿼트 → 밴드 프론트 → 래터럴 → 오버헤드 · ~18분</div></div>
     <div class="sess" data-s="B"><div class="t">B 코어+하체 <span style="color:var(--ink3)">화·금</span></div><div class="d">런지 → 윗몸 → 레그레이즈 → 마운틴 클라이머 · ~15분</div></div>
     <div class="sess" data-s="C"><div class="t">C 풀서킷 <span style="color:var(--ink3)">수·일</span></div><div class="d">9종 × 10회 논스톱 1라운드 × 3~4 (라운드 간 90초) · ~25분</div></div>
-    <div class="sess" data-s="E"><div class="t">⚡ 비상 5분</div><div class="d">스쿼트10 → 푸쉬업10 → 마운틴 좌우10 × 2라운드 논스톱 — 이것만 해도 ✅</div></div>
+    <div class="sess" data-s="E"><div class="t">비상 5분</div><div class="d">스쿼트10 → 푸쉬업10 → 마운틴 좌우10 × 2라운드 논스톱 — 이것만 해도 완료</div></div>
   </div>
 
   <h2>운동 가이드 (각 10회)</h2>
@@ -156,7 +156,7 @@
   const sess = map[day];
   const names = { A:"A 푸시+하체", B:"B 코어+하체", C:"C 데쓰런 풀서킷" };
   document.getElementById("today").innerHTML = sess
-    ? `오늘의 세션 → <b>${names[sess]}</b> · 4세트가 정식, <b>1세트만 해도 ✅</b> — 끝나면 콘솔에서 달리기 체크(메모: 실내 ${sess})`
+    ? `오늘의 세션 → <b>${names[sess]}</b> · 4세트가 정식, <b>1세트만 해도 완료</b> — 끝나면 콘솔에서 달리기 체크(메모: 실내 ${sess})`
     : `오늘은 <b>토요일 산행</b>이 우선 — 실내는 보강으로만 (아무 세션 1세트)`;
   if (sess) document.querySelectorAll(".sess").forEach(el => { if (el.dataset.s === sess) el.classList.add("hot"); });
 </script>

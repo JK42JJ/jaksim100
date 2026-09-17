@@ -296,6 +296,11 @@ svg.curve{width:100%;height:190px;display:block;font-family:var(--mono)}
 .jd ul{margin:2px 0 0 18px;padding:0}
 .jd li{font-size:13px;line-height:1.45}
 .pend{color:var(--accent);font-weight:600;font-size:12px;white-space:nowrap}
+.fit{font-size:12.5px;line-height:1.5;margin:4px 0 2px}
+.fit .gate{color:var(--behind)}
+.fit .muted{color:var(--muted)}
+.tier{font:700 12px var(--mono);border-radius:6px;padding:1px 7px;background:var(--unknown-bg)}
+.tier.A{background:var(--good-bg);color:var(--good)}.tier.B{background:var(--watch-bg);color:var(--watch)}.tier.X{background:var(--behind-bg);color:var(--behind)}
 .q .a{display:flex;gap:8px;align-items:center}
 .ap{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;min-height:52px;padding:6px 0;border-top:1px solid var(--rule)}
 .ap:first-of-type{border-top:0}
@@ -477,6 +482,7 @@ h3.sub{font-size:12.5px;color:var(--muted);margin:10px 0 2px;font-weight:600}
     <div class="card"><h2>지원 큐 <span class="mono" id="dqCnt"></span><span class="r" id="dqMeta"></span></h2>
       <div class="dqbar">
         <label><input type="checkbox" id="dqAll"> 전체 선택</label>
+        <select id="dqTier"><option value="">전체 등급</option><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="?">판정 전</option><option value="X">지원 불가</option></select>
         <select id="dqReason"><option value="">스킵 사유</option><option>직무가 안 맞음</option><option>연차가 안 맞음</option><option>회사</option><option>지역</option><option>마감</option></select>
         <span class="spacer"></span>
         <button class="btn sm" data-bulk="hold">체크한 것 보류</button><button class="btn sm" data-bulk="skip">체크한 것 스킵</button><button class="btn sm pri" data-bulk="apply">체크한 것 지원</button>
@@ -1220,12 +1226,27 @@ function renderDc() {
 }
 const lis = (arr) => (arr || []).map((x) => `<li>${esc(x)}</li>`).join("");
 const jdPart = (h, arr) => arr && arr.length ? `<div class="h">${h}</div><ul>${lis(arr)}</ul>` : "";
+/* 적합도(2026-09-17): 등급 A·B·C·X·? 와 이유 — scripts/fit_rank.py 가 규칙(ops/fit-ontology.json)으로 낸 값을 그대로 보여 준다 */
+const fitTier = (f) => (f && f.tier) || "?";
+const fitBox = (f) => {
+  if (!f) return '<div class="fit muted">적합도 판정 전</div>';
+  const g = (f.gates || []).map((x) => `<div class="gate">지원 불가: ${esc(x)}</div>`).join("");
+  const n = (f.notes || []).map((x) => `<div class="muted">${esc(x)}</div>`).join("");
+  const cov = f.covered && f.covered.length ? `<div>맞는 요구: ${esc(f.covered.slice(0, 6).join(", "))}</div>` : "";
+  const gap = f.gaps_must && f.gaps_must.length ? `<div>빈 요구(필수): ${esc(f.gaps_must.slice(0, 4).join(", "))}</div>` : "";
+  const res = f.resume ? `<div class="muted">${esc(f.family || "")} · 이력서 ${esc(f.resume)}</div>` : `<div class="muted">${esc(f.family || "")}</div>`;
+  return `<div class="fit">${g}${cov}${gap}${res}${n}</div>`;
+};
 function renderDq() {
-  const L = DEC.queue || [];
+  const tierSel = $("dqTier") ? $("dqTier").value : "";
+  const L = (DEC.queue || []).filter((q) => !tierSel || fitTier(q.fit) === tierSel);
+  const fc = DEC.fit_counts || {};
   $("dqCnt").textContent = L.length ? String(L.length) : "";
-  $("dqMeta").textContent = DEC.jd_updated_at ? `요약 ${String(DEC.jd_updated_at).slice(5, 16).replace("T", " ")}` : "";
-  $("dqBox").innerHTML = L.length ? L.map((q) => { const j = q.jd || {}; return `<div class="q">
-    <div class="a" style="align-items:flex-start"><input type="checkbox" class="dqsel" value="${esc(q.id)}" style="margin-top:4px"><div class="t" style="flex:1">${esc(q.company)} · ${esc(q.title)}</div></div>
+  $("dqMeta").textContent = (Object.keys(fc).length ? `A ${fc.A || 0} · B ${fc.B || 0} · C ${fc.C || 0} · 불가 ${fc.X || 0} · 판정 전 ${fc["?"] || 0}  ` : "")
+    + (DEC.jd_updated_at ? `요약 ${String(DEC.jd_updated_at).slice(5, 16).replace("T", " ")}` : "");
+  $("dqBox").innerHTML = L.length ? L.map((q) => { const j = q.jd || {}; const f = q.fit; return `<div class="q">
+    <div class="a" style="align-items:flex-start"><input type="checkbox" class="dqsel" value="${esc(q.id)}" style="margin-top:4px"><span class="tier ${fitTier(f)}">${fitTier(f) === "X" ? "불가" : fitTier(f)}${f && f.score != null && fitTier(f) !== "X" ? " " + Math.round(f.score) : ""}</span><div class="t" style="flex:1">${esc(q.company)} · ${esc(q.title)}</div></div>
+    ${fitBox(f)}
     <div class="a"><span class="chip">${esc(q.source)}</span>${j.years ? `<span class="chip">${esc(j.years)}</span>` : ""}<span class="chip mono">${j.closed ? "마감 지남" : "마감 " + esc(j.deadline || "상시")}</span>${j.location ? `<span class="chip">${esc(j.location)}</span>` : ""}${pendChip("queue:" + q.id)}</div>
     ${j.ok ? `<div class="jd">${jdPart("주요 업무", j.duties)}${jdPart("필수 자격", j.musts)}${jdPart("우대", j.prefs)}</div>` : `<div class="s">${esc(j.note || "요약 없음")}</div>`}
     <div class="a">${q.url ? `<a class="more" href="${esc(q.url)}" target="_blank" rel="noopener">원문</a>` : ""}<span class="spacer"></span>
@@ -1234,7 +1255,9 @@ function renderDq() {
   bindDec($("dqBox"));
 }
 async function sendDec(kind, id, action) {
-  const note = kind === "queue" && action === "skip" ? ($("dqReason").value || "") : "";
+  const q = kind === "queue" ? (DEC.queue || []).find((x) => x.id === id) : null;
+  const gate = q && q.fit && q.fit.gates && q.fit.gates.length ? "적합도 게이트: " + q.fit.gates.join(" / ") : "";
+  const note = kind === "queue" && action === "skip" ? ($("dqReason").value || gate) : "";
   await api("/api/decisions", jsonOpts("POST", { kind, id, action, note }));
   DEC.pending[kind + ":" + id] = action;
 }
@@ -1245,6 +1268,7 @@ function bindDec(root) {
   });
 }
 function bindBulk() {
+  if ($("dqTier")) $("dqTier").onchange = () => { $("dqAll").checked = false; renderDq(); };
   $("dqAll").onchange = (e) => document.querySelectorAll(".dqsel").forEach((c) => { c.checked = e.target.checked; });
   document.querySelectorAll("[data-bulk]").forEach((b) => b.onclick = async () => {
     const ids = [...document.querySelectorAll(".dqsel:checked")].map((c) => c.value);
