@@ -1,0 +1,95 @@
+{
+  "_meta": {
+    "doc": "라운드 시스템 SoT(2026-09-22 James 지시로 신설, 09-22 4그룹 독립 구조로 재편). 계산은 scripts/core/dday.py round_elapsed/round_remaining/round_header 로만 한다 — 09-17 D-day 이중계산 사고를 라운드 쪽에서 반복하지 않는다.",
+    "policy": "49일 라운드 × 연 7회, 라운드 종료 후 2~3일 여행. 100일 작전(CLAUDE.md, START 2026-07-02)의 취업/창업/서비스론칭/진학 결과 목표는 그대로 유지 — 이 등록부는 그 안의 일간 훈련 트랙 4개 그룹의 라운드 리듬만 관리한다.",
+    "why": "2026-09-22 James: '나태하고 무너진 내 정신을 달리기/독서로 먼저 바로 세우고 성취감을 바탕으로 자신감을 확보한 뒤 본질(취업/창업/진학)에 몰입'. 유사한 트랙끼리 묶되, 한 그룹이 무너져도 다른 그룹에 영향이 없도록 4개 그룹을 서로 독립시켰다(James, 09-22). 이력서의 모든 서술이 '내가 직접 설계·구축·배포·확장한 것'을 다각도 질의에도 버티게 만드는 것이 기술문서·개발 그룹의 표준."
+  },
+  "rounds": [
+    {
+      "id": "grp-reading-run",
+      "label": "그룹 — 독서·달리기 (정신적 기반 다지기)",
+      "tracks": [
+        "reading",
+        "run"
+      ],
+      "round_no": 1,
+      "basis": "external_count",
+      "baseline_date": "2026-09-22",
+      "baseline_count": 44,
+      "total_days": 49,
+      "note": "리셋하지 않고 기존 흐름을 49일째(예상 2026-09-27)까지 이어가 기록으로 정리한다. baseline_count 는 James 본인 보고값.",
+      "floor": "달리기 5분 · 독서 5페이지",
+      "floor_log": [
+        {
+          "on": "2026-09-22",
+          "from": null,
+          "to": "달리기 5분 · 독서 5페이지"
+        }
+      ]
+    },
+    {
+      "id": "grp-english-coding",
+      "label": "그룹 — 영어·코딩",
+      "tracks": [
+        "english",
+        "python"
+      ],
+      "round_no": 1,
+      "basis": "calendar",
+      "start": "2026-09-22",
+      "total_days": 49,
+      "note": "2026-09-22를 1일째로 새로 시작.",
+      "floor": "영어 90초 녹음 한 번 · 코딩 문제 하나 손으로",
+      "floor_log": [
+        {
+          "on": "2026-09-22",
+          "from": null,
+          "to": "영어 90초 녹음 한 번 · 코딩 문제 하나 손으로"
+        }
+      ]
+    },
+    {
+      "id": "grp-techdev",
+      "label": "그룹 — 기술문서(서적)·개발(Insighta 외 신규서비스)",
+      "tracks": [
+        "techbook",
+        "dev"
+      ],
+      "round_no": 1,
+      "basis": "calendar",
+      "start": "2026-09-22",
+      "total_days": 49,
+      "note": "취업패키지 방어력(핸즈온 자신감)의 실제 근거를 만드는 그룹 — 이력서 서술이 '내가 직접 설계·구축·배포·확장한 것'을 다각도 질의에도 버티게 하는 게 목표. 2026-09-22를 1일째로 새로 시작.",
+      "floor": "기술서 5페이지 · 커밋 하나",
+      "floor_log": [
+        {
+          "on": "2026-09-22",
+          "from": null,
+          "to": "기술서 5페이지 · 커밋 하나"
+        }
+      ]
+    },
+    {
+      "id": "grp-edu",
+      "label": "그룹 — 수업·진학",
+      "tracks": [
+        "lecture",
+        "admission"
+      ],
+      "round_no": 1,
+      "basis": "calendar",
+      "start": "2026-09-22",
+      "total_days": 49,
+      "note": "고려사이버대 수업 진도 + OMSA 진학 준비. 2026-09-22를 1일째로 새로 시작.",
+      "floor": "강의 한 편",
+      "floor_log": [
+        {
+          "on": "2026-09-22",
+          "from": null,
+          "to": "강의 한 편"
+        }
+      ]
+    }
+  ],
+  "closed": []
+}
