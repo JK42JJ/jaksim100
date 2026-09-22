@@ -59,8 +59,6 @@ button{font:inherit;color:inherit}
 header{position:sticky;top:0;z-index:20;background:var(--card);border-bottom:1px solid var(--rule)}
 .hrow{max-width:1200px;margin:0 auto;height:56px;padding:0 16px;display:flex;align-items:center;gap:10px}
 h1{font-size:17px;margin:0;letter-spacing:.02em;font-weight:700}
-.dday{font:600 12.5px var(--mono);color:var(--muted);white-space:nowrap}
-.dday span{color:var(--faint)}
 .spacer{flex:1}
 .ghost{width:36px;height:36px;border-radius:9px;display:grid;place-items:center;color:var(--muted);
   border:1px solid var(--rule);background:var(--card);cursor:pointer;padding:0;flex:0 0 auto}
@@ -68,8 +66,6 @@ h1{font-size:17px;margin:0;letter-spacing:.02em;font-weight:700}
 .ghost.sm{width:32px;height:32px;border-radius:8px}
 .avatar{width:32px;height:32px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;
   place-items:center;font:600 13px var(--sans);cursor:pointer;flex:0 0 auto}
-.daybar{height:2px;background:var(--rule)}
-.daybar>i{display:block;height:100%;background:var(--accent)}
 .topnav{display:none;gap:4px;height:56px;margin-left:14px}
 .topnav button{padding:0 12px;height:56px;border:0;background:none;display:flex;align-items:center;gap:6px;
   font:500 14px var(--sans);color:var(--muted);border-bottom:2px solid transparent;cursor:pointer}
@@ -92,11 +88,15 @@ section{display:none}
 section.on{display:block}
 .card{background:var(--card);border:1px solid var(--rule);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px}
 .roundstrip{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px}
-.roundstrip .rchip{flex:1 1 150px;min-width:150px;background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:7px 10px}
-.roundstrip .rchip .rl{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.roundstrip .rchip .rn{font-size:13px;font-weight:600;margin-top:1px;font-family:var(--mono)}
+.roundstrip .rchip{position:relative;flex:1 1 150px;min-width:150px;border:1px solid var(--rule);border-radius:10px;
+  padding:7px 10px;overflow:hidden;
+  background:linear-gradient(to right,var(--fill,var(--good-bg)) 0 var(--pct,0%),var(--card) var(--pct,0%) 100%)}
+.roundstrip .rchip .rl{position:relative;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.roundstrip .rchip .rn{position:relative;font-size:13px;font-weight:600;margin-top:1px;font-family:var(--mono)}
 .roundstrip .rchip .rn b{font-size:15px}
-.roundstrip .rchip.susp{opacity:.5}
+.roundstrip .rchip.susp{--fill:var(--watch-bg)}
+.roundstrip .rchip.done{--fill:var(--good)}
+.roundstrip .rchip.done .rl,.roundstrip .rchip.done .rn{color:var(--on-accent)}
 .roundstrip .rchip.susp .rn::after{content:" · 서스팬드";font-family:var(--sans);font-weight:500;font-size:11px;color:var(--watch)}
 .card>h2{margin:0 0 6px;font-size:13px;font-weight:600;color:var(--muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .card>h2 .r{margin-left:auto;font-weight:500}
@@ -379,7 +379,6 @@ h3.sub{font-size:12.5px;color:var(--muted);margin:10px 0 2px;font-weight:600}
 <header>
   <div class="hrow">
     <h1>百日作戰</h1>
-    <span class="dday" id="dday">·</span>
     <nav class="topnav" id="topnav">
       <button data-tab="today" class="on">오늘</button>
       <button data-tab="record">기록</button>
@@ -401,7 +400,6 @@ h3.sub{font-size:12.5px;color:var(--muted);margin:10px 0 2px;font-weight:600}
     </button>
     <div class="avatar" id="avatar" title="계정">·</div>
   </div>
-  <div class="daybar"><i id="daybar" style="width:0"></i></div>
 </header>
 
 <div class="wrap">
@@ -669,10 +667,10 @@ function renderToday() {
   $("dToday").style.display = _past ? "" : "none";
   $("pastLabel").style.display = _past ? "" : "none";
   $("todayLabel").textContent = `${mdLabel(SNAP.date)} ${dow(SNAP.date)}`;
-  $("remLabel").textContent = _past ? `D${SNAP.day_n}` : `${Math.max(0, HORIZON - SNAP.day_n)}일 남음`;
+  // 100일 틀 표기 은퇴(2026-09-22 James "100일은 의미 없어 49일단위로 끊어가는거야") —
+  // 진행은 이제 라운드 스트립(#roundStrip)이 그룹별로 보여준다. 과거 기록 볼 때만 그날의 순번을 남긴다.
+  $("remLabel").textContent = _past ? `D${SNAP.day_n}` : "";
   document.body.classList.toggle("past-mode", _past);
-  $("dday").innerHTML = `D${SNAP.day_n} <span>/ ${HORIZON}</span>`;
-  $("daybar").style.width = Math.min(100, SNAP.day_n) + "%";
 
   const byGroup = new Map();
   SCHEMA.groups.forEach((g, i) => byGroup.set(g.id, { g, i, items: [] }));
@@ -1002,10 +1000,13 @@ async function loadRounds() {
     box.innerHTML = groups.map((g) => {
       const el = roundElapsed(g, today);
       const rem = Math.max(0, g.total_days - el);
+      const pct = Math.max(0, Math.min(100, (el / g.total_days) * 100));
       const susp = roundSuspendedToday(g, today);
+      const done = pct >= 100 && !susp;
       const label = esc(g.label.replace(/^그룹\s*—\s*/, "").replace(/\s*\([^)]*\)\s*$/, ""));
       const no = g.round_no ? g.round_no + "R · " : "";
-      return `<div class="rchip${susp ? " susp" : ""}"><div class="rl">${label}</div><div class="rn">${no}<b>${el}</b>/${g.total_days}일 · ${rem}일 남음</div></div>`;
+      const cls = ["rchip", susp && "susp", done && "done"].filter(Boolean).join(" ");
+      return `<div class="${cls}" style="--pct:${pct.toFixed(1)}%"><div class="rl">${label}</div><div class="rn">${no}<b>${el}</b>/${g.total_days}일 · ${rem}일 남음</div></div>`;
     }).join("");
     box.hidden = groups.length === 0;
   } catch (e) { box.hidden = true; }
