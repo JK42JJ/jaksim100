@@ -32,12 +32,13 @@
 <body>
 <div class="wrap">
   <header><h1>독서 — 책과 내 코멘트</h1><a class="back" href="./index.html">← 콘솔로</a></header>
-  <div class="muted">책을 누르면 그 책에 쓴 코멘트가 날짜순으로 모인다. 오타는 고쳐 적었고 원문은 작게 남겼다. 새 코멘트는 콘솔 오늘 탭 독서 줄에 쓰면 저녁에 여기로 옮긴다.</div>
+  <div class="muted">책을 누르면 그 책에 쓴 코멘트가 날짜순으로 모인다. 오타는 고쳐 적었고 원문은 작게 남겼다. 새 코멘트는 콘솔 오늘 탭 독서·기술서적 줄에 쓰면 다음 날 새벽에 그날 읽던 책으로 옮긴다.</div>
   <div class="sum" id="sum"></div>
   <div id="list">불러오는 중…</div>
 </div>
 <script>
 const $ = (id) => document.getElementById(id);
+const E = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 fetch("./reading.json?t=" + Date.now(), { cache: "no-store" }).then(r => r.json()).then(d => {
   const books = d.books.slice().sort((a, b) => (b.started || "").localeCompare(a.started || ""));
   const done = books.filter(b => b.status === "완독").length, now = books.filter(b => b.status === "읽는 중").length;
@@ -48,8 +49,8 @@ fetch("./reading.json?t=" + Date.now(), { cache: "no-store" }).then(r => r.json(
     const span = (b.started || "") + (b.finished ? " ~ " + b.finished : (b.status === "읽는 중" ? " ~" : ""));
     const last = b.comments.filter(c => c.page).slice(-1)[0];
     const prog = last && b.pages ? ` · ${last.page}/${b.pages}쪽` : (last ? ` · ${last.page}쪽까지` : "");
-    return `<div class="book" id="b-${b.id}"><button data-id="${b.id}"><div class="t">${b.title}</div><div class="meta"><span class="pill ${cls}">${b.status}</span><span>${b.author}</span><span>${span}${prog}</span><span>코멘트 ${b.comments.length}</span>${b.kind === "techbook" ? '<span class="pill">기술서적</span>' : ""}</div></button>
-      <div class="cm">${b.comments.map(c => `<div class="c"><div class="d">${c.date.slice(5)}</div><div class="x">${c.text}${c.page ? `<span class="p">~${c.page}쪽</span>` : ""}${c.raw && c.raw !== c.text ? `<div class="raw">원문: ${c.raw}</div>` : ""}</div></div>`).join("") || '<div class="muted">코멘트 없음</div>'}</div></div>`;
+    return `<div class="book" id="b-${b.id}"><button data-id="${b.id}"><div class="t">${E(b.title)}</div><div class="meta"><span class="pill ${cls}">${b.status}</span><span>${E(b.author)}</span><span>${span}${prog}</span><span>코멘트 ${b.comments.length}</span>${b.kind === "techbook" ? '<span class="pill">기술서적</span>' : ""}</div></button>
+      <div class="cm">${b.comments.map(c => `<div class="c"><div class="d">${c.date.slice(5)}</div><div class="x">${E(c.text)}${c.page ? `<span class="p">~${c.page}쪽</span>` : ""}${c.raw && c.raw !== c.text ? `<div class="raw">원문: ${E(c.raw)}</div>` : ""}</div></div>`).join("") || '<div class="muted">코멘트 없음</div>'}</div></div>`;
   }).join("");
   document.querySelectorAll(".book > button").forEach(btn => btn.onclick = () => btn.parentElement.classList.toggle("open"));
   const first = books.find(b => b.status === "읽는 중"); if (first) document.getElementById("b-" + first.id).classList.add("open");
