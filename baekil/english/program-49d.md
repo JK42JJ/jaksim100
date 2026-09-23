@@ -91,19 +91,18 @@ James는 사건 문서를 쓰고, 매일 영어로 말해 녹음하고, 전사�
 발화 코퍼스는 `prep/james-voice-corpus.md` 다.
 전사와 디브리핑은 `prep/packages/` 에 있다.
 
-번호가 붙은 자료와 `260331_김전호_이력사항.docx` 는 클로드웹 프로젝트에 올린 것이다.
-저장소에는 없으니 사건 문서를 쓸 때 클로드웹 프로젝트에서 연다.
-번호 자료는 다음과 같다.
+미션이 가리키는 번호 자료는 대부분 저장소에 있다(2026-09-23 확인).
+`portfolio/sof-enrichment/` 에 같은 내용이 이름만 다르게 들어 있다.
 
-- `03-resume-submitted`
-- `09-infra-observability`
-- `12-cloudops-original-deck`
-- `13-cloudops-framework`
-- `14-case-selfhealing`
-- `15-case-4000was`
-- `16-case-xpand`
-- `18-haea-corpus`
+- 사건 1 네트워크 재설계와 4,000 WAS — `SAMSUNG-CASE-B-4000WAS.md`
+- 사건 2 Self-Healing — `SAMSUNG-CASE-A-SELFHEALING.md`
+- 사건 3 Xpand — `SAMSUNG-CASE-C-XPAND.md`
+- 사건 4 Keycloak — `SAMSUNG-CASE-E-KEYCLOAK.md`
+- 사건 5 CloudOps 프레임워크 — `02-cloudops-original-deck.md`
+- 사건 11 HAEA — `08-haea-corpus-full.md`
+- 사건 12 WorkOS — `07-workos-corpus-full.md`
+- 멀티클라우드 도입 — `SAMSUNG-CASE-D-MULTICLOUD.md`
 
-1차 원본은 `~/Documents/career/source-corpus/` 에 폴더별로 있다.
+`260331_김전호_이력사항.docx` 는 저장소에 없다. 클로드웹 프로젝트에서 연다. 1차 원본은 `~/Documents/career/source-corpus/` 에 폴더별로 있다.
 
 James 가 쓴 사건 문서는 `prep/cases/01.md` 부터 `prep/cases/14.md` 에 저장한다.
