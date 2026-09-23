@@ -131,7 +131,7 @@ input,select{min-height:36px;padding:6px 9px;border:1px solid var(--rule);border
 .daterow .dt b{font-weight:600;font-size:16px;white-space:nowrap;cursor:pointer}
 .daterow .dt .rem{font:500 12.5px var(--mono);color:var(--muted);white-space:nowrap}
 .daterow .dt .past{font:600 11.5px var(--mono);color:var(--behind);background:var(--behind-bg);border-radius:999px;padding:1px 8px}
-#dPick{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+#dPick,#enPick{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
 body.past-mode .daterow .dt b{color:var(--behind)}
 body.past-mode #groups{outline:2px solid var(--behind);outline-offset:4px;border-radius:14px}
 
@@ -521,10 +521,21 @@ h3.sub{font-size:12.5px;color:var(--muted);margin:10px 0 2px;font-weight:600}
     <div class="card">
       <h2><span>영어</span><span class="cnt" id="enDate"></span></h2>
       <div class="seg" id="enDocs" style="margin-bottom:6px">
-        <button data-endoc="today" class="on">오늘 미션</button><button data-endoc="plan49">49일 일정</button><button data-endoc="program">프로그램</button>
+        <button data-endoc="today" class="on">미션</button><button data-endoc="plan49">49일 일정</button><button data-endoc="program">프로그램</button>
       </div>
       <div class="seg" id="enTypes" style="margin-bottom:8px">
         <button data-endoc="t2">T2 매니저·가치</button><button data-endoc="rules">쓰기 규칙</button>
+      </div>
+      <div class="daterow" id="enDateRow" style="min-height:38px;margin-bottom:4px">
+        <button class="ghost" id="enPrev" aria-label="하루 전"><svg class="icon" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <div class="dt">
+          <b id="enDayLabel" title="날짜 고르기">·</b>
+          <span class="rem" id="enDayNum"></span>
+          <span class="past" id="enPastLabel" style="display:none">지난 미션</span>
+          <input type="date" id="enPick" aria-label="미션 날짜">
+        </div>
+        <button class="ghost" id="enNext" aria-label="하루 뒤"><svg class="icon" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+        <button class="btn sm" id="enToday" style="display:none">오늘로</button>
       </div>
       <div id="enMission" class="md"><div class="loading">불러오는 중…</div></div>
       <div class="hint">49일 면접 영어(2026-09-22부터 11-09까지). 1단계는 사건 문서를 보며 말하고, 2단계는 문서 없이, 3단계는 모의 면접이다. 원본은 <a href="https://github.com/JK42JJ/career/tree/main/prep/english/interview-49d" target="_blank" rel="noopener">prep/english/interview-49d</a>.</div>
@@ -1499,9 +1510,15 @@ async function boot() {
 
 /* ── 영어 데일리 미션 탭 (2026-09-05) ── */
 // 같은 Pages 오리진에 발행(daily-ops·baekil-publish 가 prep/english/ 에서 복사한다)
-const EN_DOCS = { today: "./english/today.md", plan49: "./english/schedule-49d.md", program: "./english/program-49d.md",
+const EN_DOCS = { plan49: "./english/schedule-49d.md", program: "./english/program-49d.md",
                   t2: "./english/t2.md", rules: "./english/writing-rules.md" };
+// 미션은 날짜별 파일이다(2026-09-23 James "어제 미션은 어디갔어? 날짜 이동이 가능하도록").
+// 발행은 prep/english/missions/*.md 를 english/missions/ 로 그대로 옮긴다. today.md 는 옛 링크용으로 남는다.
+const EN_MISSION = (d) => `./english/missions/${d}.md`;
+const EN_D1 = "2026-09-22";                       // 49일 Day 1
+let _enDate = kstToday();
 let _enDoc = "today";
+let _enSeen = false;
 function mdToHtml(md) {
   const lines = md.split("\n"); let out = []; let inList = false;
   const inline = (s) => esc(s)
@@ -1546,21 +1563,51 @@ function mdToHtml(md) {
 let _en = { rec: null, chunks: [], tick: null, t0: 0, blob: null, mime: "" };
 async function loadEnglish() {
   $("enDate").textContent = kstToday();
+  if (_enDoc === "today" && !_enSeen) { _enDate = kstToday(); _enSeen = true; }
   await loadEnglishDoc(_enDoc);
   loadEnglishRecordings();
+}
+function enShiftDay(n) {
+  const base = new Date(_enDate + "T00:00:00Z");
+  base.setUTCDate(base.getUTCDate() + n);
+  return base.toISOString().slice(0, 10);
+}
+function enDayNo(d) {                              // 49일 중 며칠째인가
+  const n = Math.round((new Date(d + "T00:00:00Z") - new Date(EN_D1 + "T00:00:00Z")) / 86400000) + 1;
+  return n >= 1 && n <= 49 ? n : null;
+}
+function enPaintDate() {
+  const today = kstToday();
+  $("enDayLabel").textContent = `${mdLabel(_enDate)} ${dow(_enDate)}`;
+  const n = enDayNo(_enDate);
+  $("enDayNum").textContent = n ? `Day ${n}/49` : "";
+  $("enPastLabel").style.display = _enDate < today ? "" : "none";
+  $("enToday").style.display = _enDate === today ? "none" : "";
+  $("enPick").value = _enDate;
+  $("enDateRow").style.display = _enDoc === "today" ? "" : "none";
 }
 async function loadEnglishDoc(kind) {
   _enDoc = kind;
   document.querySelectorAll("[data-endoc]").forEach((b) => b.classList.toggle("on", b.dataset.endoc === kind));
+  enPaintDate();
+  const url = kind === "today" ? EN_MISSION(_enDate) : EN_DOCS[kind];
   try {
-    const r = await fetch(EN_DOCS[kind] + "?t=" + Date.now(), { cache: "no-store" });
+    const r = await fetch(url + "?t=" + Date.now(), { cache: "no-store" });
     if (!r.ok) throw new Error(r.status);
     $("enMission").innerHTML = mdToHtml(await r.text());
   } catch (e) {
-    $("enMission").innerHTML = '<div class="err">아직 발행되지 않았다. <a href="https://github.com/JK42JJ/career/tree/main/prep/english/interview-49d" target="_blank" rel="noopener">저장소에서 연다</a>.</div>';
+    $("enMission").innerHTML = kind === "today"
+      ? `<div class="err">${mdLabel(_enDate)} 미션이 없다. 화살표로 다른 날을 보거나 <a href="https://github.com/JK42JJ/career/tree/main/prep/english/missions" target="_blank" rel="noopener">저장소에서 연다</a>.</div>`
+      : '<div class="err">아직 발행되지 않았다. <a href="https://github.com/JK42JJ/career/tree/main/prep/english/interview-49d" target="_blank" rel="noopener">저장소에서 연다</a>.</div>';
   }
 }
+function enGotoDate(d) { _enDate = d; loadEnglishDoc("today"); }
 document.querySelectorAll("[data-endoc]").forEach((b) => b.onclick = () => loadEnglishDoc(b.dataset.endoc));
+$("enPrev").onclick = () => enGotoDate(enShiftDay(-1));
+$("enNext").onclick = () => enGotoDate(enShiftDay(1));
+$("enToday").onclick = () => enGotoDate(kstToday());
+$("enDayLabel").onclick = () => { const p = $("enPick"); try { p.showPicker ? p.showPicker() : p.click(); } catch (e) { p.click(); } };
+$("enPick").onchange = (e) => { if (e.target.value) enGotoDate(e.target.value); };
 function enFmt(s) { s = Math.floor(s); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
 function enPickType() {
   const c = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"];
