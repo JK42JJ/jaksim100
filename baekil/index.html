@@ -226,21 +226,41 @@ body.editing .lg-i .dots,body.editing .lg-i .cnt{opacity:.4}
   .editm{display:block}
 }
 /* 지표: 라운드 판 */
-.rboard{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
-@media (min-width:700px){.rboard{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.rb{border-top:3px solid var(--g);padding-top:8px;min-width:0}
-.rb .rbh{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
-.rb .rbh b{font-size:14px}
-.rb .rbh .mono{font-size:12px;color:var(--muted)}
-.rb .rbh .r{margin-left:auto;font-size:12px;color:var(--muted)}
-.rgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;margin-top:8px;max-width:224px}
-.rgrid i{display:block;aspect-ratio:1;border-radius:3px;background:var(--unknown-bg);border:1px solid var(--dot-border)}
-.rgrid i.k{background:var(--g);border-color:var(--g)}
-.rgrid i.m{background:var(--behind);border-color:var(--behind)}
-.rgrid i.t{border:1.5px solid var(--g);background:var(--card)}
-.rgrid i.f{background:transparent;border-style:dashed}
-.rb .gaps{font-size:11.5px;color:var(--behind);margin-top:6px}
-.rb .gaps.ok{color:var(--muted)}
+/* 지표: 라운드 — 주차 달력(2026-09-28 James, Strava 진행 달력 참고). 그룹 하나씩, 월~일 가로·주 세로. */
+.rtabs{display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 12px}
+.rtabs button{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;border:1px solid var(--rule);border-radius:16px;
+  background:var(--card);color:var(--muted);font:500 12.5px var(--sans);cursor:pointer}
+.rtabs button i{width:8px;height:8px;border-radius:50%;background:var(--g);display:block}
+.rtabs button em{font:500 11px var(--mono);font-style:normal;color:var(--faint)}
+.rtabs button.on{border-color:var(--g);color:var(--ink);background:color-mix(in srgb,var(--g) 12%,var(--card))}
+.rstat{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.rstat div{min-width:0}
+.rstat small{display:block;font-size:11.5px;color:var(--muted)}
+.rstat b{display:block;font:600 20px/1.2 var(--mono);color:var(--ink);white-space:nowrap}
+.rstat b span{font:500 12px var(--sans);color:var(--muted);margin-left:2px}
+.rstat b.bad{color:var(--behind)}
+.rcal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr)) 40px;column-gap:4px;row-gap:0;align-items:center;justify-items:center;
+  max-width:420px}
+.rcal>*{margin:3px 0}
+.rcal .wkc{align-self:stretch;margin:0;width:36px;display:grid;place-items:center;background:color-mix(in srgb,var(--g) 16%,var(--card))}
+.rcal .wkc.top{border-radius:18px 18px 0 0}
+.rcal .wkc.bot{border-radius:0 0 18px 18px;padding-bottom:4px}
+.rcal .wh{font-size:11.5px;color:var(--muted);padding-bottom:2px}
+.rcal .d{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font:500 12px var(--mono);color:var(--faint)}
+.rcal .d.k{background:var(--g);color:var(--card)}
+.rcal .d.k svg{width:16px;height:16px;stroke:currentColor;stroke-width:2.6;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.rcal .d.m{border:1.5px solid var(--behind);color:var(--behind)}
+.rcal .d.t{border:1.5px solid var(--g);color:var(--ink);font-weight:700}
+.rcal .d.f{color:var(--faint)}
+.rcal .wk{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font:600 11px var(--mono);z-index:1}
+.rcal .wk.ok{background:var(--g);color:var(--card)}
+.rcal .wk.ok svg{width:14px;height:14px;stroke:currentColor;stroke-width:2.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.rcal .wk.bad{background:var(--behind-bg);color:var(--behind)}
+.rcal .wk.cur{border:1.5px dashed var(--g)}
+.rcal .run{width:34px;height:34px;border-radius:50%;background:var(--g);color:var(--card);display:grid;place-items:center;font:700 13px var(--mono);z-index:1}
+.rnote{font-size:12px;color:var(--muted);margin-top:10px}
+.rnote.bad{color:var(--behind)}
+@media (min-width:700px){.rcal .d{width:38px;height:38px}}
 /* 대화 메뉴 */
 .chatmenu{position:relative}
 .chatmenu>summary{list-style:none;display:flex;align-items:center;gap:6px;height:36px;padding:0 12px;border-radius:9px;
@@ -650,11 +670,11 @@ h3.sub{font-size:12.5px;color:var(--muted);margin:10px 0 2px;font-weight:600}
   <!-- ── 지표 ── -->
   <section id="tab-metrics">
     <!-- 100일 진행곡선·페이스 갭은 은퇴(2026-09-23). 지표의 기준은 그룹별 49일 라운드다. -->
-    <div class="card"><h2>라운드 <span class="r">칸 하나 = 하루 · 색 = 그 그룹 항목 하나라도 함 · 빨강 = 아무것도 안 함</span></h2>
-      <div id="roundBoard" class="rboard"><div class="loading">불러오는 중…</div></div></div>
-    <div class="card"><h2>요일 프로파일 <span class="r">막대 = 기록률 · 숫자 = 수행률</span></h2><div id="weekday"></div></div>
     <div class="card"><h2>연속 기록 <span class="r">현재 / 최장 · 색은 그룹</span></h2><div id="streaks"></div></div>
     <div class="card"><h2>그룹 기여도 <span class="r" id="contribMeta"></span></h2><div id="contrib"></div></div>
+    <div class="card"><h2>요일 프로파일 <span class="r">막대 = 기록률 · 숫자 = 수행률</span></h2><div id="weekday"></div></div>
+    <div class="card"><h2>라운드 <span class="r">그룹 항목 하나라도 하면 그날을 지킨 것</span></h2>
+      <div id="roundBoard" class="rbx"><div class="loading">불러오는 중…</div></div></div>
   </section>
 
   <!-- ── 관리 = 결정 + 지원·트랙 + 크레덴셜 ── -->
@@ -1462,6 +1482,7 @@ async function loadMetrics() {
   try {
     if (!ROUNDS.length) await loadRounds();
     const s = await api("/api/metrics/summary");
+    ROUND_DONE = null;   // 탭을 열 때마다 새로 읽는다
     await renderRoundBoard();
     renderWeekday(s); renderStreaks(s); renderContrib(s);
   } catch (e) { $("roundBoard").innerHTML = `<div class="err">지표를 불러오지 못했습니다 — ${esc(e.message)}</div>`; }
@@ -1472,43 +1493,87 @@ function roundStart(raw) {
     : new Date(new Date(raw.baseline_date + "T00:00:00Z").getTime() - (raw.baseline_count - 1) * 864e5).toISOString().slice(0, 10);
   return iso;
 }
+let ROUND_TAB = (() => { try { return localStorage.getItem("roundTab") || ""; } catch (e) { return ""; } })();
+let ROUND_DONE = null;   // date -> Set(keys done), 라운드 판을 다시 그릴 때 재사용
 async function renderRoundBoard() {
   const rs = ROUNDS.filter((r) => r.raw.console_group_id != null);
   if (!rs.length || !SCHEMA) { $("roundBoard").innerHTML = '<div class="hint">라운드가 콘솔 그룹에 이어져 있지 않다.</div>'; return; }
-  const from = rs.map((r) => roundStart(r.raw)).sort()[0];
-  const d = await api(`/api/progress?granularity=day&mode=detail&from=${from}`);
-  const done = new Map();   // date -> Set(keys done)
-  (d.buckets || []).forEach((b) => done.set(b.bucket, new Set((b.items || []).filter((x) => x.done > 0).map((x) => x.key))));
+  if (!ROUND_DONE) {
+    const from = rs.map((r) => roundStart(r.raw)).sort()[0];
+    const d = await api(`/api/progress?granularity=day&mode=detail&from=${from}`);
+    ROUND_DONE = new Map();
+    (d.buckets || []).forEach((b) => ROUND_DONE.set(b.bucket, new Set((b.items || []).filter((x) => x.done > 0).map((x) => x.key))));
+  }
+  if (!rs.some((r) => r.raw.id === ROUND_TAB)) ROUND_TAB = rs[0].raw.id;
+  const r = rs.find((x) => x.raw.id === ROUND_TAB);
   const today = kstToday();
-  $("roundBoard").innerHTML = rs.map((r) => {
-    const keys = SCHEMA.items.filter((i) => i.group_id === r.raw.console_group_id).map((i) => i.key);
-    const start = roundStart(r.raw);
-    const cells = [], gaps = [];
-    let kept = 0, past = 0, run = 0;
-    for (let n = 0; n < r.raw.total_days; n++) {
-      const day = new Date(new Date(start + "T00:00:00Z").getTime() + n * 864e5).toISOString().slice(0, 10);
-      const set = done.get(day);
-      const k = !!set && keys.some((x) => set.has(x));
-      let cls = "f";
-      if (day < today) { past++; if (k) { kept++; cls = "k"; } else { cls = "m"; gaps.push(day.slice(5)); } }
-      else if (day === today) cls = k ? "k" : "t";
-      cells.push(`<i class="${cls}" title="${day}${cls === "k" ? " 지킴" : cls === "m" ? " 무너짐" : ""}"></i>`);
+  const iso = (t) => new Date(t).toISOString().slice(0, 10);
+  const keys = SCHEMA.items.filter((i) => i.group_id === r.raw.console_group_id).map((i) => i.key);
+  const start = roundStart(r.raw), total = r.raw.total_days;
+  const t0 = new Date(start + "T00:00:00Z").getTime();
+  const end = iso(t0 + (total - 1) * 864e5);
+  const state = (day) => {
+    if (day < start || day > end) return "x";
+    const set = ROUND_DONE.get(day), k = !!set && keys.some((x) => set.has(x));
+    if (k) return "k";
+    if (day < today) return "m";
+    return day === today ? "t" : "f";
+  };
+  // 통계
+  let kept = 0, past = 0; const gaps = [];
+  for (let n = 0; n < total; n++) { const day = iso(t0 + n * 864e5); const st = state(day);
+    if (day < today) { past++; if (st === "k") kept++; else gaps.push(day.slice(5)); } else if (day === today && st === "k") kept++; }
+  let run = 0;
+  for (let n = total - 1; n >= 0; n--) { const day = iso(t0 + n * 864e5); const st = state(day);
+    if (st === "f" || (st === "t")) continue; if (st === "k") run++; else break; }
+  const allow = Number(r.raw.allowed_gaps || 0), el = roundElapsed(r.raw, new Date(today + "T00:00:00"));
+  const bad = gaps.length > allow;
+  // 주차 달력: 시작일이 든 주 월요일부터 끝날이 든 주 일요일까지
+  const dow = (t) => (new Date(t).getUTCDay() + 6) % 7;   // 월=0
+  const w0 = t0 - dow(t0) * 864e5, tEnd = t0 + (total - 1) * 864e5, w1 = tEnd + (6 - dow(tEnd)) * 864e5;
+  const CK = '<svg viewBox="0 0 24 24"><path d="M5 12l4 4L19 7"/></svg>';
+  let rows = "", weekN = 0;
+  for (let t = w0; t <= w1; t += 7 * 864e5) {
+    weekN++;
+    let cells = "", wkKept = 0, wkPast = 0, wkMiss = 0, inRound = 0;
+    for (let i = 0; i < 7; i++) {
+      const day = iso(t + i * 864e5), st = state(day), dd = Number(day.slice(8)), mm = Number(day.slice(5, 7));
+      const lab = dd === 1 ? `${mm}/1` : String(dd);
+      if (st !== "x") inRound++;
+      if (st === "k") { wkKept++; if (day <= today) wkPast++; }
+      if (st === "m") { wkMiss++; wkPast++; }
+      cells += st === "x" ? '<span></span>'
+        : st === "k" ? `<span class="d k" title="${day} 지킴">${CK}</span>`
+        : `<span class="d ${st}" title="${day}${st === "m" ? " 누락" : st === "t" ? " 오늘" : ""}">${lab}</span>`;
     }
-    for (let n = cells.length - 1; n >= 0; n--) { if (cells[n].includes('"k"')) run++; else if (cells[n].includes('"t"') || cells[n].includes('"f"')) continue; else break; }
-    return `<div class="rb" style="--g:var(--rc${r.ci})">
-      <div class="rbh"><b>${esc(r.short)}</b><span class="mono">${r.raw.round_no || 1}R · 지킨 날 ${kept}/${past}</span><span class="r">연속 ${run}일</span></div>
-      <div class="rgrid">${cells.join("")}</div>
-      ${(() => {
-        // 누락 허용(2026-09-28 James — 영어·코딩·기술문서·개발·수업·진학 3일). 넘으면 49일을 채워도 같은 라운드를 다시 한다.
-        const allow = Number(r.raw.allowed_gaps || 0), nx = (r.raw.round_no || 1) + 1;
-        if (!gaps.length) return allow ? `<div class="gaps ok">누락 0일 / 허용 ${allow}일</div>` : "";
-        const list = gaps.slice(-5).join(", ") + (gaps.length > 5 ? " 외" : "");
-        return gaps.length <= allow
-          ? `<div class="gaps ok">누락 ${gaps.length}일 / 허용 ${allow}일 · ${list} — 아직 라운드${nx}로 올라갈 수 있다</div>`
-          : `<div class="gaps">누락 ${gaps.length}일 / 허용 ${allow}일 · ${list} — 라운드${nx}로 못 올라간다(이번 라운드를 다시 한다)</div>`;
-      })()}
+    const wkEnd = iso(t + 6 * 864e5);
+    const wk = !inRound ? '<span></span>'
+      : wkMiss ? `<span class="wk bad" title="이 주 누락 ${wkMiss}일">-${wkMiss}</span>`
+      : wkEnd < today && wkKept ? `<span class="wk ok" title="이 주 전부 지킴">${CK}</span>`
+      : iso(t) <= today ? '<span class="wk cur" title="진행 중인 주"></span>' : '<span class="wk"></span>';
+    rows += cells + `<span class="wkc${weekN === 1 ? " top" : ""}">${wk}</span>`;
+  }
+  $("roundBoard").innerHTML = `
+    <div class="rtabs">${rs.map((x) => `<button type="button" data-rt="${esc(x.raw.id)}" class="${x === r ? "on" : ""}" style="--g:var(--rc${x.ci})"><i></i>${esc(x.short)}<em>${x.raw.round_no || 1}R</em></button>`).join("")}</div>
+    <div style="--g:var(--rc${r.ci})">
+      <div class="rstat">
+        <div><small>현재 연속</small><b>${run}<span>일</span></b></div>
+        <div><small>${r.raw.round_no || 1}라운드 진행</small><b>${Math.min(el, total)}<span>/${total}일</span></b></div>
+        <div><small>누락 / 허용</small><b class="${bad ? "bad" : ""}">${gaps.length}<span>/${allow}일</span></b></div>
+      </div>
+      <div class="rcal">
+        ${["월", "화", "수", "목", "금", "토", "일"].map((x) => `<span class="wh">${x}</span>`).join("")}<span class="wh">주</span>
+        ${rows}
+        ${Array.from({ length: 7 }, () => "<span></span>").join("")}<span class="wkc bot"><span class="run" title="현재 연속 ${run}일">${run}</span></span>
+      </div>
+      <div class="rnote${bad ? " bad" : ""}">${!gaps.length ? `지킨 날 ${kept}일 · 누락 없음${allow ? ` (허용 ${allow}일)` : " · 연속이어야 다음 라운드"}`
+        : bad ? `누락 ${gaps.length}일(${gaps.slice(-4).join(", ")}) — 허용 ${allow}일을 넘어 49일을 채워도 이번 라운드를 다시 한다`
+        : `누락 ${gaps.length}일(${gaps.slice(-4).join(", ")}) — 허용 ${allow}일 안이라 아직 ${(r.raw.round_no || 1) + 1}라운드로 올라갈 수 있다`}</div>
     </div>`;
-  }).join("");
+  $("roundBoard").querySelectorAll("[data-rt]").forEach((b) => b.onclick = () => {
+    ROUND_TAB = b.dataset.rt; try { localStorage.setItem("roundTab", ROUND_TAB); } catch (e) {}
+    renderRoundBoard();
+  });
 }
 function renderWeekday(s) {
   const names = ["월", "화", "수", "목", "금", "토", "일"];
