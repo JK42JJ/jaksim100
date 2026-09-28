@@ -6,29 +6,6 @@
   },
   "rounds": [
     {
-      "id": "grp-reading-run",
-      "label": "그룹 — 독서·달리기 (정신적 기반 다지기)",
-      "tracks": [
-        "reading",
-        "run"
-      ],
-      "round_no": 1,
-      "basis": "external_count",
-      "baseline_date": "2026-09-22",
-      "baseline_count": 44,
-      "total_days": 49,
-      "note": "리셋하지 않고 기존 흐름을 49일째(예상 2026-09-27)까지 이어가 기록으로 정리한다. baseline_count 는 James 본인 보고값.",
-      "floor": "달리기 5분 · 독서 5페이지",
-      "floor_log": [
-        {
-          "on": "2026-09-22",
-          "from": null,
-          "to": "달리기 5분 · 독서 5페이지"
-        }
-      ],
-      "console_group_id": 1
-    },
-    {
       "id": "grp-english-coding",
       "label": "그룹 — 영어·코딩",
       "tracks": [
@@ -93,7 +70,49 @@
         }
       ],
       "console_group_id": 6
+    },
+    {
+      "id": "grp-reading-run",
+      "label": "그룹 — 독서·달리기 (정신적 기반 다지기)",
+      "tracks": [
+        "reading",
+        "run"
+      ],
+      "console_group_id": 1,
+      "floor": "달리기 5분 · 독서 5페이지",
+      "round_no": 2,
+      "basis": "calendar",
+      "start": "2026-09-28",
+      "total_days": 49,
+      "note": "라운드 1 연속 진행 확인 — 0일 여행을 거쳐 라운드 2 로 올라간다."
     }
   ],
-  "closed": []
+  "closed": [
+    {
+      "id": "grp-reading-run",
+      "label": "그룹 — 독서·달리기 (정신적 기반 다지기)",
+      "tracks": [
+        "reading",
+        "run"
+      ],
+      "round_no": 1,
+      "basis": "external_count",
+      "baseline_date": "2026-09-22",
+      "baseline_count": 44,
+      "total_days": 49,
+      "note": "리셋하지 않고 기존 흐름을 49일째(예상 2026-09-27)까지 이어가 기록으로 정리한다. baseline_count 는 James 본인 보고값.",
+      "floor": "달리기 5분 · 독서 5페이지",
+      "floor_log": [
+        {
+          "on": "2026-09-22",
+          "from": null,
+          "to": "달리기 5분 · 독서 5페이지"
+        }
+      ],
+      "console_group_id": 1,
+      "closed_on": "2026-09-28",
+      "closed_note": "자동 종료 — 49일 경과(rounds.py tick)",
+      "continuous": true
+    }
+  ]
 }
