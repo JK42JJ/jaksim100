@@ -6,6 +6,21 @@
   },
   "rounds": [
     {
+      "id": "grp-reading-run",
+      "label": "그룹 — 독서·달리기 (정신적 기반 다지기)",
+      "tracks": [
+        "reading",
+        "run"
+      ],
+      "console_group_id": 1,
+      "floor": "달리기 5분 · 독서 5페이지",
+      "round_no": 2,
+      "basis": "calendar",
+      "start": "2026-09-28",
+      "total_days": 49,
+      "note": "라운드 1 연속 진행 확인 — 0일 여행을 거쳐 라운드 2 로 올라간다."
+    },
+    {
       "id": "grp-english-coding",
       "label": "그룹 — 영어·코딩",
       "tracks": [
@@ -70,21 +85,6 @@
         }
       ],
       "console_group_id": 6
-    },
-    {
-      "id": "grp-reading-run",
-      "label": "그룹 — 독서·달리기 (정신적 기반 다지기)",
-      "tracks": [
-        "reading",
-        "run"
-      ],
-      "console_group_id": 1,
-      "floor": "달리기 5분 · 독서 5페이지",
-      "round_no": 2,
-      "basis": "calendar",
-      "start": "2026-09-28",
-      "total_days": 49,
-      "note": "라운드 1 연속 진행 확인 — 0일 여행을 거쳐 라운드 2 로 올라간다."
     }
   ],
   "closed": [
