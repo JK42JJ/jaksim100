@@ -240,6 +240,7 @@ body.editing .lg-i .dots,body.editing .lg-i .cnt{opacity:.4}
 .rgrid i.t{border:1.5px solid var(--g);background:var(--card)}
 .rgrid i.f{background:transparent;border-style:dashed}
 .rb .gaps{font-size:11.5px;color:var(--behind);margin-top:6px}
+.rb .gaps.ok{color:var(--muted)}
 /* 대화 메뉴 */
 .chatmenu{position:relative}
 .chatmenu>summary{list-style:none;display:flex;align-items:center;gap:6px;height:36px;padding:0 12px;border-radius:9px;
@@ -1497,7 +1498,15 @@ async function renderRoundBoard() {
     return `<div class="rb" style="--g:var(--rc${r.ci})">
       <div class="rbh"><b>${esc(r.short)}</b><span class="mono">${r.raw.round_no || 1}R · 지킨 날 ${kept}/${past}</span><span class="r">연속 ${run}일</span></div>
       <div class="rgrid">${cells.join("")}</div>
-      ${gaps.length ? `<div class="gaps">무너진 날 ${gaps.length}일 · ${gaps.slice(-5).join(", ")}${gaps.length > 5 ? " 외" : ""} — 라운드2로 못 올라간다</div>` : ""}
+      ${(() => {
+        // 누락 허용(2026-09-28 James — 영어·코딩·기술문서·개발·수업·진학 3일). 넘으면 49일을 채워도 같은 라운드를 다시 한다.
+        const allow = Number(r.raw.allowed_gaps || 0), nx = (r.raw.round_no || 1) + 1;
+        if (!gaps.length) return allow ? `<div class="gaps ok">누락 0일 / 허용 ${allow}일</div>` : "";
+        const list = gaps.slice(-5).join(", ") + (gaps.length > 5 ? " 외" : "");
+        return gaps.length <= allow
+          ? `<div class="gaps ok">누락 ${gaps.length}일 / 허용 ${allow}일 · ${list} — 아직 라운드${nx}로 올라갈 수 있다</div>`
+          : `<div class="gaps">누락 ${gaps.length}일 / 허용 ${allow}일 · ${list} — 라운드${nx}로 못 올라간다(이번 라운드를 다시 한다)</div>`;
+      })()}
     </div>`;
   }).join("");
 }
