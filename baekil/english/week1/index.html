@@ -362,6 +362,18 @@ section.day h2{flex-wrap:wrap}
 .abar output{font-variant-numeric:tabular-nums;min-width:3.6em;color:var(--fg)}
 .abar .presets{display:inline-flex;gap:4px}
 .abar .rp{padding:4px 8px;font-size:.8rem;font-variant-numeric:tabular-nums}
+.abar button{white-space:nowrap}
+/* 휴대폰: 위 조작 버튼은 본문과 함께 스크롤하고, 재생 막대는 한 줄로 줄인다(2026-09-29 James 모바일 버그) */
+@media (max-width:640px){
+  .controls{position:static}
+  .wrap{padding-bottom:90px}
+  .abar{flex-wrap:nowrap;justify-content:space-between;gap:8px;padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px))}
+  .abar .now,.abar .presets,.abar .speed label{display:none}
+  .abar .speed{flex:1;min-width:0}
+  .abar input[type=range]{flex:1;width:auto;min-width:0}
+  .abar output{min-width:3.2em;font-size:.85rem}
+  .abar button{padding:6px 10px;font-size:.85rem}
+}
 </style>
 <div class="abar" role="region" aria-label="재생">
   <button type="button" id="abToggle" aria-label="재생 또는 일시정지">재생/정지</button>
