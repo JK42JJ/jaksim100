@@ -357,16 +357,13 @@ section.day h2{flex-wrap:wrap}
 .abar{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--card);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:center}
 .abar .now{font-size:.9rem;color:var(--muted);font-variant-numeric:tabular-nums}
 .wrap{padding-bottom:150px}
+.back{display:inline-block;color:var(--accent);text-decoration:none;font-size:14px;margin:0 0 8px}
 .abar .speed{display:inline-flex;align-items:center;gap:6px;font-size:.85rem;color:var(--muted)}
 .abar input[type=range]{width:120px;accent-color:var(--accent)}
 .abar output{font-variant-numeric:tabular-nums;min-width:3.6em;color:var(--fg)}
 .abar .presets{display:inline-flex;gap:4px}
 .abar .rp{padding:4px 8px;font-size:.8rem;font-variant-numeric:tabular-nums}
 .abar button{white-space:nowrap}
-/* 콘솔 안에 들어가면(embed) 재생 막대는 콘솔이 그린다. 이 화면은 안쪽 스크롤 없이 통째로 늘어난다 */
-.wk-embed .abar{display:none}
-.wk-embed .controls{position:static}
-.wk-embed .wrap{padding-bottom:16px}
 /* 휴대폰: 위 조작 버튼은 본문과 함께 스크롤하고, 재생 막대는 한 줄로 줄인다(2026-09-29 James 모바일 버그) */
 @media (max-width:640px){
   .controls{position:static}
@@ -399,15 +396,14 @@ section.day h2{flex-wrap:wrap}
 <audio id="abPlayer" preload="none"></audio>
 <script>
 (function(){
+  // 콘솔(…/baekil/english/week1/)에서 열렸으면 '오늘' 탭 항목 페이지처럼 ← 콘솔로 를 단다
+  if(/\/english\/week1\//.test(location.pathname)){const h=document.querySelector('header'); if(h){const b=document.createElement('a'); b.className='back'; b.href='../../index.html'; b.textContent='← 콘솔로'; h.prepend(b);}}
   const P='<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 1l9 5-9 5z"/></svg>';
   const a=document.getElementById('abPlayer'), now=document.getElementById('abNow');
   let cur=null, label='', rate=1, loop=false;
-  let embed=false; try{embed=window.parent!==window&&!!window.parent.document;}catch(e){}
-  if(embed) document.documentElement.classList.add('wk-embed');
-  function notify(){ if(!embed) return; try{window.parent.postMessage({wk:{playing:!a.paused,has:!!cur,label:label,rate:rate,loop:loop,t:a.currentTime||0,d:a.duration||0}},location.origin);}catch(e){} }
   const one=s=>/\/(s\d+-\d+|c\d)\.mp3$/.test(s);
   function btn(src,lab,txt){const b=document.createElement('button');b.type='button';b.className='ab';b.dataset.src=src;b.dataset.label=lab;b.innerHTML=P+(txt||'');b.setAttribute('aria-label',lab+' 재생');return b;}
-  function mark(){document.querySelectorAll('.ab').forEach(b=>b.classList.toggle('on',b.dataset.src===cur&&!a.paused)); notify();}
+  function mark(){document.querySelectorAll('.ab').forEach(b=>b.classList.toggle('on',b.dataset.src===cur&&!a.paused));}
   function decorate(){
     document.querySelectorAll('#days section.day').forEach(sec=>{
       const h=sec.querySelector('h2'); const m=h&&h.textContent.match(/Day (\d)/); if(!m) return; const n=m[1];
@@ -433,22 +429,20 @@ section.day h2{flex-wrap:wrap}
   document.getElementById('abToggle').addEventListener('click',()=>{if(!cur)return; a.paused?a.play().catch(()=>{}):a.pause();});
   ['play','pause','ended'].forEach(ev=>a.addEventListener(ev,mark));
   const fmt=v=>{v=Math.round(v);return Math.floor(v/60)+':'+String(v%60).padStart(2,'0');};
-  a.addEventListener('timeupdate',()=>{if(a.duration) now.textContent=label+'  '+fmt(a.currentTime)+' / '+fmt(a.duration); notify();});
+  a.addEventListener('timeupdate',()=>{if(a.duration) now.textContent=label+'  '+fmt(a.currentTime)+' / '+fmt(a.duration);});
   const rin=document.getElementById('abRate'), rout=document.getElementById('abRateOut');
   function setRate(r){
     r=Math.min(1.5,Math.max(0.5,Math.round(r*100)/100)); rate=r; a.playbackRate=r; a.preservesPitch=true;
     rin.value=r; rout.textContent=r.toFixed(2)+'배';
     document.querySelectorAll('.rp').forEach(b=>b.setAttribute('aria-pressed',Math.abs(parseFloat(b.dataset.r)-r)<0.001?'true':'false'));
     try{localStorage.setItem('abRate',String(r));}catch(e){}
-    notify();
   }
   rin.addEventListener('input',()=>setRate(parseFloat(rin.value)));
   document.querySelectorAll('.rp').forEach(b=>b.addEventListener('click',()=>setRate(parseFloat(b.dataset.r))));
   a.addEventListener('loadedmetadata',()=>{a.playbackRate=rate;});
   (function(){let r=1;try{r=parseFloat(localStorage.getItem('abRate'))||1;}catch(e){} setRate(r);})();
-  function setLoop(v){loop=v;document.getElementById('abLoop').setAttribute('aria-pressed',loop?'true':'false');a.loop=!!(loop&&cur&&one(cur));notify();}
+  function setLoop(v){loop=v;document.getElementById('abLoop').setAttribute('aria-pressed',loop?'true':'false');a.loop=!!(loop&&cur&&one(cur));}
   document.getElementById('abLoop').addEventListener('click',()=>setLoop(!loop));
-  window.WK={toggle(){if(!cur)return; a.paused?a.play().catch(()=>{}):a.pause();}, pause(){a.pause();}, setRate:setRate, setLoop:setLoop, loop:()=>loop, notify:notify};
 })();
 </script>
 </body>
