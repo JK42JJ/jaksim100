@@ -555,7 +555,17 @@ h3.sub{font-size:12.5px;color:var(--muted);margin:10px 0 2px;font-weight:600}
 #tab-english .md th,#tab-english .md td{border:1px solid var(--rule);padding:5px 7px;text-align:left;vertical-align:top}
 #tab-english .md th{background:var(--accent-soft);color:var(--accent);font-weight:600;white-space:nowrap}
 #tab-english .md hr{border:0;border-top:1px solid var(--rule);margin:12px 0}
-#tab-english .wk1{width:100%;height:calc(100vh - 160px);height:calc(100dvh - 160px);min-height:460px;scroll-margin-top:72px;border:1px solid var(--rule);border-radius:10px;background:var(--bg);display:block}
+#tab-english .wk1{width:100%;height:600px;border:0;display:block;background:var(--bg);overflow:hidden}
+/* 1주차 문단 재생 막대 — 콘솔이 그린다. 문단 화면은 통째로 늘어나 페이지 전체가 한 번에 스크롤된다(2026-09-29 모바일 스크롤 버그) */
+#wkBar{position:fixed;left:0;right:0;bottom:calc(var(--tabbar) + env(safe-area-inset-bottom));z-index:29;background:var(--card);border-top:1px solid var(--rule);display:flex;gap:8px;align-items:center;padding:8px 12px}
+#wkBar[hidden]{display:none}
+#wkBar button{font:500 13px var(--sans);padding:7px 11px;border:1px solid var(--rule);background:var(--bg);color:var(--ink,inherit);border-radius:999px;white-space:nowrap;cursor:pointer}
+#wkBar button[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+#wkBar input{flex:1;min-width:0;accent-color:var(--accent)}
+#wkBar output{font:500 12px var(--mono);min-width:3.4em;text-align:right}
+#wkBar .lb{font-size:12px;color:var(--muted);max-width:30%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body.wk-on{padding-bottom:calc(var(--tabbar) + 64px + env(safe-area-inset-bottom))}
+@media (min-width:1000px){#wkBar{bottom:0}body.wk-on{padding-bottom:72px}}
 #tab-english .wk1-open{display:inline-block;margin:6px 0 0;font-size:12px}
 #tab-english .md h3{font-size:16px;margin:4px 0 8px}#tab-english .md h4{font-size:14px;margin:12px 0 4px}#tab-english .md p{margin:4px 0;line-height:1.55}#tab-english .md ul{margin:4px 0 4px 18px}#tab-english .md code{font-size:12px}
   .aplinks { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:2px 0 10px; }
@@ -745,6 +755,13 @@ h3.sub{font-size:12.5px;color:var(--muted);margin:10px 0 2px;font-weight:600}
       <div class="hint">저녁에 전사와 지표가 생기고, 교정 3문장이 내일 미션 0번이 된다.</div>
     </div>
   </section>
+<div id="wkBar" hidden role="region" aria-label="1주차 문단 재생">
+  <button type="button" id="wkToggle" aria-label="재생 또는 일시정지"></button>
+  <span class="lb" id="wkLabel">문장이나 문단의 재생 버튼</span>
+  <input type="range" id="wkRate" min="0.5" max="1.5" step="0.05" value="1" aria-label="재생 속도">
+  <output id="wkRateOut" for="wkRate">1.00배</output>
+  <button type="button" id="wkLoop" aria-pressed="false">반복</button>
+</div>
 <nav class="tabbar" id="tabbar">
   <button data-tab="today" class="on"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg>오늘</button>
   <button data-tab="record"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>기록</button>
@@ -854,7 +871,7 @@ function switchTab(name) {
   if (name === "record") loadRecord();
   if (name === "metrics") loadMetrics();
   if (name === "manage") loadManage();
-  if (name === "english") loadEnglish();
+  if (name === "english") loadEnglish(); else if (typeof wkOff === "function") wkOff();
   const cm = $("chatmenu"); if (cm) cm.open = false;
   window.scrollTo({ top: 0 });
 }
@@ -1931,12 +1948,12 @@ async function loadEnglishDoc(kind) {
   enPaintDate();
   // 1주차 암기 문단은 James 원문 화면(음성·속도 조절 포함)을 그대로 띄운다(2026-09-29, 원문 편집 금지)
   if (kind === "week1") {
-    $("enMission").innerHTML = '<iframe class="wk1" src="./english/week1/index.html" title="영어 면접 1주차 암기 문단" loading="lazy"></iframe>'
+    $("enMission").innerHTML = '<iframe class="wk1" id="wk1" src="./english/week1/index.html" title="영어 면접 1주차 암기 문단" scrolling="no"></iframe>'
       + '<a class="wk1-open" href="./english/week1/index.html" target="_blank" rel="noopener">새 창에서 열기</a>';
-    // 휴대폰에서 문단 화면이 머리줄과 하단 탭 사이를 채우도록 그 위치로 옮긴다(2026-09-29 모바일 버그)
-    requestAnimationFrame(() => { const f = document.querySelector("#enMission .wk1"); if (f) f.scrollIntoView({ block: "start" }); });
+    wkOn();
     return;
   }
+  wkOff();
   const url = kind === "today" ? EN_MISSION(_enDate) : EN_DOCS[kind];
   try {
     const r = await fetch(url + "?t=" + Date.now(), { cache: "no-store" });
@@ -1949,6 +1966,41 @@ async function loadEnglishDoc(kind) {
   }
 }
 function enGotoDate(d) { _enDate = d; loadEnglishDoc("today"); }
+// 1주차 문단: iframe 을 내용 높이로 늘려 안쪽 스크롤을 없애고(휴대폰에서 안쪽 스크롤이 막힌다), 재생 막대는 콘솔이 그린다
+function wkFrame() { return document.getElementById("wk1"); }
+function wkFit() {
+  const f = wkFrame(); if (!f) return;
+  try { const d = f.contentDocument; f.style.height = Math.max(d.documentElement.scrollHeight, d.body.scrollHeight) + "px"; } catch (e) {}
+}
+function wkOn() {
+  const f = wkFrame(); if (!f) return;
+  f.addEventListener("load", () => {
+    wkFit();
+    try { new f.contentWindow.ResizeObserver(wkFit).observe(f.contentDocument.body); } catch (e) {}
+    try { const w = f.contentWindow.WK; if (w) w.notify(); } catch (e) {}
+  });
+  document.body.classList.add("wk-on"); $("wkBar").hidden = false;
+}
+function wkOff() {
+  const f = wkFrame();
+  try { if (f && f.contentWindow.WK) f.contentWindow.WK.pause(); } catch (e) {}
+  document.body.classList.remove("wk-on"); const b = $("wkBar"); if (b) b.hidden = true;
+}
+function wkApi() { const f = wkFrame(); try { return f && f.contentWindow.WK; } catch (e) { return null; } }
+const _wkPlay = '<svg class="icon" viewBox="0 0 24 24" style="width:14px;height:14px;vertical-align:-2px"><path d="M7 4l13 8-13 8z" fill="currentColor"/></svg>';
+const _wkPause = '<svg class="icon" viewBox="0 0 24 24" style="width:14px;height:14px;vertical-align:-2px"><path d="M6 4h4v16H6zM14 4h4v16h-4z" fill="currentColor"/></svg>';
+window.addEventListener("message", (e) => {
+  if (e.origin !== location.origin || !e.data || !e.data.wk) return;
+  const st = e.data.wk;
+  $("wkToggle").innerHTML = st.playing ? _wkPause : _wkPlay;
+  $("wkLabel").textContent = st.has ? st.label : "문장이나 문단의 재생 버튼";
+  $("wkRate").value = st.rate; $("wkRateOut").textContent = Number(st.rate).toFixed(2) + "배";
+  $("wkLoop").setAttribute("aria-pressed", st.loop ? "true" : "false");
+});
+$("wkToggle").onclick = () => { const w = wkApi(); if (w) w.toggle(); };
+$("wkRate").oninput = () => { const w = wkApi(); if (w) w.setRate(parseFloat($("wkRate").value)); };
+$("wkLoop").onclick = () => { const w = wkApi(); if (w) w.setLoop(!w.loop()); };
+$("wkToggle").innerHTML = _wkPlay;
 document.querySelectorAll("[data-endoc]").forEach((b) => b.onclick = () => loadEnglishDoc(b.dataset.endoc));
 $("enPrev").onclick = () => enGotoDate(enShiftDay(-1));
 $("enNext").onclick = () => enGotoDate(enShiftDay(1));
