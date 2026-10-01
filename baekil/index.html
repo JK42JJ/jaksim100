@@ -745,6 +745,7 @@ h3.sub{font-size:12.5px;color:var(--muted);margin:10px 0 2px;font-weight:600}
         <input id="dgQ" type="search" placeholder="공고명·회사·기관 검색">
         <select id="dgGroup"><option value="core">추천</option><option value="miss">미달·판정 전</option><option value="">전체 묶음</option></select>
         <select id="dgKind"></select>
+        <select id="dgSrc"></select>
         <select id="dgCash"><option value="">지원금 전체</option><option value="예" selected>지원금 있음</option><option value="아니오">지원금 없음</option><option value="불명">지원금 불명</option></select>
         <select id="dgVerdict"><option value="">자격 전체</option><option value="통과">자격 통과</option><option value="조건부">조건부</option><option value="미달">미달</option></select>
         <select id="dgDue"><option value="">마감 전체</option><option value="7">7일 안</option><option value="14">14일 안</option><option value="30">30일 안</option><option value="none">상시·미표기</option></select>
@@ -1681,6 +1682,18 @@ async function loadGrants() {
 }
 /* 정보 탭 목록 = 지원사업 추천(grant-recs.json) + 지원 큐 공고(apply-queue, 적합도 등급). James(10-01) "왜 이력서 제출 위한 기업들이 보이지 않지?"
    공고는 결정판과 같은 결정(kind=queue: 지원·보류·스킵)으로 보낸다. 묶음: A·B·C=추천, 판정 전·지원 불가=미달·판정 전. */
+/* 출처(2026-10-01 James "출처를 필터에 추가해줘 (링크드인/원티드 등등)") — 채용은 수집 채널, 지원사업은 공고 사이트 도메인.
+   이름을 모르는 사이트는 '기관 사이트'로 묶는다(대학 창업단·시·진흥원 게시판 등). */
+const DG_SRC_NAME = { linkedin: "링크드인", wanted: "원티드", saramin: "사람인", jumpit: "점핏", jobkorea: "잡코리아",
+  "k-startup.go.kr": "K-Startup", "bizinfo.go.kr": "기업마당", "egbiz.or.kr": "이지비즈", "contestkorea.com": "콘테스트코리아",
+  "linkareer.com": "링커리어", "wevity.com": "위비티", "all-con.co.kr": "올콘", "allforyoung.com": "올포영", "detizen.com": "대티즌",
+  "nextunicorn.kr": "넥스트유니콘", "creativekorea.or.kr": "창조경제혁신센터" };
+function dgSrcOf(g) {
+  if (g.src === "queue") return DG_SRC_NAME[g.q.source] || g.q.source || "기타";
+  let h = ""; try { h = new URL(g.url).hostname.replace(/^www\./, ""); } catch (e) { return "기타"; }
+  const k = Object.keys(DG_SRC_NAME).find((d) => h === d || h.endsWith("." + d));
+  return k ? DG_SRC_NAME[k] : "기관 사이트";
+}
 const DG_TIER_V = { A: "통과", B: "통과", C: "조건부", "?": "조건부", X: "미달" };
 function dgItems() {
   const jobs = (DEC.queue || []).map((q) => { const f = q.fit || {}, t = f.tier || "?", j = q.jd || {}; return {
@@ -1688,17 +1701,18 @@ function dgItems() {
     title: `${q.company} · ${q.title}`, url: q.url, kind: (f.family && f.family !== "계열 미분류") ? f.family : "직무 미분류",
     verdict: DG_TIER_V[t], cash: "", deadline: j.closed ? "2000-01-01" : (q.deadline_iso || ""), deadline_text: j.closed ? "마감 지남" : (j.deadline || "상시"),
     loc: j.location || q.loc || "", years: j.years || "", q }; });
-  return (DEC.grants || []).map((g) => ({ src: "grant", ...g })).concat(jobs);
+  return (DEC.grants || []).map((g) => ({ src: "grant", ...g })).concat(jobs).map((g) => ({ ...g, from: dgSrcOf(g) }));
 }
 function dgDays(g) { if (!g.deadline) return null; return Math.round((new Date(g.deadline + "T00:00:00+09:00") - new Date(DEC.today + "T00:00:00+09:00")) / 864e5); }
 const DG_TRACKS = ["창업", "취업", "진학", "기타"];
 let DG_TRACK = "";
-function dgFiltered(skipKind, skipTrack) {
+function dgFiltered(skipKind, skipTrack, skipSrc) {
   const v = (id) => $(id).value, q = v("dgQ").trim().toLowerCase();
   return dgItems().filter((g) => {
     if (!skipTrack && DG_TRACK && (g.track || "기타") !== DG_TRACK) return false;
     if (v("dgGroup") && g.group !== v("dgGroup")) return false;
     if (!skipKind && v("dgKind") && (g.kind || "기타") !== v("dgKind")) return false;
+    if (!skipSrc && v("dgSrc") && g.from !== v("dgSrc")) return false;
     if (g.src === "grant" && v("dgCash") && (g.cash || "불명") !== v("dgCash")) return false;   // 지원금 필터는 지원사업에만 건다
     if (v("dgVerdict") && g.verdict !== v("dgVerdict")) return false;
     const d = dgDays(g), due = v("dgDue");
@@ -1717,6 +1731,12 @@ function renderDg() {
   $("dgTracks").innerHTML = [["", "전체", tb.length]].concat(DG_TRACKS.map((k) => [k, k, tc[k] || 0]))
     .map(([k, l, n]) => `<button data-track="${k}" class="${k === DG_TRACK ? "on" : ""}">${l} <span class="mono">${n}</span></button>`).join("");
   $("dgTracks").querySelectorAll("[data-track]").forEach((b) => b.onclick = () => { DG_TRACK = b.dataset.track; DG_LIMIT = 100; $("dgKind").value = ""; $("dqAll").checked = false; renderDg(); });
+  const sb = dgFiltered(false, false, true), sc = {};
+  sb.forEach((g) => { sc[g.from] = (sc[g.from] || 0) + 1; });
+  const curS = $("dgSrc").value;
+  $("dgSrc").innerHTML = `<option value="">출처 전체 ${sb.length}</option>` + Object.keys(sc).sort((a, b) => sc[b] - sc[a])
+    .map((k) => `<option value="${esc(k)}"${k === curS ? " selected" : ""}>${esc(k)} ${sc[k]}</option>`).join("");
+  if (curS && !sc[curS]) $("dgSrc").value = "";
   const base = dgFiltered(true), cnt = {};
   base.forEach((g) => { const k = g.kind || "기타"; cnt[k] = (cnt[k] || 0) + 1; });
   const cur = $("dgKind").value;
@@ -1735,8 +1755,8 @@ function renderDg() {
   const shown = L.slice(0, DG_LIMIT);
   $("dgBox").innerHTML = shown.length ? shown.map((g) => { const d = dgDays(g), pc = pendChip(g.src + ":" + g.key);
     const sub = g.src === "queue"
-      ? `${esc(g.kind)} · 등급 ${esc(g.tier === "X" ? "지원 불가" : g.tier === "?" ? "판정 전" : g.tier)}${g.loc ? " · " + esc(g.loc) : ""}${g.years ? " · " + esc(g.years) : ""}`
-      : `${esc(g.kind || "기타")} · 자격 ${esc(g.verdict || "?")}${g.cash === "예" ? " · 지원금" : ""}`;
+      ? `${esc(g.from)} · ${esc(g.kind)} · 등급 ${esc(g.tier === "X" ? "지원 불가" : g.tier === "?" ? "판정 전" : g.tier)}${g.loc ? " · " + esc(g.loc) : ""}${g.years ? " · " + esc(g.years) : ""}`
+      : `${esc(g.from)} · ${esc(g.kind || "기타")} · 자격 ${esc(g.verdict || "?")}${g.cash === "예" ? " · 지원금" : ""}`;
     const body = g.src === "queue"
       ? `${fitBox(g.q.fit)}${(g.q.jd || {}).ok ? `<div class="jd">${jdPart("주요 업무", g.q.jd.duties)}${jdPart("필수 자격", g.q.jd.musts)}${jdPart("우대", g.q.jd.prefs)}</div>` : `<div class="s">${esc((g.q.jd || {}).note || "요약 없음")}</div>`}
          <div class="q a" style="border:0;padding:0">${g.url ? `<a class="more" href="${esc(g.url)}" target="_blank" rel="noopener">원문</a>` : ""}<span class="spacer"></span>
@@ -1760,9 +1780,9 @@ function bindGrantFilters() {
   if (DG_BOUND) return; DG_BOUND = true;
   bindJobBulk();
   const re = () => { DG_LIMIT = 100; renderDg(); };
-  ["dgGroup", "dgKind", "dgCash", "dgVerdict", "dgDue", "dgState"].forEach((id) => $(id).onchange = re);
+  ["dgGroup", "dgKind", "dgSrc", "dgCash", "dgVerdict", "dgDue", "dgState"].forEach((id) => $(id).onchange = re);
   $("dgQ").oninput = re;
-  $("dgReset").onclick = () => { ["dgKind", "dgCash", "dgVerdict", "dgDue", "dgState"].forEach((id) => $(id).value = ""); $("dgGroup").value = "core"; $("dgQ").value = ""; DG_TRACK = ""; renderDg(); };
+  $("dgReset").onclick = () => { ["dgKind", "dgSrc", "dgCash", "dgVerdict", "dgDue", "dgState"].forEach((id) => $(id).value = ""); $("dgGroup").value = "core"; $("dgQ").value = ""; DG_TRACK = ""; renderDg(); };
 }
 const pendChip = (key) => DEC.pending[key] ? `<span class="pend">반영 대기 · ${DC_LABEL[DEC.pending[key]] || DEC.pending[key]}</span>` : "";
 const decBtn = (kind, id, act, pri) => `<button class="btn sm${pri ? " pri" : ""}" data-dk="${kind}" data-did="${esc(id)}" data-da="${act}">${DC_LABEL[act]}</button>`;
