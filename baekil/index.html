@@ -681,6 +681,13 @@ h3.sub{font-size:12.5px;color:var(--muted);margin:10px 0 2px;font-weight:600}
   <section id="tab-manage">
     <div class="card"><h2>약속 정리 <span class="mono" id="dcCnt" style="color:var(--behind)"></span><span class="r">누른 결정은 다음 새벽 원장에 반영된다</span></h2>
       <div id="dcBox"><div class="loading">불러오는 중…</div></div></div>
+    <!-- 지원사업 추천 판정(2026-10-01 James "db<>json<>웹"): 추천 목록 data/grant-recs.json → 판정은 events → daily-ops 가 grants/judge/labels.jsonl 에 정답으로 쌓는다 -->
+    <div class="card"><h2>지원사업 추천 판정 <span class="mono" id="dgCnt"></span><span class="r" id="dgMeta"></span></h2>
+      <div class="dqbar">
+        <select id="dgGroup"><option value="core">추천(자격 통과·접수 중)</option><option value="miss">탈락 표본(빠뜨림 점검)</option><option value="">전체</option></select>
+        <label><input type="checkbox" id="dgCash" checked> 지원금 있는 것만</label>
+      </div>
+      <div id="dgBox"><div class="loading">불러오는 중…</div></div></div>
     <div class="card"><h2>지원 큐 <span class="mono" id="dqCnt"></span><span class="r" id="dqMeta"></span></h2>
       <div class="dqbar">
         <label><input type="checkbox" id="dqAll"> 전체 선택</label>
@@ -1607,13 +1614,32 @@ async function loadManage() {
 }
 /* ── 결정판(2026-09-17 James "체크박스에 key in 가능하도록", "jd 내용을 핵심 요약") ──
    서버 /api/decisions. 누른 결정은 events 에 쌓이고, daily-ops 가 원장 스크립트로 반영한다. 반영 전에는 '반영 대기'로 보인다. */
-const DC_LABEL = { done: "끝남", bump7: "일주일 미룸", cancel: "접기", apply: "지원", skip: "스킵", hold: "보류" };
+const DC_LABEL = { done: "끝남", bump7: "일주일 미룸", cancel: "접기", apply: "지원", skip: "스킵", hold: "보류",
+  right: "맞음", wrong: "틀림", unsure: "모름" };
 let DEC = null;
 async function loadDecisions() {
-  try { DEC = await api("/api/decisions"); renderDc(); renderDq(); }
-  catch (e) { $("dcBox").innerHTML = $("dqBox").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+  try { DEC = await api("/api/decisions"); renderDc(); renderDq(); renderDg(); }
+  catch (e) { $("dcBox").innerHTML = $("dqBox").innerHTML = $("dgBox").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
 }
-const pendChip = (key) => DEC.pending[key] ? `<span class="pend">반영 대기 · ${DC_LABEL[DEC.pending[key]]}</span>` : "";
+/* 지원사업 추천 판정 — 맞음·틀림·모름은 판정 엔진의 정답, '낸다'는 맞음 + 신청서 약속(마감 D-3 영업일) */
+function renderDg() {
+  const grp = $("dgGroup").value, cashOnly = $("dgCash").checked;
+  const L = (DEC.grants || []).filter((g) => (!grp || g.group === grp) && (!cashOnly || g.cash === "예"));
+  const m = DEC.grants_meta || {}, c = m.counts || {};
+  $("dgCnt").textContent = L.length ? String(L.length) : "";
+  $("dgMeta").textContent = `추천 ${c.core || 0} · 표본 ${c.miss || 0} · 판정 끝 ${m.labeled || 0}` + (m.updated_at ? `  ${String(m.updated_at).slice(5, 16).replace("T", " ")}` : "");
+  $("dgBox").innerHTML = L.length ? L.map((g) => `<div class="q">
+    <div class="t">${esc(g.title)}</div>
+    <div class="a"><span class="chip mono">마감 ${esc(g.deadline_text || "미표기")}</span><span class="chip">자격 ${esc(g.verdict || "?")}</span>${g.cash === "예" ? `<span class="chip">지원금</span>` : ""}${pendChip("grant:" + g.key)}</div>
+    ${g.cash_text ? `<div class="s">${esc(g.cash_text)}</div>` : ""}
+    <div class="s">${esc(g.reason || "")}</div>
+    ${g.quote ? `<div class="s muted">원문: ${esc(g.quote)}</div>` : ""}
+    <div class="a">${g.url ? `<a class="more" href="${esc(g.url)}" target="_blank" rel="noopener">원문</a>` : ""}<span class="spacer"></span>
+    ${decBtn("grant", g.key, "unsure")}${decBtn("grant", g.key, "wrong")}${decBtn("grant", g.key, "right")}<button class="btn sm pri" data-dk="grant" data-did="${esc(g.key)}" data-da="apply">낸다</button></div></div>`).join("")
+    : '<div class="loading">판정할 공고가 없다.</div>';
+  bindDec($("dgBox"));
+}
+const pendChip = (key) => DEC.pending[key] ? `<span class="pend">반영 대기 · ${key.startsWith("grant:") && DEC.pending[key] === "apply" ? "낸다" : DC_LABEL[DEC.pending[key]]}</span>` : "";
 const decBtn = (kind, id, act, pri) => `<button class="btn sm${pri ? " pri" : ""}" data-dk="${kind}" data-did="${esc(id)}" data-da="${act}">${DC_LABEL[act]}</button>`;
 function renderDc() {
   const L = DEC.commitments || [];
@@ -1663,11 +1689,12 @@ async function sendDec(kind, id, action) {
 }
 function bindDec(root) {
   root.querySelectorAll("[data-da]").forEach((b) => b.onclick = async () => {
-    try { await sendDec(b.dataset.dk, b.dataset.did, b.dataset.da); toast(DC_LABEL[b.dataset.da] + " — 다음 새벽 원장에 반영"); renderDc(); renderDq(); }
+    try { await sendDec(b.dataset.dk, b.dataset.did, b.dataset.da); toast((b.dataset.dk === "grant" && b.dataset.da === "apply" ? "낸다" : DC_LABEL[b.dataset.da]) + " — 다음 새벽 원장에 반영"); renderDc(); renderDq(); renderDg(); }
     catch (e) { toast("실패: " + e.message); }
   });
 }
 function bindBulk() {
+  $("dgGroup").onchange = $("dgCash").onchange = () => renderDg();
   if ($("dqTier")) $("dqTier").onchange = () => { $("dqAll").checked = false; renderDq(); };
   $("dqAll").onchange = (e) => document.querySelectorAll(".dqsel").forEach((c) => { c.checked = e.target.checked; });
   document.querySelectorAll("[data-bulk]").forEach((b) => b.onclick = async () => {
