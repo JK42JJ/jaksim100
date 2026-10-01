@@ -482,6 +482,23 @@ svg.curve{width:100%;height:190px;display:block;font-family:var(--mono)}
 .jd .h{font-size:11.5px;color:var(--muted);margin-top:4px}
 .jd ul{margin:2px 0 0 18px;padding:0}
 .jd li{font-size:13px;line-height:1.45}
+/* 지원사업 탭(2026-10-01): 필터 줄 + 한 줄 목록, 눌러서 펼친다 */
+.dgf{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;padding:6px 0 8px}
+.dgf input,.dgf select{font-size:13px;min-height:34px;border-radius:8px;width:100%;box-sizing:border-box}
+.dgf input{grid-column:1/-1}
+.dgt{display:flex;gap:0;border-bottom:1px solid var(--rule);margin:2px 0 8px;overflow-x:auto}
+.dgt button{flex:1;min-width:64px;font-size:14px;font-weight:600;padding:9px 6px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--muted)}
+.dgt button.on{color:inherit;border-bottom-color:var(--accent)}
+.dgk{display:flex;flex-wrap:wrap;gap:6px;padding:0 0 8px}
+.dgk button{font-size:12px;border-radius:999px;padding:3px 10px;border:1px solid var(--rule);background:transparent;color:inherit}
+.dgk button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.dg{border-top:1px solid var(--rule)}
+.dg summary{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:9px 0;cursor:pointer;list-style:none}
+.dg summary::-webkit-details-marker{display:none}
+.dg summary b{font-size:14px;font-weight:600;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dg summary small{display:block;font-size:11.5px;color:var(--muted);margin-top:2px}
+.dg .body{display:flex;flex-direction:column;gap:6px;padding:0 0 10px}
+.dg .body .s{font-size:12.5px;color:var(--muted)}
 .pend{color:var(--accent);font-weight:600;font-size:12px;white-space:nowrap}
 .fit{font-size:12.5px;line-height:1.5;margin:4px 0 2px}
 .fit .gate{color:var(--behind)}
@@ -569,6 +586,7 @@ h3.sub{font-size:12.5px;color:var(--muted);margin:10px 0 2px;font-weight:600}
       <button data-tab="record">기록</button>
       <button data-tab="metrics">지표</button>
       <button data-tab="manage">관리 <span class="badge" data-badge></span></button>
+      <button data-tab="grants">지원사업</button>
       <button data-tab="english">영어</button>
     </nav>
     <span class="spacer"></span>
@@ -681,13 +699,6 @@ h3.sub{font-size:12.5px;color:var(--muted);margin:10px 0 2px;font-weight:600}
   <section id="tab-manage">
     <div class="card"><h2>약속 정리 <span class="mono" id="dcCnt" style="color:var(--behind)"></span><span class="r">누른 결정은 다음 새벽 원장에 반영된다</span></h2>
       <div id="dcBox"><div class="loading">불러오는 중…</div></div></div>
-    <!-- 지원사업 추천 판정(2026-10-01 James "db<>json<>웹"): 추천 목록 data/grant-recs.json → 판정은 events → daily-ops 가 grants/judge/labels.jsonl 에 정답으로 쌓는다 -->
-    <div class="card"><h2>지원사업 추천 판정 <span class="mono" id="dgCnt"></span><span class="r" id="dgMeta"></span></h2>
-      <div class="dqbar">
-        <select id="dgGroup"><option value="core">추천(자격 통과·접수 중)</option><option value="miss">탈락 표본(빠뜨림 점검)</option><option value="">전체</option></select>
-        <label><input type="checkbox" id="dgCash" checked> 지원금 있는 것만</label>
-      </div>
-      <div id="dgBox"><div class="loading">불러오는 중…</div></div></div>
     <div class="card"><h2>지원 큐 <span class="mono" id="dqCnt"></span><span class="r" id="dqMeta"></span></h2>
       <div class="dqbar">
         <label><input type="checkbox" id="dqAll"> 전체 선택</label>
@@ -711,6 +722,25 @@ h3.sub{font-size:12.5px;color:var(--muted);margin:10px 0 2px;font-weight:600}
 
 
   <!-- ── 영어 데일리 미션 (2026-09-05 추가 — 기존 페이지는 그대로) ── -->
+  <!-- ── 지원사업 = 추천 판정(2026-10-01 James "별도 탭으로 항목/유형/각 상세 필터, 스크롤이 지나치게 길어서 찾기 불가능") ──
+       목록 data/grant-recs.json(grants/judge/recommend.py) → 판정은 /api/decisions(kind=grant) → daily-ops 가 grants/judge/labels.jsonl 에 정답으로 쌓는다 -->
+  <section id="tab-grants">
+    <div class="card"><h2>지원사업 추천 판정 <span class="mono" id="dgCnt"></span><span class="r" id="dgMeta"></span></h2>
+      <div id="dgTracks" class="dgt"></div>
+      <div class="dgf">
+        <input id="dgQ" type="search" placeholder="공고명·기관 검색">
+        <select id="dgGroup"><option value="core">추천(자격 통과·접수 중)</option><option value="miss">미달 표본(빠뜨림 점검)</option><option value="">전체 묶음</option></select>
+        <select id="dgKind"></select>
+        <select id="dgCash"><option value="">지원금 전체</option><option value="예" selected>지원금 있음</option><option value="아니오">지원금 없음</option><option value="불명">지원금 불명</option></select>
+        <select id="dgVerdict"><option value="">자격 전체</option><option value="통과">자격 통과</option><option value="조건부">조건부</option><option value="미달">미달</option></select>
+        <select id="dgDue"><option value="">마감 전체</option><option value="7">7일 안</option><option value="14">14일 안</option><option value="30">30일 안</option><option value="none">상시·미표기</option></select>
+        <select id="dgState"><option value="">판정 전체</option><option value="todo" selected>아직 안 누름</option><option value="done">누름(반영 대기)</option></select>
+        <button class="btn sm" id="dgReset">필터 초기화</button>
+      </div>
+      <div id="dgKinds" class="dgk"></div>
+      <div id="dgBox"><div class="loading">불러오는 중…</div></div></div>
+  </section>
+
   <section id="tab-english">
     <div class="card">
       <h2><span>영어</span><span class="cnt" id="enDate"></span></h2>
@@ -755,6 +785,7 @@ h3.sub{font-size:12.5px;color:var(--muted);margin:10px 0 2px;font-weight:600}
   <button data-tab="record"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>기록</button>
   <button data-tab="metrics"><svg class="icon" viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>지표</button>
   <button data-tab="manage"><svg class="icon" viewBox="0 0 24 24"><path d="M3 13h5l2 3h4l2-3h5"/><path d="M5 5h14l2 8v6H3v-6z"/></svg>관리<span class="badge" data-badge></span></button>
+  <button data-tab="grants"><svg class="icon" viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h6"/><circle cx="18" cy="16" r="3"/><path d="M20.2 18.2L22 20"/></svg>지원사업</button>
   <button data-tab="english"><svg class="icon" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>영어</button>
 </nav>
 
@@ -859,6 +890,7 @@ function switchTab(name) {
   if (name === "record") loadRecord();
   if (name === "metrics") loadMetrics();
   if (name === "manage") loadManage();
+  if (name === "grants") loadGrants();
   if (name === "english") loadEnglish();
   const cm = $("chatmenu"); if (cm) cm.open = false;
   window.scrollTo({ top: 0 });
@@ -1618,26 +1650,74 @@ const DC_LABEL = { done: "끝남", bump7: "일주일 미룸", cancel: "접기", 
   right: "맞음", wrong: "틀림", unsure: "모름" };
 let DEC = null;
 async function loadDecisions() {
-  try { DEC = await api("/api/decisions"); renderDc(); renderDq(); renderDg(); }
-  catch (e) { $("dcBox").innerHTML = $("dqBox").innerHTML = $("dgBox").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+  try { DEC = await api("/api/decisions"); renderDc(); renderDq(); }
+  catch (e) { $("dcBox").innerHTML = $("dqBox").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
 }
-/* 지원사업 추천 판정 — 맞음·틀림·모름은 판정 엔진의 정답, '낸다'는 맞음 + 신청서 약속(마감 D-3 영업일) */
+/* 지원사업 탭 — 맞음·틀림·모름은 판정 엔진의 정답, '낸다'는 맞음 + 신청서 약속(마감 D-3 영업일). 데이터는 결정판과 같은 /api/decisions */
+async function loadGrants() {
+  bindGrantFilters();
+  try { DEC = await api("/api/decisions"); renderDg(); }
+  catch (e) { $("dgBox").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+const DG_KINDS = ["경진대회·공모", "사업화·자금", "투자·IR", "입주·공간", "멘토링·상담", "교육·행사", "기타"];
+function dgDays(g) { if (!g.deadline) return null; return Math.round((new Date(g.deadline + "T00:00:00+09:00") - new Date(DEC.today + "T00:00:00+09:00")) / 864e5); }
+const DG_TRACKS = ["창업", "취업", "진학", "기타"];
+let DG_TRACK = "";
+function dgFiltered(skipKind, skipTrack) {
+  const v = (id) => $(id).value, q = v("dgQ").trim().toLowerCase();
+  return (DEC.grants || []).filter((g) => {
+    if (!skipTrack && DG_TRACK && (g.track || "기타") !== DG_TRACK) return false;
+    if (v("dgGroup") && g.group !== v("dgGroup")) return false;
+    if (!skipKind && v("dgKind") && (g.kind || "기타") !== v("dgKind")) return false;
+    if (v("dgCash") && (g.cash || "불명") !== v("dgCash")) return false;
+    if (v("dgVerdict") && g.verdict !== v("dgVerdict")) return false;
+    const d = dgDays(g), due = v("dgDue");
+    if (due === "none" ? d !== null : due && (d === null || d > +due)) return false;
+    const st = DEC.pending["grant:" + g.key];
+    if (v("dgState") === "todo" && st) return false;
+    if (v("dgState") === "done" && !st) return false;
+    if (q && !((g.title || "") + " " + (g.reason || "") + " " + (g.cash_text || "")).toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
 function renderDg() {
-  const grp = $("dgGroup").value, cashOnly = $("dgCash").checked;
-  const L = (DEC.grants || []).filter((g) => (!grp || g.group === grp) && (!cashOnly || g.cash === "예"));
+  if (!DEC) return;
+  const tb = dgFiltered(false, true), tc = {};
+  tb.forEach((g) => { const k = g.track || "기타"; tc[k] = (tc[k] || 0) + 1; });
+  $("dgTracks").innerHTML = [["", "전체", tb.length]].concat(DG_TRACKS.map((k) => [k, k, tc[k] || 0]))
+    .map(([k, l, n]) => `<button data-track="${k}" class="${k === DG_TRACK ? "on" : ""}">${l} <span class="mono">${n}</span></button>`).join("");
+  $("dgTracks").querySelectorAll("[data-track]").forEach((b) => b.onclick = () => { DG_TRACK = b.dataset.track; renderDg(); });
+  const base = dgFiltered(true), cnt = {};
+  base.forEach((g) => { const k = g.kind || "기타"; cnt[k] = (cnt[k] || 0) + 1; });
+  const cur = $("dgKind").value;
+  $("dgKind").innerHTML = `<option value="">유형 전체 ${base.length}</option>` + DG_KINDS.map((k) => `<option value="${k}"${k === cur ? " selected" : ""}>${k} ${cnt[k] || 0}</option>`).join("");
+  $("dgKinds").innerHTML = [["", "전체", base.length]].concat(DG_KINDS.filter((k) => cnt[k]).map((k) => [k, k, cnt[k]]))
+    .map(([k, l, n]) => `<button data-kind="${k}" class="${k === cur ? "on" : ""}">${l} ${n}</button>`).join("");
+  $("dgKinds").querySelectorAll("[data-kind]").forEach((b) => b.onclick = () => { $("dgKind").value = b.dataset.kind; renderDg(); });
+  const L = dgFiltered(false);
   const m = DEC.grants_meta || {}, c = m.counts || {};
-  $("dgCnt").textContent = L.length ? String(L.length) : "";
+  $("dgCnt").textContent = String(L.length);
   $("dgMeta").textContent = `추천 ${c.core || 0} · 표본 ${c.miss || 0} · 판정 끝 ${m.labeled || 0}` + (m.updated_at ? `  ${String(m.updated_at).slice(5, 16).replace("T", " ")}` : "");
-  $("dgBox").innerHTML = L.length ? L.map((g) => `<div class="q">
-    <div class="t">${esc(g.title)}</div>
-    <div class="a"><span class="chip mono">마감 ${esc(g.deadline_text || "미표기")}</span><span class="chip">자격 ${esc(g.verdict || "?")}</span>${g.cash === "예" ? `<span class="chip">지원금</span>` : ""}${pendChip("grant:" + g.key)}</div>
-    ${g.cash_text ? `<div class="s">${esc(g.cash_text)}</div>` : ""}
-    <div class="s">${esc(g.reason || "")}</div>
-    ${g.quote ? `<div class="s muted">원문: ${esc(g.quote)}</div>` : ""}
-    <div class="a">${g.url ? `<a class="more" href="${esc(g.url)}" target="_blank" rel="noopener">원문</a>` : ""}<span class="spacer"></span>
-    ${decBtn("grant", g.key, "unsure")}${decBtn("grant", g.key, "wrong")}${decBtn("grant", g.key, "right")}<button class="btn sm pri" data-dk="grant" data-did="${esc(g.key)}" data-da="apply">낸다</button></div></div>`).join("")
-    : '<div class="loading">판정할 공고가 없다.</div>';
+  $("dgBox").innerHTML = L.length ? L.map((g) => { const d = dgDays(g); return `<details class="dg">
+    <summary><div style="min-width:0"><b>${esc(g.title)}</b><small>${esc(g.kind || "기타")} · 자격 ${esc(g.verdict || "?")}${g.cash === "예" ? " · 지원금" : ""}${pendChip("grant:" + g.key) ? " · " + pendChip("grant:" + g.key) : ""}</small></div>
+      <span class="chip mono">${d === null ? "상시" : d < 0 ? "마감" : "D-" + d}</span></summary>
+    <div class="body">
+      <div class="s">마감 ${esc(g.deadline_text || "미표기")}</div>
+      ${g.cash_text ? `<div class="s">지원: ${esc(g.cash_text)}</div>` : ""}
+      <div class="s">판단: ${esc(g.reason || "")}</div>
+      ${g.quote ? `<div class="s">원문: ${esc(g.quote)}</div>` : ""}
+      <div class="q a" style="border:0;padding:0">${g.url ? `<a class="more" href="${esc(g.url)}" target="_blank" rel="noopener">원문</a>` : ""}<span class="spacer"></span>
+      ${decBtn("grant", g.key, "unsure")}${decBtn("grant", g.key, "wrong")}${decBtn("grant", g.key, "right")}<button class="btn sm pri" data-dk="grant" data-did="${esc(g.key)}" data-da="apply">낸다</button></div>
+    </div></details>`; }).join("")
+    : '<div class="loading">조건에 맞는 공고가 없다. 필터를 풀어 본다.</div>';
   bindDec($("dgBox"));
+}
+let DG_BOUND = false;
+function bindGrantFilters() {
+  if (DG_BOUND) return; DG_BOUND = true;
+  ["dgGroup", "dgKind", "dgCash", "dgVerdict", "dgDue", "dgState"].forEach((id) => $(id).onchange = renderDg);
+  $("dgQ").oninput = renderDg;
+  $("dgReset").onclick = () => { ["dgKind", "dgCash", "dgVerdict", "dgDue", "dgState"].forEach((id) => $(id).value = ""); $("dgGroup").value = "core"; $("dgQ").value = ""; DG_TRACK = ""; renderDg(); };
 }
 const pendChip = (key) => DEC.pending[key] ? `<span class="pend">반영 대기 · ${key.startsWith("grant:") && DEC.pending[key] === "apply" ? "낸다" : DC_LABEL[DEC.pending[key]]}</span>` : "";
 const decBtn = (kind, id, act, pri) => `<button class="btn sm${pri ? " pri" : ""}" data-dk="${kind}" data-did="${esc(id)}" data-da="${act}">${DC_LABEL[act]}</button>`;
@@ -1694,7 +1774,6 @@ function bindDec(root) {
   });
 }
 function bindBulk() {
-  $("dgGroup").onchange = $("dgCash").onchange = () => renderDg();
   if ($("dqTier")) $("dqTier").onchange = () => { $("dqAll").checked = false; renderDq(); };
   $("dqAll").onchange = (e) => document.querySelectorAll(".dqsel").forEach((c) => { c.checked = e.target.checked; });
   document.querySelectorAll("[data-bulk]").forEach((b) => b.onclick = async () => {
