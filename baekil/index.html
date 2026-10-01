@@ -482,7 +482,7 @@ svg.curve{width:100%;height:190px;display:block;font-family:var(--mono)}
 .jd .h{font-size:11.5px;color:var(--muted);margin-top:4px}
 .jd ul{margin:2px 0 0 18px;padding:0}
 .jd li{font-size:13px;line-height:1.45}
-/* 지원사업 탭(2026-10-01): 필터 줄 + 한 줄 목록, 눌러서 펼친다 */
+/* 정보 탭(2026-10-01): 필터 줄 + 한 줄 목록, 눌러서 펼친다 */
 .dgf{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;padding:6px 0 8px}
 .dgf input,.dgf select{font-size:13px;min-height:34px;border-radius:8px;width:100%;box-sizing:border-box}
 .dgf input{grid-column:1/-1}
@@ -497,6 +497,14 @@ svg.curve{width:100%;height:190px;display:block;font-family:var(--mono)}
 .dg summary::-webkit-details-marker{display:none}
 .dg summary b{font-size:14px;font-weight:600;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dg summary small{display:block;font-size:11.5px;color:var(--muted);margin-top:2px}
+#dgBox.withsel .dg summary{grid-template-columns:auto minmax(0,1fr) auto}
+#dgBox:not(.withsel) .dqsel{display:none}
+.dcrow{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--rule)}
+.dcrow input{margin:0}
+.dcrow b{display:block;font-size:14px;font-weight:600;line-height:1.3}
+.dcrow small{display:block;font-size:11.5px;color:var(--muted);margin-top:2px}
+.dcrow .btns{display:flex;gap:6px}
+@media (max-width:560px){.dcrow{grid-template-columns:auto minmax(0,1fr)}.dcrow .btns{grid-column:2;justify-content:flex-end}}
 .dg .body{display:flex;flex-direction:column;gap:6px;padding:0 0 10px}
 .dg .body .s{font-size:12.5px;color:var(--muted)}
 .pend{color:var(--accent);font-weight:600;font-size:12px;white-space:nowrap}
@@ -586,7 +594,7 @@ h3.sub{font-size:12.5px;color:var(--muted);margin:10px 0 2px;font-weight:600}
       <button data-tab="record">기록</button>
       <button data-tab="metrics">지표</button>
       <button data-tab="manage">관리 <span class="badge" data-badge></span></button>
-      <button data-tab="grants">지원사업</button>
+      <button data-tab="grants">정보</button>
       <button data-tab="english">영어</button>
     </nav>
     <span class="spacer"></span>
@@ -696,24 +704,30 @@ h3.sub{font-size:12.5px;color:var(--muted);margin:10px 0 2px;font-weight:600}
   </section>
 
   <!-- ── 관리 = 결정 + 지원·트랙 + 크레덴셜 ── -->
+  <!-- 관리 = 이너 탭 다섯(2026-10-01 James "찾아보기가 상당히 어려워 … 이너 탭으로 정리하던지 실제 동작가능하게") -->
   <section id="tab-manage">
-    <div class="card"><h2>약속 정리 <span class="mono" id="dcCnt" style="color:var(--behind)"></span><span class="r">누른 결정은 다음 새벽 원장에 반영된다</span></h2>
-      <div id="dcBox"><div class="loading">불러오는 중…</div></div></div>
-    <div class="card"><h2>지원 큐 <span class="mono" id="dqCnt"></span><span class="r" id="dqMeta"></span></h2>
-      <div class="dqbar">
-        <label><input type="checkbox" id="dqAll"> 전체 선택</label>
-        <select id="dqTier"><option value="">전체 등급</option><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="?">판정 전</option><option value="X">지원 불가</option></select>
-        <select id="dqReason"><option value="">스킵 사유</option><option>직무가 안 맞음</option><option>연차가 안 맞음</option><option>회사</option><option>지역</option><option>마감</option></select>
-        <span class="spacer"></span>
-        <button class="btn sm" data-bulk="hold">체크한 것 보류</button><button class="btn sm" data-bulk="skip">체크한 것 스킵</button><button class="btn sm pri" data-bulk="apply">체크한 것 지원</button>
-      </div>
-      <div id="dqBox"><div class="loading">불러오는 중…</div></div></div>
-    <div class="card"><h2>결정 대기 <span class="mono" id="qcnt" style="color:var(--behind)"></span></h2>
+    <div class="dgt" id="mTabs">
+      <button data-mtab="commit" class="on">약속 <span class="mono" id="dcCnt"></span></button>
+      <button data-mtab="hitl">결정 대기 <span class="mono" id="qcnt"></span></button>
+      <button data-mtab="apply">지원 현황 <span class="mono" id="apcnt"></span></button>
+      <button data-mtab="track">트랙</button>
+      <button data-mtab="sec">크레덴셜</button>
+    </div>
+    <div class="card" data-mpane="commit"><h2>기한 지난 약속 <span class="r">누르면 목록에서 바로 빠지고, 원장에는 다음 새벽에 반영된다</span></h2>
+      <div class="s" style="font-size:12.5px;color:var(--muted);margin:-2px 0 6px">약속 원장(commitments.json)에서 James님 몫인데 기한이 오늘이거나 지난 것만 모았다. 끝난 일은 끝남, 아직 할 일은 일주일 미룸, 안 할 일은 접기.</div>
+      <div id="dcTracks" class="dgk"></div>
+      <div class="dqbar"><label><input type="checkbox" id="dcAll"> 보이는 것 전체 선택</label><span class="spacer"></span>
+        <button class="btn sm" data-dcbulk="cancel">체크한 것 접기</button><button class="btn sm" data-dcbulk="bump7">체크한 것 미룸</button><button class="btn sm pri" data-dcbulk="done">체크한 것 끝남</button></div>
+      <div id="dcBox"><div class="loading">불러오는 중…</div></div>
+      <details id="dcDoneWrap" class="dg" hidden><summary><div><b>오늘 누른 것 <span class="mono" id="dcDoneCnt"></span></b><small>원장 반영 대기 — 다시 누르면 결정을 바꾼다</small></div></summary><div id="dcDone"></div></details></div>
+    <div class="card" data-mpane="hitl" hidden><h2>결정 대기</h2>
       <div id="queue"><div class="loading">불러오는 중…</div></div></div>
-    <div class="card"><h2>지원 <span class="mono" id="apcnt"></span><span class="r" id="apsum"></span></h2><div id="aplinks" class="aplinks"></div><div id="applyBox"><div class="loading">불러오는 중…</div></div></div>
-    <div class="card"><h2>트랙</h2><div id="trackBox"><div class="loading">불러오는 중…</div></div></div>
+    <div class="card" data-mpane="apply" hidden><h2>지원 현황 <span class="r" id="apsum"></span></h2>
+      <div class="s" style="font-size:12.5px;color:var(--muted);margin:-2px 0 6px">새 채용 공고 고르기는 <a href="#" id="dqGo">정보 탭 · 취업</a>에서 한다.</div>
+      <div id="aplinks" class="aplinks"></div><div id="applyBox"><div class="loading">불러오는 중…</div></div></div>
+    <div class="card" data-mpane="track" hidden><h2>트랙</h2><div id="trackBox"><div class="loading">불러오는 중…</div></div></div>
     <!-- 크레덴셜 — 값은 GitHub Secrets 에만 있고 여기 오지 않는다. 목록과 상태만 본다(2026-09-02 James). -->
-    <div class="card"><h2>크레덴셜 <span class="mono r" id="secMeta"></span></h2>
+    <div class="card" data-mpane="sec" hidden><h2>크레덴셜 <span class="mono r" id="secMeta"></span></h2>
       <div id="secBox"><div class="loading">불러오는 중…</div></div>
       <a class="more" id="secSet" href="#" target="_blank" rel="noopener">GitHub에서 값 설정</a>
     </div>
@@ -722,14 +736,14 @@ h3.sub{font-size:12.5px;color:var(--muted);margin:10px 0 2px;font-weight:600}
 
 
   <!-- ── 영어 데일리 미션 (2026-09-05 추가 — 기존 페이지는 그대로) ── -->
-  <!-- ── 지원사업 = 추천 판정(2026-10-01 James "별도 탭으로 항목/유형/각 상세 필터, 스크롤이 지나치게 길어서 찾기 불가능") ──
+  <!-- ── 정보 = 지원사업 추천 + 채용 공고(2026-10-01 James "별도 탭으로 항목/유형/각 상세 필터, 스크롤이 지나치게 길어서 찾기 불가능") ──
        목록 data/grant-recs.json(grants/judge/recommend.py) → 판정은 /api/decisions(kind=grant) → daily-ops 가 grants/judge/labels.jsonl 에 정답으로 쌓는다 -->
   <section id="tab-grants">
-    <div class="card"><h2>지원사업 추천 판정 <span class="mono" id="dgCnt"></span><span class="r" id="dgMeta"></span></h2>
+    <div class="card"><h2>정보 <span class="mono" id="dgCnt"></span><span class="r" id="dgMeta"></span></h2>
       <div id="dgTracks" class="dgt"></div>
       <div class="dgf">
-        <input id="dgQ" type="search" placeholder="공고명·기관 검색">
-        <select id="dgGroup"><option value="core">추천(자격 통과·접수 중)</option><option value="miss">미달 표본(빠뜨림 점검)</option><option value="">전체 묶음</option></select>
+        <input id="dgQ" type="search" placeholder="공고명·회사·기관 검색">
+        <select id="dgGroup"><option value="core">추천</option><option value="miss">미달·판정 전</option><option value="">전체 묶음</option></select>
         <select id="dgKind"></select>
         <select id="dgCash"><option value="">지원금 전체</option><option value="예" selected>지원금 있음</option><option value="아니오">지원금 없음</option><option value="불명">지원금 불명</option></select>
         <select id="dgVerdict"><option value="">자격 전체</option><option value="통과">자격 통과</option><option value="조건부">조건부</option><option value="미달">미달</option></select>
@@ -738,6 +752,12 @@ h3.sub{font-size:12.5px;color:var(--muted);margin:10px 0 2px;font-weight:600}
         <button class="btn sm" id="dgReset">필터 초기화</button>
       </div>
       <div id="dgKinds" class="dgk"></div>
+      <div class="dqbar" id="dgBulk" hidden>
+        <label><input type="checkbox" id="dqAll"> 보이는 것 전체 선택</label>
+        <select id="dqReason"><option value="">스킵 사유</option><option>직무가 안 맞음</option><option>연차가 안 맞음</option><option>회사</option><option>지역</option><option>마감</option></select>
+        <span class="spacer"></span>
+        <button class="btn sm" data-bulk="hold">체크한 것 보류</button><button class="btn sm" data-bulk="skip">체크한 것 스킵</button><button class="btn sm pri" data-bulk="apply">체크한 것 지원</button>
+      </div>
       <div id="dgBox"><div class="loading">불러오는 중…</div></div></div>
   </section>
 
@@ -785,7 +805,7 @@ h3.sub{font-size:12.5px;color:var(--muted);margin:10px 0 2px;font-weight:600}
   <button data-tab="record"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>기록</button>
   <button data-tab="metrics"><svg class="icon" viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>지표</button>
   <button data-tab="manage"><svg class="icon" viewBox="0 0 24 24"><path d="M3 13h5l2 3h4l2-3h5"/><path d="M5 5h14l2 8v6H3v-6z"/></svg>관리<span class="badge" data-badge></span></button>
-  <button data-tab="grants"><svg class="icon" viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h6"/><circle cx="18" cy="16" r="3"/><path d="M20.2 18.2L22 20"/></svg>지원사업</button>
+  <button data-tab="grants"><svg class="icon" viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h6"/><circle cx="18" cy="16" r="3"/><path d="M20.2 18.2L22 20"/></svg>정보</button>
   <button data-tab="english"><svg class="icon" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>영어</button>
 </nav>
 
@@ -1650,8 +1670,8 @@ const DC_LABEL = { done: "끝남", bump7: "일주일 미룸", cancel: "접기", 
   pass: "관심 없음", ineligible: "자격 안 됨" };
 let DEC = null;
 async function loadDecisions() {
-  try { DEC = await api("/api/decisions"); renderDc(); renderDq(); }
-  catch (e) { $("dcBox").innerHTML = $("dqBox").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+  try { DEC = await api("/api/decisions"); renderDc(); }
+  catch (e) { $("dcBox").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
 }
 /* 지원사업 탭 — 지원·보류·관심 없음·자격 안 됨. 이 답이 판정 엔진의 정답이고, 지원은 신청서 약속(마감 D-3 영업일)도 올린다. 데이터는 결정판과 같은 /api/decisions */
 async function loadGrants() {
@@ -1659,24 +1679,34 @@ async function loadGrants() {
   try { DEC = await api("/api/decisions"); renderDg(); }
   catch (e) { $("dgBox").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
 }
-const DG_KINDS = ["경진대회·공모", "사업화·자금", "투자·IR", "입주·공간", "멘토링·상담", "교육·행사", "기타"];
+/* 정보 탭 목록 = 지원사업 추천(grant-recs.json) + 지원 큐 공고(apply-queue, 적합도 등급). James(10-01) "왜 이력서 제출 위한 기업들이 보이지 않지?"
+   공고는 결정판과 같은 결정(kind=queue: 지원·보류·스킵)으로 보낸다. 묶음: A·B·C=추천, 판정 전·지원 불가=미달·판정 전. */
+const DG_TIER_V = { A: "통과", B: "통과", C: "조건부", "?": "조건부", X: "미달" };
+function dgItems() {
+  const jobs = (DEC.queue || []).map((q) => { const f = q.fit || {}, t = f.tier || "?", j = q.jd || {}; return {
+    src: "queue", key: q.id, track: "취업", group: ["A", "B", "C"].includes(t) ? "core" : "miss", tier: t,
+    title: `${q.company} · ${q.title}`, url: q.url, kind: (f.family && f.family !== "계열 미분류") ? f.family : "직무 미분류",
+    verdict: DG_TIER_V[t], cash: "", deadline: j.closed ? "2000-01-01" : (q.deadline_iso || ""), deadline_text: j.closed ? "마감 지남" : (j.deadline || "상시"),
+    loc: j.location || q.loc || "", years: j.years || "", q }; });
+  return (DEC.grants || []).map((g) => ({ src: "grant", ...g })).concat(jobs);
+}
 function dgDays(g) { if (!g.deadline) return null; return Math.round((new Date(g.deadline + "T00:00:00+09:00") - new Date(DEC.today + "T00:00:00+09:00")) / 864e5); }
 const DG_TRACKS = ["창업", "취업", "진학", "기타"];
 let DG_TRACK = "";
 function dgFiltered(skipKind, skipTrack) {
   const v = (id) => $(id).value, q = v("dgQ").trim().toLowerCase();
-  return (DEC.grants || []).filter((g) => {
+  return dgItems().filter((g) => {
     if (!skipTrack && DG_TRACK && (g.track || "기타") !== DG_TRACK) return false;
     if (v("dgGroup") && g.group !== v("dgGroup")) return false;
     if (!skipKind && v("dgKind") && (g.kind || "기타") !== v("dgKind")) return false;
-    if (v("dgCash") && (g.cash || "불명") !== v("dgCash")) return false;
+    if (g.src === "grant" && v("dgCash") && (g.cash || "불명") !== v("dgCash")) return false;   // 지원금 필터는 지원사업에만 건다
     if (v("dgVerdict") && g.verdict !== v("dgVerdict")) return false;
     const d = dgDays(g), due = v("dgDue");
     if (due === "none" ? d !== null : due && (d === null || d > +due)) return false;
-    const st = DEC.pending["grant:" + g.key];
+    const st = DEC.pending[g.src + ":" + g.key];
     if (v("dgState") === "todo" && st) return false;
     if (v("dgState") === "done" && !st) return false;
-    if (q && !((g.title || "") + " " + (g.reason || "") + " " + (g.cash_text || "")).toLowerCase().includes(q)) return false;
+    if (q && !((g.title || "") + " " + (g.reason || "") + " " + (g.cash_text || "") + " " + (g.loc || "")).toLowerCase().includes(q)) return false;
     return true;
   });
 }
@@ -1686,49 +1716,94 @@ function renderDg() {
   tb.forEach((g) => { const k = g.track || "기타"; tc[k] = (tc[k] || 0) + 1; });
   $("dgTracks").innerHTML = [["", "전체", tb.length]].concat(DG_TRACKS.map((k) => [k, k, tc[k] || 0]))
     .map(([k, l, n]) => `<button data-track="${k}" class="${k === DG_TRACK ? "on" : ""}">${l} <span class="mono">${n}</span></button>`).join("");
-  $("dgTracks").querySelectorAll("[data-track]").forEach((b) => b.onclick = () => { DG_TRACK = b.dataset.track; renderDg(); });
+  $("dgTracks").querySelectorAll("[data-track]").forEach((b) => b.onclick = () => { DG_TRACK = b.dataset.track; DG_LIMIT = 100; $("dgKind").value = ""; $("dqAll").checked = false; renderDg(); });
   const base = dgFiltered(true), cnt = {};
   base.forEach((g) => { const k = g.kind || "기타"; cnt[k] = (cnt[k] || 0) + 1; });
   const cur = $("dgKind").value;
-  $("dgKind").innerHTML = `<option value="">유형 전체 ${base.length}</option>` + DG_KINDS.map((k) => `<option value="${k}"${k === cur ? " selected" : ""}>${k} ${cnt[k] || 0}</option>`).join("");
-  $("dgKinds").innerHTML = [["", "전체", base.length]].concat(DG_KINDS.filter((k) => cnt[k]).map((k) => [k, k, cnt[k]]))
-    .map(([k, l, n]) => `<button data-kind="${k}" class="${k === cur ? "on" : ""}">${l} ${n}</button>`).join("");
+  const kinds = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a]);
+  $("dgKind").innerHTML = `<option value="">유형 전체 ${base.length}</option>` + kinds.map((k) => `<option value="${esc(k)}"${k === cur ? " selected" : ""}>${esc(k)} ${cnt[k]}</option>`).join("");
+  $("dgKinds").innerHTML = [["", "전체", base.length]].concat(kinds.map((k) => [k, k, cnt[k]]))
+    .map(([k, l, n]) => `<button data-kind="${esc(k)}" class="${k === cur ? "on" : ""}">${esc(l)} ${n}</button>`).join("");
   $("dgKinds").querySelectorAll("[data-kind]").forEach((b) => b.onclick = () => { $("dgKind").value = b.dataset.kind; renderDg(); });
-  const L = dgFiltered(false);
+  $("dgBulk").hidden = DG_TRACK !== "취업";
+  $("dgCash").hidden = DG_TRACK === "취업";      // 지원금은 지원사업에만 있는 항목이다
+  $("dgBox").classList.toggle("withsel", DG_TRACK === "취업");
+  const L = dgFiltered(false).sort((x, y) => (x.group !== "core") - (y.group !== "core") || (x.deadline && x.deadline >= DEC.today ? x.deadline : "9999").localeCompare(y.deadline && y.deadline >= DEC.today ? y.deadline : "9999"));
   const m = DEC.grants_meta || {}, c = m.counts || {};
   $("dgCnt").textContent = String(L.length);
-  $("dgMeta").textContent = `추천 ${c.core || 0} · 표본 ${c.miss || 0} · 판정 끝 ${m.labeled || 0}` + (m.updated_at ? `  ${String(m.updated_at).slice(5, 16).replace("T", " ")}` : "");
-  $("dgBox").innerHTML = L.length ? L.map((g) => { const d = dgDays(g); return `<details class="dg">
-    <summary><div style="min-width:0"><b>${esc(g.title)}</b><small>${esc(g.kind || "기타")} · 자격 ${esc(g.verdict || "?")}${g.cash === "예" ? " · 지원금" : ""}${pendChip("grant:" + g.key) ? " · " + pendChip("grant:" + g.key) : ""}</small></div>
+  $("dgMeta").textContent = `지원사업 ${(DEC.grants || []).length} · 채용 공고 ${(DEC.queue || []).length}` + (m.updated_at ? `  ${String(m.updated_at).slice(5, 16).replace("T", " ")}` : "");
+  const shown = L.slice(0, DG_LIMIT);
+  $("dgBox").innerHTML = shown.length ? shown.map((g) => { const d = dgDays(g), pc = pendChip(g.src + ":" + g.key);
+    const sub = g.src === "queue"
+      ? `${esc(g.kind)} · 등급 ${esc(g.tier === "X" ? "지원 불가" : g.tier === "?" ? "판정 전" : g.tier)}${g.loc ? " · " + esc(g.loc) : ""}${g.years ? " · " + esc(g.years) : ""}`
+      : `${esc(g.kind || "기타")} · 자격 ${esc(g.verdict || "?")}${g.cash === "예" ? " · 지원금" : ""}`;
+    const body = g.src === "queue"
+      ? `${fitBox(g.q.fit)}${(g.q.jd || {}).ok ? `<div class="jd">${jdPart("주요 업무", g.q.jd.duties)}${jdPart("필수 자격", g.q.jd.musts)}${jdPart("우대", g.q.jd.prefs)}</div>` : `<div class="s">${esc((g.q.jd || {}).note || "요약 없음")}</div>`}
+         <div class="q a" style="border:0;padding:0">${g.url ? `<a class="more" href="${esc(g.url)}" target="_blank" rel="noopener">원문</a>` : ""}<span class="spacer"></span>
+         ${decBtn("queue", g.key, "skip")}${decBtn("queue", g.key, "hold")}${decBtn("queue", g.key, "apply", true)}</div>`
+      : `${g.cash_text ? `<div class="s">지원: ${esc(g.cash_text)}</div>` : ""}<div class="s">판단: ${esc(g.reason || "")}</div>
+         ${g.quote ? `<div class="s">원문: ${esc(g.quote)}</div>` : ""}
+         <div class="q a" style="border:0;padding:0">${g.url ? `<a class="more" href="${esc(g.url)}" target="_blank" rel="noopener">원문</a>` : ""}<span class="spacer"></span>
+         ${decBtn("grant", g.key, "ineligible")}${decBtn("grant", g.key, "pass")}${decBtn("grant", g.key, "hold")}${decBtn("grant", g.key, "apply", true)}</div>`;
+    return `<details class="dg">
+    <summary>${g.src === "queue" ? `<input type="checkbox" class="dqsel" value="${esc(g.key)}" onclick="event.stopPropagation()">` : ""}<div style="min-width:0"><b>${esc(g.title)}</b><small>${sub}${pc ? " · " + pc : ""}</small></div>
       <span class="chip mono">${d === null ? "상시" : d < 0 ? "마감" : "D-" + d}</span></summary>
-    <div class="body">
-      <div class="s">마감 ${esc(g.deadline_text || "미표기")}</div>
-      ${g.cash_text ? `<div class="s">지원: ${esc(g.cash_text)}</div>` : ""}
-      <div class="s">판단: ${esc(g.reason || "")}</div>
-      ${g.quote ? `<div class="s">원문: ${esc(g.quote)}</div>` : ""}
-      <div class="q a" style="border:0;padding:0">${g.url ? `<a class="more" href="${esc(g.url)}" target="_blank" rel="noopener">원문</a>` : ""}<span class="spacer"></span>
-      ${decBtn("grant", g.key, "ineligible")}${decBtn("grant", g.key, "pass")}${decBtn("grant", g.key, "hold")}${decBtn("grant", g.key, "apply", true)}</div>
-    </div></details>`; }).join("")
+    <div class="body"><div class="s">마감 ${esc(g.deadline_text || "미표기")}</div>${body}</div></details>`; }).join("")
+    + (L.length > shown.length ? `<button class="btn sm" id="dgMore" style="margin:10px auto;display:block">${L.length - shown.length}건 더 보기</button>` : "")
     : '<div class="loading">조건에 맞는 공고가 없다. 필터를 풀어 본다.</div>';
   bindDec($("dgBox"));
+  if ($("dgMore")) $("dgMore").onclick = () => { DG_LIMIT += 100; renderDg(); };
 }
+let DG_LIMIT = 100;   // 공고가 1,500건이라 한 번에 다 그리면 휴대폰이 멈춘다 — 100건씩 늘린다
 let DG_BOUND = false;
 function bindGrantFilters() {
   if (DG_BOUND) return; DG_BOUND = true;
-  ["dgGroup", "dgKind", "dgCash", "dgVerdict", "dgDue", "dgState"].forEach((id) => $(id).onchange = renderDg);
-  $("dgQ").oninput = renderDg;
+  bindJobBulk();
+  const re = () => { DG_LIMIT = 100; renderDg(); };
+  ["dgGroup", "dgKind", "dgCash", "dgVerdict", "dgDue", "dgState"].forEach((id) => $(id).onchange = re);
+  $("dgQ").oninput = re;
   $("dgReset").onclick = () => { ["dgKind", "dgCash", "dgVerdict", "dgDue", "dgState"].forEach((id) => $(id).value = ""); $("dgGroup").value = "core"; $("dgQ").value = ""; DG_TRACK = ""; renderDg(); };
 }
 const pendChip = (key) => DEC.pending[key] ? `<span class="pend">반영 대기 · ${DC_LABEL[DEC.pending[key]] || DEC.pending[key]}</span>` : "";
 const decBtn = (kind, id, act, pri) => `<button class="btn sm${pri ? " pri" : ""}" data-dk="${kind}" data-did="${esc(id)}" data-da="${act}">${DC_LABEL[act]}</button>`;
+const DC_TRACK_KO = { job: "취업", apply: "취업", career: "커리어", prep: "준비", health: "건강", startup: "창업", routine: "루틴",
+  commerce: "커머스", english: "영어", edu: "학부", grant: "지원사업" };
+let DC_TRACK = "";
+const dcTrack = (c) => DC_TRACK_KO[c.track] || c.track || "기타";
+function dcRow(c, withSel) {   // 한 줄: 체크 | 할 일 + 트랙·기한 | 버튼 (휴대폰에서는 버튼이 아래로 내려간다)
+  return `<div class="dcrow">${withSel ? `<input type="checkbox" class="dcsel" value="${esc(c.id)}">` : "<span></span>"}
+    <div style="min-width:0"><b>${esc(c.label)}</b><small>${esc(dcTrack(c))} · ${esc(String(c.due).slice(5))} · ${c.days_over > 0 ? c.days_over + "일 지남" : "오늘"}${pendChip("commitment:" + c.id) ? " · " + pendChip("commitment:" + c.id) : ""}</small></div>
+    <div class="btns">${decBtn("commitment", c.id, "cancel")}${decBtn("commitment", c.id, "bump7")}${decBtn("commitment", c.id, "done", true)}</div></div>`;
+}
 function renderDc() {
-  const L = DEC.commitments || [];
-  $("dcCnt").textContent = L.length ? String(L.length) : "";
-  $("dcBox").innerHTML = L.length ? L.map((c) => `<div class="q"><div class="t">${esc(c.label)}</div>
-    <div class="a"><span class="chip mono">${c.days_over > 0 ? c.days_over + "일 지남" : "오늘"}</span>${pendChip("commitment:" + c.id)}<span class="spacer"></span>
-    ${decBtn("commitment", c.id, "cancel")}${decBtn("commitment", c.id, "bump7")}${decBtn("commitment", c.id, "done", true)}</div></div>`).join("")
-    : '<div class="loading">정리할 약속이 없다.</div>';
-  bindDec($("dcBox"));
+  const all = DEC.commitments || [];
+  const open = all.filter((c) => !DEC.pending["commitment:" + c.id]), done = all.filter((c) => DEC.pending["commitment:" + c.id]);
+  const cnt = {}; open.forEach((c) => { const k = dcTrack(c); cnt[k] = (cnt[k] || 0) + 1; });
+  if (DC_TRACK && !cnt[DC_TRACK]) DC_TRACK = "";
+  $("dcTracks").innerHTML = [["", "전체", open.length]].concat(Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a]).map((k) => [k, k, cnt[k]]))
+    .map(([k, l, n]) => `<button data-dct="${esc(k)}" class="${k === DC_TRACK ? "on" : ""}">${esc(l)} ${n}</button>`).join("");
+  $("dcTracks").querySelectorAll("[data-dct]").forEach((b) => b.onclick = () => { DC_TRACK = b.dataset.dct; $("dcAll").checked = false; renderDc(); });
+  const L = open.filter((c) => !DC_TRACK || dcTrack(c) === DC_TRACK);
+  $("dcCnt").textContent = open.length ? String(open.length) : "";
+  $("dcBox").innerHTML = L.length ? L.map((c) => dcRow(c, true)).join("") : '<div class="loading">정리할 약속이 없다.</div>';
+  $("dcDoneWrap").hidden = !done.length;
+  $("dcDoneCnt").textContent = String(done.length);
+  $("dcDone").innerHTML = done.map((c) => dcRow(c, false)).join("");
+  bindDec($("dcBox")); bindDec($("dcDone"));
+}
+function bindManageTabs() {
+  document.querySelectorAll("#mTabs [data-mtab]").forEach((b) => b.onclick = () => {
+    document.querySelectorAll("#mTabs [data-mtab]").forEach((x) => x.classList.toggle("on", x === b));
+    document.querySelectorAll("[data-mpane]").forEach((p) => { p.hidden = p.dataset.mpane !== b.dataset.mtab; });
+  });
+  $("dcAll").onchange = (e) => document.querySelectorAll("#dcBox .dcsel").forEach((c) => { c.checked = e.target.checked; });
+  document.querySelectorAll("[data-dcbulk]").forEach((b) => b.onclick = async () => {
+    const ids = [...document.querySelectorAll("#dcBox .dcsel:checked")].map((c) => c.value);
+    if (!ids.length) { toast("약속을 먼저 체크한다"); return; }
+    let n = 0;
+    for (const id of ids) { try { await sendDec("commitment", id, b.dataset.dcbulk); n++; } catch (e) { /* 실패 건은 남는다 */ } }
+    toast(`${n}/${ids.length}건 ${DC_LABEL[b.dataset.dcbulk]} — 다음 새벽 원장에 반영`); $("dcAll").checked = false; renderDc();
+  });
 }
 const lis = (arr) => (arr || []).map((x) => `<li>${esc(x)}</li>`).join("");
 const jdPart = (h, arr) => arr && arr.length ? `<div class="h">${h}</div><ul>${lis(arr)}</ul>` : "";
@@ -1743,23 +1818,6 @@ const fitBox = (f) => {
   const res = f.resume ? `<div class="muted">${esc(f.family || "")} · 이력서 ${esc(f.resume)}</div>` : `<div class="muted">${esc(f.family || "")}</div>`;
   return `<div class="fit">${g}${cov}${gap}${res}${n}</div>`;
 };
-function renderDq() {
-  const tierSel = $("dqTier") ? $("dqTier").value : "";
-  const L = (DEC.queue || []).filter((q) => !tierSel || fitTier(q.fit) === tierSel);
-  const fc = DEC.fit_counts || {};
-  $("dqCnt").textContent = L.length ? String(L.length) : "";
-  $("dqMeta").textContent = (Object.keys(fc).length ? `A ${fc.A || 0} · B ${fc.B || 0} · C ${fc.C || 0} · 불가 ${fc.X || 0} · 판정 전 ${fc["?"] || 0}  ` : "")
-    + (DEC.jd_updated_at ? `요약 ${String(DEC.jd_updated_at).slice(5, 16).replace("T", " ")}` : "");
-  $("dqBox").innerHTML = L.length ? L.map((q) => { const j = q.jd || {}; const f = q.fit; return `<div class="q">
-    <div class="a" style="align-items:flex-start"><input type="checkbox" class="dqsel" value="${esc(q.id)}" style="margin-top:4px"><span class="tier ${fitTier(f)}">${fitTier(f) === "X" ? "불가" : fitTier(f)}${f && f.score != null && fitTier(f) !== "X" ? " " + Math.round(f.score) : ""}</span><div class="t" style="flex:1">${esc(q.company)} · ${esc(q.title)}</div></div>
-    ${fitBox(f)}
-    <div class="a"><span class="chip">${esc(q.source)}</span>${j.years ? `<span class="chip">${esc(j.years)}</span>` : ""}<span class="chip mono">${j.closed ? "마감 지남" : "마감 " + esc(j.deadline || "상시")}</span>${(j.location || q.loc) ? `<span class="chip">${esc(j.location || q.loc)}</span>` : ""}${pendChip("queue:" + q.id)}</div>
-    ${j.ok ? `<div class="jd">${jdPart("주요 업무", j.duties)}${jdPart("필수 자격", j.musts)}${jdPart("우대", j.prefs)}</div>` : `<div class="s">${esc(j.note || "요약 없음")}</div>`}
-    <div class="a">${q.url ? `<a class="more" href="${esc(q.url)}" target="_blank" rel="noopener">원문</a>` : ""}<span class="spacer"></span>
-    ${decBtn("queue", q.id, "hold")}${decBtn("queue", q.id, "skip")}${decBtn("queue", q.id, "apply", true)}</div></div>`; }).join("")
-    : '<div class="loading">결정할 공고가 없다.</div>';
-  bindDec($("dqBox"));
-}
 async function sendDec(kind, id, action) {
   const q = kind === "queue" ? (DEC.queue || []).find((x) => x.id === id) : null;
   const gate = q && q.fit && q.fit.gates && q.fit.gates.length ? "적합도 게이트: " + q.fit.gates.join(" / ") : "";
@@ -1769,19 +1827,22 @@ async function sendDec(kind, id, action) {
 }
 function bindDec(root) {
   root.querySelectorAll("[data-da]").forEach((b) => b.onclick = async () => {
-    try { await sendDec(b.dataset.dk, b.dataset.did, b.dataset.da); toast(DC_LABEL[b.dataset.da] + " — 다음 새벽 원장에 반영"); renderDc(); renderDq(); renderDg(); }
+    try { await sendDec(b.dataset.dk, b.dataset.did, b.dataset.da); toast(DC_LABEL[b.dataset.da] + " — 다음 새벽 원장에 반영"); renderDc(); renderDg(); }
     catch (e) { toast("실패: " + e.message); }
   });
 }
 function bindBulk() {
-  if ($("dqTier")) $("dqTier").onchange = () => { $("dqAll").checked = false; renderDq(); };
-  $("dqAll").onchange = (e) => document.querySelectorAll(".dqsel").forEach((c) => { c.checked = e.target.checked; });
-  document.querySelectorAll("[data-bulk]").forEach((b) => b.onclick = async () => {
-    const ids = [...document.querySelectorAll(".dqsel:checked")].map((c) => c.value);
+  bindManageTabs();
+  if ($("dqGo")) $("dqGo").onclick = (e) => { e.preventDefault(); DG_TRACK = "취업"; switchTab("grants"); };
+}
+function bindJobBulk() {   // 정보 탭 '취업'의 일괄 처리(옛 관리 탭 지원 큐에서 옮김)
+  $("dqAll").onchange = (e) => document.querySelectorAll("#dgBox .dqsel").forEach((c) => { c.checked = e.target.checked; });
+  document.querySelectorAll("#dgBulk [data-bulk]").forEach((b) => b.onclick = async () => {
+    const ids = [...document.querySelectorAll("#dgBox .dqsel:checked")].map((c) => c.value);
     if (!ids.length) { toast("공고를 먼저 체크한다"); return; }
     let n = 0;
     for (const id of ids) { try { await sendDec("queue", id, b.dataset.bulk); n++; } catch (e) { /* 실패 건은 남는다 */ } }
-    toast(`${n}/${ids.length}건 ${DC_LABEL[b.dataset.bulk]} — 다음 새벽 원장에 반영`); $("dqAll").checked = false; renderDq();
+    toast(`${n}/${ids.length}건 ${DC_LABEL[b.dataset.bulk]} — 다음 새벽 원장에 반영`); $("dqAll").checked = false; renderDg();
   });
 }
 const qRow = (q) => `<div class="q"><div class="t">${esc(q.title || q.summary || q.id)}</div>
