@@ -1647,13 +1647,13 @@ async function loadManage() {
 /* ── 결정판(2026-09-17 James "체크박스에 key in 가능하도록", "jd 내용을 핵심 요약") ──
    서버 /api/decisions. 누른 결정은 events 에 쌓이고, daily-ops 가 원장 스크립트로 반영한다. 반영 전에는 '반영 대기'로 보인다. */
 const DC_LABEL = { done: "끝남", bump7: "일주일 미룸", cancel: "접기", apply: "지원", skip: "스킵", hold: "보류",
-  right: "맞음", wrong: "틀림", unsure: "모름" };
+  pass: "관심 없음", ineligible: "자격 안 됨" };
 let DEC = null;
 async function loadDecisions() {
   try { DEC = await api("/api/decisions"); renderDc(); renderDq(); }
   catch (e) { $("dcBox").innerHTML = $("dqBox").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
 }
-/* 지원사업 탭 — 맞음·틀림·모름은 판정 엔진의 정답, '낸다'는 맞음 + 신청서 약속(마감 D-3 영업일). 데이터는 결정판과 같은 /api/decisions */
+/* 지원사업 탭 — 지원·보류·관심 없음·자격 안 됨. 이 답이 판정 엔진의 정답이고, 지원은 신청서 약속(마감 D-3 영업일)도 올린다. 데이터는 결정판과 같은 /api/decisions */
 async function loadGrants() {
   bindGrantFilters();
   try { DEC = await api("/api/decisions"); renderDg(); }
@@ -1707,7 +1707,7 @@ function renderDg() {
       <div class="s">판단: ${esc(g.reason || "")}</div>
       ${g.quote ? `<div class="s">원문: ${esc(g.quote)}</div>` : ""}
       <div class="q a" style="border:0;padding:0">${g.url ? `<a class="more" href="${esc(g.url)}" target="_blank" rel="noopener">원문</a>` : ""}<span class="spacer"></span>
-      ${decBtn("grant", g.key, "unsure")}${decBtn("grant", g.key, "wrong")}${decBtn("grant", g.key, "right")}<button class="btn sm pri" data-dk="grant" data-did="${esc(g.key)}" data-da="apply">낸다</button></div>
+      ${decBtn("grant", g.key, "ineligible")}${decBtn("grant", g.key, "pass")}${decBtn("grant", g.key, "hold")}${decBtn("grant", g.key, "apply", true)}</div>
     </div></details>`; }).join("")
     : '<div class="loading">조건에 맞는 공고가 없다. 필터를 풀어 본다.</div>';
   bindDec($("dgBox"));
@@ -1719,7 +1719,7 @@ function bindGrantFilters() {
   $("dgQ").oninput = renderDg;
   $("dgReset").onclick = () => { ["dgKind", "dgCash", "dgVerdict", "dgDue", "dgState"].forEach((id) => $(id).value = ""); $("dgGroup").value = "core"; $("dgQ").value = ""; DG_TRACK = ""; renderDg(); };
 }
-const pendChip = (key) => DEC.pending[key] ? `<span class="pend">반영 대기 · ${key.startsWith("grant:") && DEC.pending[key] === "apply" ? "낸다" : DC_LABEL[DEC.pending[key]]}</span>` : "";
+const pendChip = (key) => DEC.pending[key] ? `<span class="pend">반영 대기 · ${DC_LABEL[DEC.pending[key]] || DEC.pending[key]}</span>` : "";
 const decBtn = (kind, id, act, pri) => `<button class="btn sm${pri ? " pri" : ""}" data-dk="${kind}" data-did="${esc(id)}" data-da="${act}">${DC_LABEL[act]}</button>`;
 function renderDc() {
   const L = DEC.commitments || [];
@@ -1769,7 +1769,7 @@ async function sendDec(kind, id, action) {
 }
 function bindDec(root) {
   root.querySelectorAll("[data-da]").forEach((b) => b.onclick = async () => {
-    try { await sendDec(b.dataset.dk, b.dataset.did, b.dataset.da); toast((b.dataset.dk === "grant" && b.dataset.da === "apply" ? "낸다" : DC_LABEL[b.dataset.da]) + " — 다음 새벽 원장에 반영"); renderDc(); renderDq(); renderDg(); }
+    try { await sendDec(b.dataset.dk, b.dataset.did, b.dataset.da); toast(DC_LABEL[b.dataset.da] + " — 다음 새벽 원장에 반영"); renderDc(); renderDq(); renderDg(); }
     catch (e) { toast("실패: " + e.message); }
   });
 }
